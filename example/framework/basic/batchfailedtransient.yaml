@@ -1,0 +1,34 @@
+# Post to {kubeApiServerAddress}/apis/frameworkcontroller.microsoft.com/v1/namespaces/default/frameworks
+# For the full spec setting and usage, see ./pkg/apis/frameworkcontroller/v1/types.go
+apiVersion: frameworkcontroller.microsoft.com/v1
+kind: Framework
+metadata:
+  name: batchfailedtransient
+spec:
+  executionType: Start
+  retryPolicy:
+    fancyRetryPolicy: true
+    maxRetryCount: 1
+  taskRoles:
+    - name: worker
+      taskNumber: 1
+      frameworkAttemptCompletionPolicy:
+        minFailedTaskCount: 1
+        minSucceededTaskCount: -1
+      task:
+        retryPolicy:
+          fancyRetryPolicy: true
+          maxRetryCount: 1
+        pod:
+          spec:
+            restartPolicy: Never
+            containers:
+              - name: ubuntu
+                image: ubuntu:trusty
+                # See CompletionCode Convention in
+                # ./pkg/apis/frameworkcontroller/v1/constants.go
+                command: [
+                "sh", "-c",
+                "sleep 10 &&
+                echo exit with transient failure to tell controller to retry &&
+                exit 200"]

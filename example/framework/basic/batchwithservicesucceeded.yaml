@@ -1,0 +1,48 @@
+# Post to {kubeApiServerAddress}/apis/frameworkcontroller.microsoft.com/v1/namespaces/default/frameworks
+# For the full spec setting and usage, see ./pkg/apis/frameworkcontroller/v1/types.go
+apiVersion: frameworkcontroller.microsoft.com/v1
+kind: Framework
+metadata:
+  name: batchwithservicesucceeded
+spec:
+  executionType: Start
+  retryPolicy:
+    fancyRetryPolicy: true
+    maxRetryCount: 1
+  taskRoles:
+    - name: server
+      taskNumber: 2
+      frameworkAttemptCompletionPolicy:
+        minFailedTaskCount: 1
+        minSucceededTaskCount: -1
+      task:
+        retryPolicy:
+          fancyRetryPolicy: false
+          maxRetryCount: 0
+        pod:
+          spec:
+            restartPolicy: Never
+            containers:
+            - name: nginx
+              image: nginx:stable
+              ports:
+              - containerPort: 80
+    - name: worker
+      taskNumber: 3
+      frameworkAttemptCompletionPolicy:
+        minFailedTaskCount: 1
+        minSucceededTaskCount: 3
+      task:
+        retryPolicy:
+          fancyRetryPolicy: false
+          maxRetryCount: 0
+        pod:
+          spec:
+            restartPolicy: Never
+            containers:
+              - name: ubuntu
+                image: ubuntu:trusty
+                # The communication from worker to server is ignored in this
+                # example, however, in a real case, worker usually needs the
+                # help from server to make progress.
+                command: ["sh", "-c", "sleep 10 && printenv"]

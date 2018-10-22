@@ -1,0 +1,48 @@
+# Post to {kubeApiServerAddress}/apis/frameworkcontroller.microsoft.com/v1/namespaces/default/frameworks
+# For the full spec setting and usage, see ./pkg/apis/frameworkcontroller/v1/types.go
+apiVersion: frameworkcontroller.microsoft.com/v1
+kind: Framework
+metadata:
+  name: service
+spec:
+  executionType: Start
+  retryPolicy:
+    fancyRetryPolicy: false
+    maxRetryCount: -1
+  taskRoles:
+    - name: server
+      taskNumber: 1
+      frameworkAttemptCompletionPolicy:
+        minFailedTaskCount: 1
+        minSucceededTaskCount: -1
+      task:
+        retryPolicy:
+          fancyRetryPolicy: false
+          maxRetryCount: -1
+        pod:
+          #metadata:
+          #  labels:
+          #    app: server
+          spec:
+            restartPolicy: Always
+            containers:
+            - name: nginx
+              image: nginx:stable
+              ports:
+              - containerPort: 80
+---
+# Post to {kubeApiServerAddress}/api/v1/namespaces/default/services/
+apiVersion: v1
+kind: Service
+metadata:
+  name: server
+spec:
+  selector:
+    # Using predefined labels
+    FRAMEWORK_NAME: service
+    TASKROLE_NAME: server
+    # Also can use customized labels
+    #app: server
+  ports:
+  - port: 80
+  type: NodePort
