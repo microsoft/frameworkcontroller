@@ -149,10 +149,157 @@ Watch the change events of all Frameworks (in the specified FrameworkNamespace).
 [CompletionCode Convention](../pkg/apis/frameworkcontroller/v1/types.go)
 
 ## <a name="RetryPolicy">RetryPolicy</a>
-[RetryPolicy](../pkg/apis/frameworkcontroller/v1/types.go)
+### <a name="RetryPolicy_Spec">Spec</a>
+[RetryPolicySpec](../pkg/apis/frameworkcontroller/v1/types.go)
+
+### <a name="RetryPolicy_Usage">Usage</a>
+[RetryPolicySpec](../pkg/apis/frameworkcontroller/v1/types.go)
+
+### <a name="RetryPolicy_Example">Example</a>
+Notes:
+1. *Italic Conditions* can be inherited from the **DEFAULT** RetryPolicy, so no need to specify them explicitly.
+
+   *You still need to specify them explicitly, as we have not supported the Framework Spec Defaulting yet.*
+
+2. For the definition of each CompletionType, such as Transient Failed, see [CompletionCode Convention](#CompletionCodeConvention).
+
+<table>
+  <tbody>
+    <tr>
+      <th>FrameworkType</th>
+      <th>Framework RetryPolicy</th>
+      <th>TaskRole</th>
+      <th>Task RetryPolicy</th>
+      <th>Description</th>
+    </tr>
+    <tr>
+      <td rowspan="2"><b>DEFAULT</td>
+      <td rowspan="2"><i>FancyRetryPolicy = false<br>MaxRetryCount = 0</i></td>
+      <td>TaskRole-A</td>
+      <td><i>FancyRetryPolicy = false<br>MaxRetryCount = 0</i></td>
+      <td rowspan="2">The default RetryPolicy:<br>Never Retry for any Failed or Succeeded.</td>
+    </tr>
+    <tr>
+      <td>TaskRole-B</td>
+      <td><i>FancyRetryPolicy = false<br>MaxRetryCount = 0</i></td>
+    </tr>
+    <tr>
+      <td rowspan="1"><b>Service</td>
+      <td rowspan="1"><i>FancyRetryPolicy = false</i><br>MaxRetryCount = -2</td>
+      <td>TaskRole-A</td>
+      <td><i>FancyRetryPolicy = false</i><br>MaxRetryCount = -2</td>
+      <td rowspan="1">Always Retry for any Failed or Succeeded.</td>
+    </tr>
+    <tr>
+      <td rowspan="1"><b>Blind Batch</td>
+      <td rowspan="1"><i>FancyRetryPolicy = false</i><br>MaxRetryCount = -1</td>
+      <td>TaskRole-A</td>
+      <td><i>FancyRetryPolicy = false</i><br>MaxRetryCount = -1</td>
+      <td rowspan="1">Always Retry for any Failed.<br>Never Retry for Succeeded.</td>
+    </tr>
+    <tr>
+      <td rowspan="1"><b>Batch with Task Fault Tolerance</td>
+      <td rowspan="1">FancyRetryPolicy = true<br>MaxRetryCount = 3</td>
+      <td>TaskRole-A</td>
+      <td>FancyRetryPolicy = true<br>MaxRetryCount = 3</td>
+      <td rowspan="1">Always Retry for Transient Failed.<br>Never Retry for Permanent Failed or Succeeded.<br>Retry up to 3 times for Unknown Failed.</td>
+    </tr>
+    <tr>
+      <td rowspan="1"><b>Batch without Task Fault Tolerance</td>
+      <td rowspan="1">FancyRetryPolicy = true<br>MaxRetryCount = 3</td>
+      <td>TaskRole-A</td>
+      <td><i>FancyRetryPolicy = false<br>MaxRetryCount = 0</i></td>
+      <td rowspan="1">For Framework RetryPolicy, same as "Batch with Task Fault Tolerance".<br>For Task RetryPolicy, because the Task cannot tolerate any failed TaskAttempt, such as it cannot recover from previous failed TaskAttempt, so Never Retry Task for any Failed or Succeeded.</td>
+    </tr>
+    <tr>
+      <td rowspan="1"><b>Debug Mode</td>
+      <td rowspan="1">FancyRetryPolicy = true<br><i>MaxRetryCount = 0</i></td>
+      <td>TaskRole-A</td>
+      <td>FancyRetryPolicy = true<br><i>MaxRetryCount = 0</i></td>
+      <td rowspan="1">Always Retry for Transient Failed.<br>Never Retry for Permanent Failed or Unknown Failed or Succeeded.<br>This can help to capture the unexpected exit of user application itself.</td>
+    </tr>
+  </tbody>
+</table>
 
 ## <a name="FrameworkAttemptCompletionPolicy">FrameworkAttemptCompletionPolicy</a>
-[FrameworkAttemptCompletionPolicy](../pkg/apis/frameworkcontroller/v1/types.go)
+### <a name="FrameworkAttemptCompletionPolicy_Spec">Spec</a>
+[CompletionPolicySpec](../pkg/apis/frameworkcontroller/v1/types.go)
+
+### <a name="FrameworkAttemptCompletionPolicy_Usage">Usage</a>
+[CompletionPolicySpec](../pkg/apis/frameworkcontroller/v1/types.go)
+
+### <a name="FrameworkAttemptCompletionPolicy_Example">Example</a>
+Notes:
+1. *Italic Conditions* can be inherited from the **DEFAULT** FrameworkAttemptCompletionPolicy, so no need to specify them explicitly.
+
+   *You still need to specify them explicitly, as we have not supported the Framework Spec Defaulting yet.*
+
+<table>
+  <tbody>
+    <tr>
+      <th>FrameworkType</th>
+      <th>TaskRole</th>
+      <th>FrameworkAttemptCompletionPolicy</th>
+      <th>Description</th>
+    </tr>
+    <tr>
+      <td rowspan="2"><b>DEFAULT</td>
+      <td>TaskRole-A</td>
+      <td><i>MinFailedTaskCount = 1<br>MinSucceededTaskCount = -1</i></td>
+      <td rowspan="2">The default FrameworkAttemptCompletionPolicy:<br>Fail the FrameworkAttempt immediately if any Task failed.<br>Succeed the FrameworkAttempt until all Tasks succeeded.</td>
+    </tr>
+    <tr>
+      <td>TaskRole-B</td>
+      <td><i>MinFailedTaskCount = 1<br>MinSucceededTaskCount = -1</i></td>
+    </tr>
+    <tr>
+      <td rowspan="1"><b>Service</td>
+      <td>TaskRole-A</td>
+      <td><i>MinFailedTaskCount = 1<br>MinSucceededTaskCount = -1</i></td>
+      <td rowspan="1">Actually, any FrameworkAttemptCompletionPolicy is fine, since Service's Task will never complete, i.e. its Task's MaxRetryCount is -2, see <a href="#RetryPolicy_Example">RetryPolicy Example</a>.</td>
+    </tr>
+    <tr>
+      <td rowspan="2"><b>MapReduce</td>
+      <td>Map</td>
+      <td>MinFailedTaskCount = {Map.TaskNumber} * {mapreduce.map.failures.maxpercent} + 1<br><i>MinSucceededTaskCount = -1</i></td>
+      <td rowspan="2">A few failed Tasks is acceptable, but always want to wait all Tasks to succeed:<br>Fail the FrameworkAttempt immediately if the failed Tasks exceeded the limit.<br>Succeed the FrameworkAttempt until all Tasks completed and the failed Tasks is within the limit.</td>
+    </tr>
+    <tr>
+      <td>Reduce</td>
+      <td>MinFailedTaskCount = {Reduce.TaskNumber} * {mapreduce.reduce.failures.maxpercent} + 1<br><i>MinSucceededTaskCount = -1</i></td>
+    </tr>
+    <tr>
+      <td rowspan="2"><b>TensorFlow</td>
+      <td>ParameterServer</td>
+      <td><i>MinFailedTaskCount = 1<br>MinSucceededTaskCount = -1</i></td>
+      <td rowspan="2">Succeed a certain TaskRole is enough, and do not want to wait all Tasks to succeed:<br>Fail the FrameworkAttempt immediately if any Task failed.<br>Succeed the FrameworkAttempt immediately if Worker's all Tasks succeeded.</td>
+    </tr>
+    <tr>
+      <td>Worker</td>
+      <td><i>MinFailedTaskCount = 1</i><br>MinSucceededTaskCount = {Worker.TaskNumber}</td>
+    </tr>
+    <tr>
+      <td rowspan="3"><b>Arbitrator Dominated</td>
+      <td>Arbitrator</td>
+      <td><i>MinFailedTaskCount = 1</i><br>MinSucceededTaskCount = 1</td>
+      <td rowspan="3">The FrameworkAttemptCompletionPolicy is fully delegated to the single instance arbitrator of the user application:<br>Fail the FrameworkAttempt immediately if the arbitrator failed.<br>Succeed the FrameworkAttempt immediately if the arbitrator succeeded.</td>
+    </tr>
+    <tr>
+      <td>TaskRole-A</td>
+      <td>MinFailedTaskCount = -1<br><i>MinSucceededTaskCount = -1</i></td>
+    </tr>
+    <tr>
+      <td>TaskRole-B</td>
+      <td>MinFailedTaskCount = -1<br><i>MinSucceededTaskCount = -1</i></td>
+    </tr>
+    <tr>
+      <td rowspan="1"><b>First Completed Task Dominated</td>
+      <td>TaskRole-A</td>
+      <td><i>MinFailedTaskCount = 1</i><br>MinSucceededTaskCount = 1</td>
+      <td rowspan="1">The FrameworkAttemptCompletionPolicy is fully delegated to the first completed Task of the user application:<br>Fail the FrameworkAttempt immediately if any Task failed.<br>Succeed the FrameworkAttempt immediately if any Task succeeded.</td>
+    </tr>
+  </tbody>
+</table>
 
 ## <a name="BestPractice">Best Practice</a>
 [Best Practice](../pkg/apis/frameworkcontroller/v1/types.go)
