@@ -1,0 +1,18 @@
+# Put it directly under frameworkcontroller's current working directory.
+# For the full config setting and usage, see ./pkg/apis/frameworkcontroller/v1/config.go
+
+# This is the default config for frameworkcontroller, so all settings are commented out.
+
+# Setup k8s config:
+# kubeApiServerAddress is default to ${KUBE_APISERVER_ADDRESS} and kubeConfigFilePath
+# is default to ${KUBECONFIG} then falls back to ${HOME}/.kube/config.
+# If both kubeApiServerAddress and kubeConfigFilePath after defaulting are still empty,
+# falls back to k8s inClusterConfig.
+#
+# Address should be in format http[s]://host:port
+#kubeApiServerAddress: http://10.10.10.10:8080
+#
+# See https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#config
+#kubeConfigFilePath: ""
+
+#workerNumber: 20

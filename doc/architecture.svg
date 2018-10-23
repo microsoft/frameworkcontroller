@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:ev="http://www.w3.org/2001/xml-events"
+		width="6.16528in" height="4.36635in" viewBox="0 0 443.9 314.377" xml:space="preserve" color-interpolation-filters="sRGB"
+		class="st23">
+	<title>FrameworkController Architecture</title>
+
+	<style type="text/css">
+	<![CDATA[
+		.st1 {marker-end:url(#mrkr1-6);stroke:#000000;stroke-linecap:round;stroke-linejoin:round;stroke-width:1}
+		.st2 {fill:#000000;fill-opacity:1;stroke:#000000;stroke-opacity:1;stroke-width:0.28409090909091}
+		.st3 {fill:#ffffff;stroke:none;stroke-linecap:butt;stroke-width:7.2}
+		.st4 {fill:#000000;font-family:Calibri;font-size:0.666664em}
+		.st5 {marker-end:url(#mrkr1-6);stroke:#000000;stroke-dasharray:3,3;stroke-linecap:round;stroke-linejoin:round;stroke-width:1}
+		.st6 {visibility:visible}
+		.st7 {fill:#5b9bd5;fill-opacity:0.22;filter:url(#filter_2);stroke:#5b9bd5;stroke-opacity:0.22}
+		.st8 {fill:#bdedff;stroke:#000000;stroke-width:1}
+		.st9 {fill:#000000;font-family:Calibri;font-size:0.666664em;font-weight:bold}
+		.st10 {fill:#dae2f3;stroke:#000000;stroke-width:1}
+		.st11 {fill:#000000;font-family:Calibri;font-size:0.666664em;font-style:italic;font-weight:bold}
+		.st12 {font-size:1em;font-style:normal}
+		.st13 {fill:#ededed;stroke:#000000;stroke-width:1}
+		.st14 {fill:#ffffff;stroke:#000000;stroke-width:1}
+		.st15 {fill:#5b9bd5;fill-opacity:0.22;filter:url(#filter_2);stroke:#5b9bd5;stroke-dasharray:3,3;stroke-opacity:0.22}
+		.st16 {fill:#ffffff;stroke:#000000;stroke-dasharray:3,3;stroke-width:1}
+		.st17 {fill:#ffffff;stroke:none;stroke-linecap:butt}
+		.st18 {fill:#fad3b8;stroke:#000000;stroke-width:1}
+		.st19 {font-size:1em}
+		.st20 {fill:#fbe5d5;stroke:#000000;stroke-width:1}
+		.st21 {fill:#cde3bf;stroke:#000000;stroke-width:1}
+		.st22 {fill:#e2efd9;stroke:#000000;stroke-width:1}
+		.st23 {fill:none;fill-rule:evenodd;font-size:12px;overflow:visible;stroke-linecap:square;stroke-miterlimit:3}
+	]]>
+	</style>
+
+	<defs id="Markers">
+		<g id="lend1">
+			<path d="M 1 -1 L 0 0 L 1 1 " style="stroke-linecap:round;stroke-linejoin:round;fill:none"/>
+		</g>
+		<marker id="mrkr1-6" class="st2" orient="auto" markerUnits="strokeWidth" overflow="visible">
+			<use xlink:href="#lend1" transform="scale(-3.52,-3.52) "/>
+		</marker>
+	</defs>
+	<defs id="Filters">
+		<filter id="filter_2">
+			<feGaussianBlur stdDeviation="2"/>
+		</filter>
+	</defs>
+	<g>
+		<title>Page-1</title>
+		<g id="shape64-1" transform="translate(321.077,-143.975)">
+			<title>Dynamic connector</title>
+			<desc>3/6</desc>
+			<path d="M0 314.38 L23.85 314.38 L23.85 256.75" class="st1"/>
+			<rect x="18.2459" y="292.688" width="11.1995" height="9.59985" class="st3"/>
+			<text x="18.25" y="299.89" class="st4">3/6</text>		</g>
+		<g id="shape93-9" transform="translate(290.923,-213.475)">
+			<title>Dynamic connector.99</title>
+			<desc>2/5/8</desc>
+			<path d="M0 314.38 L-23.85 314.38 L-23.85 372" class="st1"/>
+			<rect x="-33.0178" y="326.467" width="18.3441" height="9.59985" class="st3"/>
+			<text x="-33.02" y="333.67" class="st4">2/5/8</text>		</g>
+		<g id="shape107-16" transform="translate(353.923,-271.1)">
+			<title>Dynamic connector.107</title>
+			<desc>0</desc>
+			<path d="M-9 314.38 L-9 360.13" class="st1"/>
+			<rect x="-11.0275" y="332.452" width="4.05478" height="9.59985" class="st3"/>
+			<text x="-11.03" y="339.65" class="st4">0</text>		</g>
+		<g id="shape111-23" transform="translate(66.1544,-86.35)">
+			<title>Dynamic connector.111</title>
+			<path d="M9 314.38 L9 268.63" class="st5"/>
+		</g>
+		<g id="shape112-28" transform="translate(153,-86.35)">
+			<title>Dynamic connector.112</title>
+			<path d="M0 314.38 L0 292.73 L-77.85 292.73 L-77.85 268.63" class="st5"/>
+		</g>
+		<g id="shape113-33" transform="translate(398.923,-213.475)">
+			<title>Dynamic connector.113</title>
+			<path d="M0 314.38 L6.98 314.38 L6.98 501.05 L-323.77 501.05 L-323.77 483.05" class="st1"/>
+		</g>
+		<g id="shape114-38" transform="translate(398.923,-213.475)">
+			<title>Dynamic connector.114</title>
+			<path d="M0 314.38 L6.98 314.38 L6.98 501.05 L-245.92 501.05 L-245.92 483.05" class="st1"/>
+		</g>
+		<g id="shape128-43" transform="translate(213.077,-132.1)">
+			<title>External interactor.128</title>
+			<desc>FrameworkController</desc>
+			<g id="shadow128-44" transform="matrix(1,0,0,1,0.345598,1.97279)" class="st6">
+				<rect x="0" y="290.627" width="108" height="23.75" class="st7"/>
+			</g>
+			<rect x="0" y="290.627" width="108" height="23.75" class="st8"/>
+			<text x="18.25" y="304.9" class="st9">FrameworkController</text>		</g>
+		<g id="shape144-49" transform="translate(290.923,-213.475)">
+			<title>Dynamic connector.144</title>
+			<desc>4</desc>
+			<path d="M0 314.38 L-102.37 314.38 L-102.37 346.88 L-204.97 346.88 L-204.97 372" class="st1"/>
+			<rect x="-104.396" y="338.506" width="4.05478" height="9.59985" class="st3"/>
+			<text x="-104.4" y="345.71" class="st4">4</text>		</g>
+		<g id="shape147-56" transform="translate(21.1544,-132.1)">
+			<title>External interactor.147</title>
+			<desc>[ConfigMapObject] FrameworkAttemptInstance</desc>
+			<g id="shadow147-57" transform="matrix(1,0,0,1,0.345598,1.97279)" class="st6">
+				<rect x="0" y="290.627" width="108" height="23.75" rx="11.875" ry="11.875" class="st7"/>
+			</g>
+			<rect x="0" y="290.627" width="108" height="23.75" rx="11.875" ry="11.875" class="st10"/>
+			<text x="22.23" y="300.1" class="st11">[ConfigMapObject] <tspan x="7.03" dy="1.2em" class="st12">FrameworkAttemptInstance</tspan></text>		</g>
+		<g id="shape149-63" transform="translate(21.1544,-201.6)">
+			<title>External interactor.149</title>
+			<desc>[FrameworkObject] FrameworkInstance</desc>
+			<g id="shadow149-64" transform="matrix(1,0,0,1,0.345598,1.97279)" class="st6">
+				<rect x="0" y="290.627" width="108" height="23.75" rx="11.875" ry="11.875" class="st7"/>
+			</g>
+			<rect x="0" y="290.627" width="108" height="23.75" rx="11.875" ry="11.875" class="st13"/>
+			<text x="21.64" y="300.1" class="st11">[FrameworkObject] <tspan x="21.02" dy="1.2em" class="st12">FrameworkInstance</tspan></text>		</g>
+		<g id="shape151-70" transform="translate(66.1544,-155.85)">
+			<title>Dynamic connector.151</title>
+			<path d="M9 314.38 L9 268.63" class="st5"/>
+		</g>
+		<g id="shape152-75" transform="translate(290.923,-201.6)">
+			<title>External interactor.152</title>
+			<desc>KubernetesApiServer</desc>
+			<g id="shadow152-76" transform="matrix(1,0,0,1,0.345598,1.97279)" class="st6">
+				<rect x="0" y="290.627" width="108" height="23.75" class="st7"/>
+			</g>
+			<rect x="0" y="290.627" width="108" height="23.75" class="st14"/>
+			<text x="18.72" y="304.9" class="st9">KubernetesApiServer</text>		</g>
+		<g id="shape154-81" transform="translate(290.923,-271.1)">
+			<title>External interactor.154</title>
+			<desc>KubernetesClient</desc>
+			<g id="shadow154-82" transform="matrix(1,0,0,1,0.345598,1.97279)" class="st6">
+				<path d="M0 314.38 L108 314.38 L108 290.63 L0 290.63 L0 314.38 Z" class="st15"/>
+			</g>
+			<path d="M0 314.38 L108 314.38 L108 290.63 L0 290.63 L0 314.38 Z" class="st16"/>
+			<text x="25.3" y="304.9" class="st9">KubernetesClient</text>		</g>
+		<g id="shape137-87" transform="translate(290.923,-204.475)">
+			<title>Dynamic connector.137</title>
+			<desc>1</desc>
+			<path d="M0 305.38 L-161.77 305.38" class="st1"/>
+			<rect x="-82.9117" y="300.577" width="4.05478" height="9.59985" class="st3"/>
+			<text x="-82.91" y="307.78" class="st4">1</text>		</g>
+		<g id="shape166-94" transform="translate(398.923,-213.475)">
+			<title>Dynamic connector.166</title>
+			<path d="M0 314.38 L6.98 314.38 L6.98 501.05 L-131.85 501.05 L-131.85 483.05" class="st1"/>
+		</g>
+		<g id="shape160-99" transform="translate(398.923,-213.475)">
+			<title>Dynamic connector.160</title>
+			<desc>7</desc>
+			<path d="M0 314.38 L6.98 314.38 L6.98 501.05 L-54 501.05 L-54 483.05" class="st1"/>
+			<rect x="4.94973" y="438.915" width="4.05478" height="9.59985" class="st17"/>
+			<text x="4.95" y="446.11" class="st4">7</text>		</g>
+		<g id="shape169-106" transform="translate(267.077,-86.35)">
+			<title>Dynamic connector.169</title>
+			<path d="M0 314.38 L0 292.73 L-191.92 292.73 L-191.92 268.63" class="st5"/>
+		</g>
+		<g id="shape170-111" transform="translate(344.923,-86.35)">
+			<title>Dynamic connector.170</title>
+			<path d="M0 314.38 L0 292.73 L-269.77 292.73 L-269.77 268.63" class="st5"/>
+		</g>
+		<g id="shape162-116" transform="translate(290.923,-44.8)">
+			<title>External interactor.162</title>
+			<desc>&#60;TaskRole-B&#62; &#60;TaskIndex-1&#62; [PodObject] TaskAttemptInstance</desc>
+			<g id="shadow162-117" transform="matrix(1,0,0,1,0.345598,1.97279)" class="st6">
+				<rect x="0" y="272.827" width="108" height="41.55" rx="20.775" ry="20.775" class="st7"/>
+			</g>
+			<rect x="0" y="272.827" width="108" height="41.55" rx="20.775" ry="20.775" class="st18"/>
+			<text x="31.65" y="281.6" class="st11">&#60;TaskRole-B&#62; <tspan x="30.09" dy="1.2em" class="st19">&#60;</tspan>TaskIndex-1&#62; <tspan
+						x="34.25" dy="1.2em" class="st19">[</tspan>PodObject] <tspan x="18.53" dy="1.2em" class="st12">TaskAttemptInstance</tspan></text>		</g>
+		<g id="shape163-125" transform="translate(213.077,-44.8)">
+			<title>External interactor.163</title>
+			<desc>&#60;TaskRole-B&#62; &#60;TaskIndex-0&#62; [PodObject] TaskAttemptInstance</desc>
+			<g id="shadow163-126" transform="matrix(1,0,0,1,0.345598,1.97279)" class="st6">
+				<rect x="0" y="272.827" width="108" height="41.55" rx="20.775" ry="20.775" class="st7"/>
+			</g>
+			<rect x="0" y="272.827" width="108" height="41.55" rx="20.775" ry="20.775" class="st20"/>
+			<text x="31.65" y="281.6" class="st11">&#60;TaskRole-B&#62; <tspan x="30.09" dy="1.2em" class="st19">&#60;</tspan>TaskIndex-0&#62; <tspan
+						x="34.25" dy="1.2em" class="st19">[</tspan>PodObject] <tspan x="18.53" dy="1.2em" class="st12">TaskAttemptInstance</tspan></text>		</g>
+		<g id="shape130-134" transform="translate(99,-44.8)">
+			<title>External interactor.130</title>
+			<desc>&#60;TaskRole-A&#62; &#60;TaskIndex-1&#62; [PodObject] TaskAttemptInstance</desc>
+			<g id="shadow130-135" transform="matrix(1,0,0,1,0.345598,1.97279)" class="st6">
+				<rect x="0" y="272.827" width="108" height="41.55" rx="20.775" ry="20.775" class="st7"/>
+			</g>
+			<rect x="0" y="272.827" width="108" height="41.55" rx="20.775" ry="20.775" class="st21"/>
+			<text x="31.47" y="281.6" class="st11">&#60;TaskRole-A&#62; <tspan x="30.09" dy="1.2em" class="st19">&#60;</tspan>TaskIndex-1&#62; <tspan
+						x="34.25" dy="1.2em" class="st19">[</tspan>PodObject] <tspan x="18.53" dy="1.2em" class="st12">TaskAttemptInstance</tspan></text>		</g>
+		<g id="shape133-143" transform="translate(21.1544,-44.8)">
+			<title>External interactor.133</title>
+			<desc>&#60;TaskRole-A&#62; &#60;TaskIndex-0&#62; [PodObject] TaskAttemptInstance</desc>
+			<g id="shadow133-144" transform="matrix(1,0,0,1,0.345598,1.97279)" class="st6">
+				<rect x="0" y="272.827" width="108" height="41.55" rx="20.775" ry="20.775" class="st7"/>
+			</g>
+			<rect x="0" y="272.827" width="108" height="41.55" rx="20.775" ry="20.775" class="st22"/>
+			<text x="31.47" y="281.6" class="st11">&#60;TaskRole-A&#62; <tspan x="30.09" dy="1.2em" class="st19">&#60;</tspan>TaskIndex-0&#62; <tspan
+						x="34.25" dy="1.2em" class="st19">[</tspan>PodObject] <tspan x="18.53" dy="1.2em" class="st12">TaskAttemptInstance</tspan></text>		</g>
+	</g>
+</svg>
