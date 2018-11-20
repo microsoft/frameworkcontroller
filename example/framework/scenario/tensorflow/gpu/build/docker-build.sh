@@ -27,19 +27,11 @@ set -o nounset
 set -o pipefail
 
 BASH_DIR=$(cd $(dirname ${BASH_SOURCE}) && pwd)
-# Ensure ${PROJECT_DIR} is ${GOPATH}/src/github.com/microsoft/frameworkcontroller
-PROJECT_DIR=${BASH_DIR}/../..
-DIST_DIR=${PROJECT_DIR}/dist/frameworkcontroller
+PROJECT_DIR=${BASH_DIR}
+IMAGE_NAME=tensorflow-examples:gpu
 
 cd ${PROJECT_DIR}
 
-rm -rf ${DIST_DIR}
-mkdir -p ${DIST_DIR}
+docker build -t ${IMAGE_NAME} -f ${BASH_DIR}/Dockerfile .
 
-go build -o ${DIST_DIR}/frameworkcontroller cmd/frameworkcontroller/*
-chmod a+x ${DIST_DIR}/frameworkcontroller
-cp -r bin/frameworkcontroller/* ${DIST_DIR}
-cp -r example/config/default/frameworkcontroller.yaml ${DIST_DIR}
-
-echo Succeeded to build binary distribution into ${DIST_DIR}:
-cd ${DIST_DIR} && ls -lR .
+echo Succeeded to build docker image ${IMAGE_NAME}

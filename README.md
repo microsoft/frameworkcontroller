@@ -58,11 +58,8 @@ A Framework represents an application with a set of Tasks:
 
 ## Quick Start
 1. [Build](build/frameworkcontroller)
-2. [Run Example](example/run/frameworkcontroller)
-3. [Config Usage](pkg/apis/frameworkcontroller/v1/config.go)
-4. [Config Example](example/config)
-5. [Framework Usage](pkg/apis/frameworkcontroller/v1/types.go)
-6. [Framework Example](example/framework)
+2. [Run Example](example/run/frameworkcontroller.md)
+3. [Framework Example](example/framework)
 
 ## Doc
 1. [User Manual](doc/user-manual.md)
@@ -76,7 +73,7 @@ A specialized wrapper can be built on top of FrameworkController to optimize for
 * [NNI Controller Wrapper](https://github.com/Microsoft/nni)(Developing): A wrapper client optimized for AutoML applications
 
 ## Official Image
-[FrameworkController DockerHub](https://hub.docker.com/u/frameworkcontroller)
+* [DockerHub](https://hub.docker.com/u/frameworkcontroller)
 
 ## Related Project
 * [YARN FrameworkLauncher](https://github.com/Microsoft/pai/blob/master/subprojects/frameworklauncher/yarn): Similar offering natively supports [Apache YARN](http://hadoop.apache.org)

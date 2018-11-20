@@ -25,28 +25,12 @@ package util
 import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/rest"
 	core "k8s.io/api/core/v1"
 	kubeClient "k8s.io/client-go/kubernetes"
 	frameworkClient "github.com/microsoft/frameworkcontroller/pkg/client/clientset/versioned"
-	ci "github.com/microsoft/frameworkcontroller/pkg/apis/frameworkcontroller/v1"
 )
-
-func BuildKubeConfig(cConfig *ci.ControllerConfig) (*rest.Config) {
-	kConfig, err := clientcmd.BuildConfigFromFlags(
-		*cConfig.KubeApiServerAddress, *cConfig.KubeConfigFilePath)
-	if err != nil {
-		panic(fmt.Errorf("Failed to build KubeConfig, please ensure "+
-				"config kubeApiServerAddress or config kubeConfigFilePath or "+
-				"${KUBE_APISERVER_ADDRESS} or ${KUBECONFIG} or ${HOME}/.kube/config or "+
-				"${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT} is valid: "+
-				"Error: %v",
-			err))
-	}
-	return kConfig
-}
 
 func CreateClients(kConfig *rest.Config) (
 		kubeClient.Interface, frameworkClient.Interface) {

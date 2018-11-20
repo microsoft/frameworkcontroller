@@ -26,10 +26,12 @@ import (
 	"os"
 	"fmt"
 	"io/ioutil"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	"github.com/microsoft/frameworkcontroller/pkg/common"
 )
 
-type ControllerConfig struct {
+type Config struct {
 	// If both kubeApiServerAddress and kubeConfigFilePath after defaulting are still
 	// empty, falls back to k8s inClusterConfig.
 	// Address should be in format http[s]://host:port
@@ -54,18 +56,18 @@ type ControllerConfig struct {
 	// completed with Transient Conflict Failed CompletionType, it will be retried
 	// after a random delay within this range.
 	// This helps to avoid the resource deadlock for Framework which needs
-	// Gang Scheduling (Gang Allocation), i.e. all Tasks in the Framework should
-	// be run in an all-or-nothing fashion in order to perform any useful work.
+	// Gang Execution, i.e. all Tasks in the Framework should be executed in an
+	// all-or-nothing fashion in order to perform any useful work.
 	FrameworkMinRetryDelaySecForTransientConflictFailed *int64 `yaml:"frameworkMinRetryDelaySecForTransientConflictFailed"`
 	FrameworkMaxRetryDelaySecForTransientConflictFailed *int64 `yaml:"frameworkMaxRetryDelaySecForTransientConflictFailed"`
 }
 
-func NewControllerConfig() *ControllerConfig {
-	c := initControllerConfig()
+func NewConfig() *Config {
+	c := initConfig()
 
 	// Defaulting
 	if c.KubeApiServerAddress == nil {
-		c.KubeApiServerAddress = common.PtrString(os.Getenv("KUBE_APISERVER_ADDRESS"))
+		c.KubeApiServerAddress = common.PtrString(EnvValueKubeApiServerAddress)
 	}
 	if c.KubeConfigFilePath == nil {
 		c.KubeConfigFilePath = defaultKubeConfigFilePath()
@@ -91,7 +93,7 @@ func NewControllerConfig() *ControllerConfig {
 	}
 
 	// Validation
-	errPrefix := "ControllerConfig Validation Failed: "
+	errPrefix := "Config Validation Failed: "
 	if *c.WorkerNumber <= 0 {
 		panic(fmt.Errorf(errPrefix+
 				"WorkerNumber %v should be positive",
@@ -130,13 +132,13 @@ func NewControllerConfig() *ControllerConfig {
 }
 
 func defaultKubeConfigFilePath() *string {
-	configPath := os.Getenv("KUBECONFIG")
+	configPath := EnvValueKubeConfigFilePath
 	_, err := os.Stat(configPath)
 	if err == nil {
 		return &configPath
 	}
 
-	configPath = os.Getenv("HOME") + "/.kube/config"
+	configPath = DefaultKubeConfigFilePath
 	_, err = os.Stat(configPath)
 	if err == nil {
 		return &configPath
@@ -146,15 +148,28 @@ func defaultKubeConfigFilePath() *string {
 	return &configPath
 }
 
-func initControllerConfig() *ControllerConfig {
-	c := ControllerConfig{}
+func initConfig() *Config {
+	c := Config{}
 
-	yamlBytes, err := ioutil.ReadFile(ControllerConfigFile)
+	yamlBytes, err := ioutil.ReadFile(ConfigFilePath)
 	if err != nil {
 		panic(fmt.Errorf(
-			"Failed to Read ControllerConfigFile: %v, %v", ControllerConfigFile, err))
+			"Failed to read config file: %v, %v", ConfigFilePath, err))
 	}
 
 	common.FromYaml(string(yamlBytes), &c)
 	return &c
+}
+
+func BuildKubeConfig(cConfig *Config) (*rest.Config) {
+	kConfig, err := clientcmd.BuildConfigFromFlags(
+		*cConfig.KubeApiServerAddress, *cConfig.KubeConfigFilePath)
+	if err != nil {
+		panic(fmt.Errorf("Failed to build KubeConfig, please ensure "+
+				"config kubeApiServerAddress or config kubeConfigFilePath or "+
+				"${KUBE_APISERVER_ADDRESS} or ${KUBECONFIG} or ${HOME}/.kube/config or "+
+				"${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT} is valid: "+
+				"Error: %v", err))
+	}
+	return kConfig
 }

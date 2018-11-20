@@ -10,19 +10,19 @@ spec:
     fancyRetryPolicy: true
     maxRetryCount: 1
   taskRoles:
-    - name: worker
-      taskNumber: 1
-      frameworkAttemptCompletionPolicy:
-        minFailedTaskCount: 1
-        minSucceededTaskCount: -1
-      task:
-        retryPolicy:
-          fancyRetryPolicy: true
-          maxRetryCount: 1
-        pod:
-          spec:
-            restartPolicy: Never
-            containers:
-              - name: ubuntu
-                image: ubuntu:trusty
-                command: ["sh", "-c", "sleep 10 && printenv"]
+  - name: worker
+    taskNumber: 1
+    frameworkAttemptCompletionPolicy:
+      minFailedTaskCount: 1
+      minSucceededTaskCount: -1
+    task:
+      retryPolicy:
+        fancyRetryPolicy: true
+        maxRetryCount: 1
+      pod:
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: ubuntu
+            image: ubuntu:trusty
+            command: ["sh", "-c", "printenv && sleep 10"]

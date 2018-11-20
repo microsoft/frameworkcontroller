@@ -28,6 +28,7 @@ import (
 	"time"
 	"os"
 	"gopkg.in/yaml.v2"
+	"encoding/json"
 	log "github.com/sirupsen/logrus"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -146,5 +147,20 @@ func FromYaml(yamlStr string, objAddr interface{}) {
 	err := yaml.Unmarshal([]byte(yamlStr), objAddr)
 	if err != nil {
 		panic(fmt.Errorf("Failed to unmarshal YAML %#v to Object: %v", yamlStr, err))
+	}
+}
+
+func ToJson(obj interface{}) string {
+	jsonBytes, err := json.Marshal(obj)
+	if err != nil {
+		panic(fmt.Errorf("Failed to marshal Object %#v to JSON: %v", obj, err))
+	}
+	return string(jsonBytes)
+}
+
+func FromJson(jsonStr string, objAddr interface{}) {
+	err := json.Unmarshal([]byte(jsonStr), objAddr)
+	if err != nil {
+		panic(fmt.Errorf("Failed to unmarshal JSON %#v to Object: %v", jsonStr, err))
 	}
 }

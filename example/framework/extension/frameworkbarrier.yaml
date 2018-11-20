@@ -1,0 +1,114 @@
+# Post to {kubeApiServerAddress}/apis/frameworkcontroller.microsoft.com/v1/namespaces/default/frameworks
+# For the full spec setting and usage, see ./pkg/apis/frameworkcontroller/v1/types.go
+# For the full frameworkbarrier usage, see ./pkg/barrier/barrier.go
+apiVersion: frameworkcontroller.microsoft.com/v1
+kind: Framework
+metadata:
+  name: frameworkbarrier
+spec:
+  executionType: Start
+  retryPolicy:
+    fancyRetryPolicy: true
+    maxRetryCount: 0
+  taskRoles:
+  - name: server
+    taskNumber: 10
+    frameworkAttemptCompletionPolicy:
+      minFailedTaskCount: 1
+      minSucceededTaskCount: -1
+    task:
+      retryPolicy:
+        fancyRetryPolicy: false
+        maxRetryCount: 0
+      pod:
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: ubuntu
+            image: ubuntu:trusty
+            # Using /mnt/frameworkbarrier/injector.sh to inject environment
+            # variables, such as:
+            # {TaskRoleName}_ips=
+            #   {Task[0].PodIP},...,
+            #   {Task[TaskRole.TaskNumber-1].PodIP}
+            # {TaskRoleName}_addresses=
+            #   {Task[0].PodIP}:${{TaskRoleName}_port},...,
+            #   {Task[TaskRole.TaskNumber-1].PodIP}:${{TaskRoleName}_port}
+            #  Note, the environment variable {TaskRoleName}_port should be
+            #  provided by the caller in advance.
+            #
+            # User may need to tweak these environment variables to its own
+            # input format.
+            #
+            # User can also write its own injector script to inject other
+            # Framework information from the Framework object file:
+            # /mnt/frameworkbarrier/framework.json.
+            command: [
+            "sh", "-c",
+            "server_port=4001 worker_port=5001 . /mnt/frameworkbarrier/injector.sh && printenv &&
+            server_port=4002 worker_port=5002 . /mnt/frameworkbarrier/injector.sh && printenv &&
+            sleep 60"]
+            ports:
+            - containerPort: 4001
+            - containerPort: 4002
+            volumeMounts:
+            - name: frameworkbarrier-volume
+              mountPath: /mnt/frameworkbarrier
+          initContainers:
+          - name: frameworkbarrier
+            # Using official image to demonstrate this example.
+            image: frameworkcontroller/frameworkbarrier
+            # Using k8s inClusterConfig, so usually, no need to specify
+            # KUBE_APISERVER_ADDRESS or KUBECONFIG
+            #env:
+            #- name: KUBE_APISERVER_ADDRESS
+            #  value: {http[s]://host:port}
+            #- name: KUBECONFIG
+            #  value: {Pod Local KubeConfig File Path}
+            volumeMounts:
+            - name: frameworkbarrier-volume
+              mountPath: /mnt/frameworkbarrier
+          volumes:
+          - name: frameworkbarrier-volume
+            emptyDir: {}
+  - name: worker
+    taskNumber: 10
+    frameworkAttemptCompletionPolicy:
+      minFailedTaskCount: 1
+      minSucceededTaskCount: -1
+    task:
+      retryPolicy:
+        fancyRetryPolicy: false
+        maxRetryCount: 0
+      pod:
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: ubuntu
+            image: ubuntu:trusty
+            command: [
+            "sh", "-c",
+            "server_port=4001 worker_port=5001 . /mnt/frameworkbarrier/injector.sh && printenv &&
+            server_port=4002 worker_port=5002 . /mnt/frameworkbarrier/injector.sh && printenv &&
+            sleep 60"]
+            ports:
+            - containerPort: 5001
+            - containerPort: 5002
+            volumeMounts:
+            - name: frameworkbarrier-volume
+              mountPath: /mnt/frameworkbarrier
+          initContainers:
+          - name: frameworkbarrier
+            imagePullPolicy: Never
+            image: frameworkcontroller/frameworkbarrier
+            #env:
+            #- name: KUBE_APISERVER_ADDRESS
+            #  value: {http[s]://host:port}
+            #- name: KUBECONFIG
+            #  value: {Pod Local KubeConfig File Path}
+            volumeMounts:
+            - name: frameworkbarrier-volume
+              mountPath: /mnt/frameworkbarrier
+          volumes:
+          - name: frameworkbarrier-volume
+            emptyDir: {}

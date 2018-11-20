@@ -23,6 +23,7 @@
 package v1
 
 import (
+	"os"
 	core "k8s.io/api/core/v1"
 )
 
@@ -30,16 +31,17 @@ import (
 // General Constants
 ///////////////////////////////////////////////////////////////////////////////////////
 const (
+	// For controller
+	ComponentName      = "frameworkcontroller"
 	GroupName          = "frameworkcontroller.microsoft.com"
 	Version            = "v1"
 	FrameworkPlural    = "frameworks"
 	FrameworkCRDName   = FrameworkPlural + "." + GroupName
 	FrameworkKind      = "Framework"
 	ConfigMapKind      = "ConfigMap"
-	ControllerName     = "frameworkcontroller"
 	ObjectUIDFieldPath = "metadata.uid"
 
-	ControllerConfigFile   = "./frameworkcontroller.yaml"
+	ConfigFilePath         = "./frameworkcontroller.yaml"
 	UnlimitedValue         = -1
 	ExtendedUnlimitedValue = -2
 
@@ -80,6 +82,10 @@ var ConfigMapGroupVersionKind = core.SchemeGroupVersion.WithKind(ConfigMapKind)
 var ObjectUIDEnvVarSource = &core.EnvVarSource{
 	FieldRef: &core.ObjectFieldSelector{FieldPath: ObjectUIDFieldPath},
 }
+
+var EnvValueKubeApiServerAddress = os.Getenv("KUBE_APISERVER_ADDRESS")
+var EnvValueKubeConfigFilePath = os.Getenv("KUBECONFIG")
+var DefaultKubeConfigFilePath = os.Getenv("HOME") + "/.kube/config"
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // CompletionCodeInfos

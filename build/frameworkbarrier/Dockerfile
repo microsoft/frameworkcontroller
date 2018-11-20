@@ -1,5 +1,3 @@
-#!/bin/bash
-
 # MIT License
 #
 # Copyright (c) Microsoft Corporation. All rights reserved.
@@ -22,24 +20,15 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE
 
-set -o errexit
-set -o nounset
-set -o pipefail
+FROM golang:alpine
 
-BASH_DIR=$(cd $(dirname ${BASH_SOURCE}) && pwd)
-# Ensure ${PROJECT_DIR} is ${GOPATH}/src/github.com/microsoft/frameworkcontroller
-PROJECT_DIR=${BASH_DIR}/../..
-DIST_DIR=${PROJECT_DIR}/dist/frameworkcontroller
+ENV PROJECT_DIR=${GOPATH}/src/github.com/microsoft/frameworkcontroller
 
-cd ${PROJECT_DIR}
+RUN apk update && apk add bash && mkdir -p ${PROJECT_DIR}
+COPY . ${PROJECT_DIR}
+WORKDIR ${PROJECT_DIR}
 
-rm -rf ${DIST_DIR}
-mkdir -p ${DIST_DIR}
+RUN ./build/frameworkbarrier/go-build.sh
+WORKDIR ./dist/frameworkbarrier
 
-go build -o ${DIST_DIR}/frameworkcontroller cmd/frameworkcontroller/*
-chmod a+x ${DIST_DIR}/frameworkcontroller
-cp -r bin/frameworkcontroller/* ${DIST_DIR}
-cp -r example/config/default/frameworkcontroller.yaml ${DIST_DIR}
-
-echo Succeeded to build binary distribution into ${DIST_DIR}:
-cd ${DIST_DIR} && ls -lR .
+ENTRYPOINT ["./start.sh"]

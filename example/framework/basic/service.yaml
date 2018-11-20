@@ -10,26 +10,26 @@ spec:
     fancyRetryPolicy: false
     maxRetryCount: -1
   taskRoles:
-    - name: server
-      taskNumber: 1
-      frameworkAttemptCompletionPolicy:
-        minFailedTaskCount: 1
-        minSucceededTaskCount: -1
-      task:
-        retryPolicy:
-          fancyRetryPolicy: false
-          maxRetryCount: -1
-        pod:
-          #metadata:
-          #  labels:
-          #    app: server
-          spec:
-            restartPolicy: Always
-            containers:
-            - name: nginx
-              image: nginx:stable
-              ports:
-              - containerPort: 80
+  - name: server
+    taskNumber: 1
+    frameworkAttemptCompletionPolicy:
+      minFailedTaskCount: 1
+      minSucceededTaskCount: -1
+    task:
+      retryPolicy:
+        fancyRetryPolicy: false
+        maxRetryCount: -1
+      pod:
+        #metadata:
+        #  labels:
+        #    app: server
+        spec:
+          restartPolicy: Always
+          containers:
+          - name: nginx
+            image: nginx:stable
+            ports:
+            - containerPort: 80
 ---
 # Post to {kubeApiServerAddress}/api/v1/namespaces/default/services/
 apiVersion: v1

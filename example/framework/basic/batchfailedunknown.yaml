@@ -10,25 +10,25 @@ spec:
     fancyRetryPolicy: true
     maxRetryCount: 1
   taskRoles:
-    - name: worker
-      taskNumber: 1
-      frameworkAttemptCompletionPolicy:
-        minFailedTaskCount: 1
-        minSucceededTaskCount: -1
-      task:
-        retryPolicy:
-          fancyRetryPolicy: true
-          maxRetryCount: 1
-        pod:
-          spec:
-            restartPolicy: Never
-            containers:
-              - name: ubuntu
-                image: ubuntu:trusty
-                # See CompletionCode Convention in
-                # ./pkg/apis/frameworkcontroller/v1/constants.go
-                command: [
-                "sh", "-c",
-                "sleep 10 &&
-                echo exit with unknown failure to tell controller to retry within maxRetryCount &&
-                exit 1"]
+  - name: worker
+    taskNumber: 1
+    frameworkAttemptCompletionPolicy:
+      minFailedTaskCount: 1
+      minSucceededTaskCount: -1
+    task:
+      retryPolicy:
+        fancyRetryPolicy: true
+        maxRetryCount: 1
+      pod:
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: ubuntu
+            image: ubuntu:trusty
+            # See CompletionCode Convention in
+            # ./pkg/apis/frameworkcontroller/v1/constants.go
+            command: [
+            "sh", "-c",
+            "sleep 10 &&
+            echo exit with unknown failure to tell controller to retry within maxRetryCount &&
+            exit 1"]
