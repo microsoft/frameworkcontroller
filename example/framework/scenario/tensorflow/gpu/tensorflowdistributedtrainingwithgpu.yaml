@@ -111,7 +111,6 @@ spec:
           hostNetwork: true
           containers:
           - name: tensorflow
-            imagePullPolicy: Never
             image: frameworkcontroller/tensorflow-examples:gpu
             workingDir: /tensorflow/benchmarks/scripts/tf_cnn_benchmarks
             command: [
@@ -136,7 +135,6 @@ spec:
               mountPath: /mnt/data
           initContainers:
           - name: frameworkbarrier
-            imagePullPolicy: Never
             image: frameworkcontroller/frameworkbarrier
             #env:
             #- name: KUBE_APISERVER_ADDRESS

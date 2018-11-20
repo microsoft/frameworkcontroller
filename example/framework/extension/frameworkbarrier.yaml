@@ -99,7 +99,6 @@ spec:
               mountPath: /mnt/frameworkbarrier
           initContainers:
           - name: frameworkbarrier
-            imagePullPolicy: Never
             image: frameworkcontroller/frameworkbarrier
             #env:
             #- name: KUBE_APISERVER_ADDRESS
