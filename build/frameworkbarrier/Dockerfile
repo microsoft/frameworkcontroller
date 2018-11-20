@@ -20,15 +20,23 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE
 
-FROM golang:alpine
+FROM golang:alpine as builder
 
 ENV PROJECT_DIR=${GOPATH}/src/github.com/microsoft/frameworkcontroller
+ENV DIST_DIR=/frameworkcontroller
 
 RUN apk update && apk add bash && mkdir -p ${PROJECT_DIR}
 COPY . ${PROJECT_DIR}
-WORKDIR ${PROJECT_DIR}
+RUN ${PROJECT_DIR}/build/frameworkbarrier/go-build.sh && \
+  mv ${PROJECT_DIR} ${DIST_DIR}
 
-RUN ./build/frameworkbarrier/go-build.sh
-WORKDIR ./dist/frameworkbarrier
+
+FROM alpine:latest
+
+ENV DIST_DIR=/frameworkcontroller
+
+RUN apk update && apk add bash
+COPY --from=builder ${DIST_DIR} ${DIST_DIR}
+WORKDIR ${DIST_DIR}/dist/frameworkbarrier
 
 ENTRYPOINT ["./start.sh"]
