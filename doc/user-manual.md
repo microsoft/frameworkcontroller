@@ -146,7 +146,7 @@ Watch the change events of all Frameworks (in the specified FrameworkNamespace).
 [Container EnvironmentVariable](../pkg/apis/frameworkcontroller/v1/constants.go)
 
 ## <a name="CompletionCodeConvention">CompletionCode Convention</a>
-[CompletionCode Convention](../pkg/apis/frameworkcontroller/v1/types.go)
+[CompletionCode Convention](../pkg/apis/frameworkcontroller/v1/constants.go)
 
 ## <a name="RetryPolicy">RetryPolicy</a>
 ### <a name="RetryPolicy_Spec">Spec</a>
