@@ -23,20 +23,21 @@
 FROM golang:alpine as builder
 
 ENV PROJECT_DIR=${GOPATH}/src/github.com/microsoft/frameworkcontroller
-ENV DIST_DIR=/frameworkcontroller
+ENV INSTALL_DIR=/opt/frameworkcontroller/frameworkbarrier
 
-RUN apk update && apk add bash && mkdir -p ${PROJECT_DIR}
+RUN apk update && apk add --no-cache bash && \
+  mkdir -p ${PROJECT_DIR} ${INSTALL_DIR}
 COPY . ${PROJECT_DIR}
 RUN ${PROJECT_DIR}/build/frameworkbarrier/go-build.sh && \
-  mv ${PROJECT_DIR} ${DIST_DIR}
+  mv ${PROJECT_DIR}/dist/frameworkbarrier/* ${INSTALL_DIR}
 
 
 FROM alpine:latest
 
-ENV DIST_DIR=/frameworkcontroller
+ENV INSTALL_DIR=/opt/frameworkcontroller/frameworkbarrier
 
-RUN apk update && apk add bash
-COPY --from=builder ${DIST_DIR} ${DIST_DIR}
-WORKDIR ${DIST_DIR}/dist/frameworkbarrier
+RUN apk update && apk add --no-cache bash
+COPY --from=builder ${INSTALL_DIR} ${INSTALL_DIR}
+WORKDIR ${INSTALL_DIR}
 
 ENTRYPOINT ["./start.sh"]
