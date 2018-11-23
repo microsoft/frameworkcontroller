@@ -20,24 +20,16 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE
 
-FROM golang:alpine as builder
+# Add tensorflow/tensorflow
+FROM tensorflow/tensorflow:1.12.0-devel
 
-ENV PROJECT_DIR=${GOPATH}/src/github.com/microsoft/frameworkcontroller
-ENV INSTALL_DIR=/opt/frameworkcontroller/frameworkcontroller
+ENV PROJECT_DIR=/tensorflow
+WORKDIR ${PROJECT_DIR}
 
-RUN apk update && apk add --no-cache bash && \
-  mkdir -p ${PROJECT_DIR} ${INSTALL_DIR}
-COPY . ${PROJECT_DIR}
-RUN ${PROJECT_DIR}/build/frameworkcontroller/go-build.sh && \
-  mv ${PROJECT_DIR}/dist/frameworkcontroller/* ${INSTALL_DIR}
+# Add tensorflow/benchmarks
+RUN git clone --branch=cnn_tf_v1.12_compatible --depth=1 \
+  https://github.com/tensorflow/benchmarks.git
 
+RUN ls -l .
 
-FROM alpine:latest
-
-ENV INSTALL_DIR=/opt/frameworkcontroller/frameworkcontroller
-
-RUN apk update && apk add --no-cache bash
-COPY --from=builder ${INSTALL_DIR} ${INSTALL_DIR}
-WORKDIR ${INSTALL_DIR}
-
-ENTRYPOINT ["./start.sh"]
+ENTRYPOINT ["/bin/bash"]

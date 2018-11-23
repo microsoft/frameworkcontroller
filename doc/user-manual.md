@@ -6,6 +6,7 @@
    - [CompletionCode Convention](#CompletionCodeConvention)
    - [RetryPolicy](#RetryPolicy)
    - [FrameworkAttemptCompletionPolicy](#FrameworkAttemptCompletionPolicy)
+   - [Controller Extension](#ControllerExtension)
    - [Best Practice](#BestPractice)
 
 ## <a name="FrameworkInterop">Framework Interop</a>
@@ -146,7 +147,7 @@ Watch the change events of all Frameworks (in the specified FrameworkNamespace).
 [Container EnvironmentVariable](../pkg/apis/frameworkcontroller/v1/constants.go)
 
 ## <a name="CompletionCodeConvention">CompletionCode Convention</a>
-[CompletionCode Convention](../pkg/apis/frameworkcontroller/v1/types.go)
+[CompletionCode Convention](../pkg/apis/frameworkcontroller/v1/constants.go)
 
 ## <a name="RetryPolicy">RetryPolicy</a>
 ### <a name="RetryPolicy_Spec">Spec</a>
@@ -300,6 +301,12 @@ Notes:
     </tr>
   </tbody>
 </table>
+
+## <a name="ControllerExtension">Controller Extension</a>
+### <a name="FrameworkBarrier">FrameworkBarrier</a>
+1. [Usage](../pkg/barrier/barrier.go)
+2. [Build](../build/frameworkbarrier)
+3. Example: [FrameworkBarrier Example](../example/framework/extension/frameworkbarrier.yaml), [Tensorflow Example](../example/framework/scenario/tensorflow), [etc](../example/framework/scenario).
 
 ## <a name="BestPractice">Best Practice</a>
 [Best Practice](../pkg/apis/frameworkcontroller/v1/types.go)

@@ -1,0 +1,145 @@
+# Post to {kubeApiServerAddress}/apis/frameworkcontroller.microsoft.com/v1/namespaces/default/frameworks
+# For the full spec setting and usage, see ./pkg/apis/frameworkcontroller/v1/types.go
+# For the full frameworkbarrier usage, see ./pkg/barrier/barrier.go
+apiVersion: frameworkcontroller.microsoft.com/v1
+kind: Framework
+metadata:
+  name: tensorflowdistributedtrainingwithcpu
+spec:
+  executionType: Start
+  retryPolicy:
+    fancyRetryPolicy: true
+    maxRetryCount: 2
+  taskRoles:
+  - name: ps
+    taskNumber: 2
+    frameworkAttemptCompletionPolicy:
+      minFailedTaskCount: 1
+      minSucceededTaskCount: -1
+    task:
+      retryPolicy:
+        fancyRetryPolicy: false
+        maxRetryCount: 0
+      pod:
+        spec:
+          restartPolicy: Never
+          # Using hostNetwork to avoid network overhead.
+          hostNetwork: true
+          containers:
+          - name: tensorflow
+            # Using official image to demonstrate this example.
+            # The image contains and only contains tensorflow official code.
+            image: frameworkcontroller/tensorflow-examples:cpu
+            # For the tf_cnn_benchmarks usage, see
+            # https://github.com/tensorflow/benchmarks/tree/master/scripts/tf_cnn_benchmarks
+            workingDir: /tensorflow/benchmarks/scripts/tf_cnn_benchmarks
+            # Using /mnt/frameworkbarrier/injector.sh to inject environment
+            # variables without the need for image invasion and k8s DNS:
+            # {TaskRoleName}_addresses=
+            #   {Task[0].PodIP}:${{TaskRoleName}_port},...,
+            #   {Task[TaskRole.TaskNumber-1].PodIP}:${{TaskRoleName}_port}
+            # See more in ./example/framework/extension/frameworkbarrier.yaml
+            command: [
+            "sh", "-c",
+            "ps_port=4001 worker_port=5001 . /mnt/frameworkbarrier/injector.sh &&
+            python tf_cnn_benchmarks.py --job_name=ps --task_index=${TASK_INDEX}
+            --ps_hosts=${ps_addresses} --worker_hosts=${worker_addresses}
+            --variable_update=parameter_server --cross_replica_sync=false
+            --model=alexnet --batch_size=8 --num_batches=10
+            --device=cpu --local_parameter_device=cpu --data_format=NHWC
+            --data_name=cifar10 --data_dir=/mnt/data/cifar-10-batches-py
+            --train_dir=/mnt/data/${FRAMEWORK_NAME}/output"]
+            ports:
+            - containerPort: 4001
+            volumeMounts:
+            - name: frameworkbarrier-volume
+              mountPath: /mnt/frameworkbarrier
+            - name: data-volume
+              mountPath: /mnt/data
+          initContainers:
+          - name: frameworkbarrier
+            # Using official image to demonstrate this example.
+            image: frameworkcontroller/frameworkbarrier
+            # Using k8s inClusterConfig, so usually, no need to specify
+            # KUBE_APISERVER_ADDRESS or KUBECONFIG
+            #env:
+            #- name: KUBE_APISERVER_ADDRESS
+            #  value: {http[s]://host:port}
+            #- name: KUBECONFIG
+            #  value: {Pod Local KubeConfig File Path}
+            volumeMounts:
+            - name: frameworkbarrier-volume
+              mountPath: /mnt/frameworkbarrier
+          volumes:
+          - name: frameworkbarrier-volume
+            emptyDir: {}
+          - name: data-volume
+            # User needs to specify his own data-volume for input data and
+            # output model and the data-volume must be a distributed shared
+            # file system, so that data can be "handed off" between Pods,
+            # such as nfs, cephfs or glusterfs, etc.
+            # See https://kubernetes.io/docs/concepts/storage/volumes.
+            #
+            # And then he needs to download and extract the example input data
+            # from:
+            #   https://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz
+            # to:
+            #   {Volume Shared Directory}/cifar-10-batches-py
+            #
+            # For example:
+            #nfs:
+            #  server: {NFS Server Host}
+            #  path: {NFS Shared Directory}
+  - name: worker
+    taskNumber: 3
+    frameworkAttemptCompletionPolicy:
+      minFailedTaskCount: 1
+      # Succeed the FrameworkAttempt immediately if worker's all Tasks succeeded.
+      minSucceededTaskCount: 3
+    task:
+      retryPolicy:
+        fancyRetryPolicy: false
+        maxRetryCount: 0
+      pod:
+        spec:
+          restartPolicy: Never
+          hostNetwork: true
+          containers:
+          - name: tensorflow
+            image: frameworkcontroller/tensorflow-examples:cpu
+            workingDir: /tensorflow/benchmarks/scripts/tf_cnn_benchmarks
+            command: [
+            "sh", "-c",
+            "ps_port=4001 worker_port=5001 . /mnt/frameworkbarrier/injector.sh &&
+            python tf_cnn_benchmarks.py --job_name=worker --task_index=${TASK_INDEX}
+            --ps_hosts=${ps_addresses} --worker_hosts=${worker_addresses}
+            --variable_update=parameter_server --cross_replica_sync=false
+            --model=alexnet --batch_size=8 --num_batches=10
+            --device=cpu --local_parameter_device=cpu --data_format=NHWC
+            --data_name=cifar10 --data_dir=/mnt/data/cifar-10-batches-py
+            --train_dir=/mnt/data/${FRAMEWORK_NAME}/output"]
+            ports:
+            - containerPort: 5001
+            volumeMounts:
+            - name: frameworkbarrier-volume
+              mountPath: /mnt/frameworkbarrier
+            - name: data-volume
+              mountPath: /mnt/data
+          initContainers:
+          - name: frameworkbarrier
+            image: frameworkcontroller/frameworkbarrier
+            #env:
+            #- name: KUBE_APISERVER_ADDRESS
+            #  value: {http[s]://host:port}
+            #- name: KUBECONFIG
+            #  value: {Pod Local KubeConfig File Path}
+            volumeMounts:
+            - name: frameworkbarrier-volume
+              mountPath: /mnt/frameworkbarrier
+          volumes:
+          - name: frameworkbarrier-volume
+            emptyDir: {}
+          - name: data-volume
+            #nfs:
+            #  server: {NFS Server Host}
+            #  path: {NFS Shared Directory}

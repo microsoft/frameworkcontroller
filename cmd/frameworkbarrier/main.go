@@ -23,11 +23,8 @@
 package main
 
 import (
-	"os"
-	"os/signal"
-	"syscall"
 	"github.com/microsoft/frameworkcontroller/pkg/common"
-	"github.com/microsoft/frameworkcontroller/pkg/controller"
+	"github.com/microsoft/frameworkcontroller/pkg/barrier"
 )
 
 func init() {
@@ -35,13 +32,5 @@ func init() {
 }
 
 func main() {
-	stopCh := make(chan struct{})
-	defer close(stopCh)
-
-	go controller.NewFrameworkController().Run(stopCh)
-
-	sigTerm := make(chan os.Signal, 1)
-	signal.Notify(sigTerm, syscall.SIGTERM)
-	signal.Notify(sigTerm, syscall.SIGINT)
-	<-sigTerm
+	barrier.NewFrameworkBarrier().Run()
 }

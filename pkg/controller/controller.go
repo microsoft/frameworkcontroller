@@ -56,7 +56,7 @@ import (
 // objects to satisfy the Framework.Spec eventually.
 type FrameworkController struct {
 	kConfig *rest.Config
-	cConfig *ci.ControllerConfig
+	cConfig *ci.Config
 
 	// Client is used to write remote objects in ApiServer.
 	// Remote objects are up-to-date and is writable.
@@ -194,12 +194,12 @@ type ExpectedFrameworkStatusInfo struct {
 	remoteSynced bool
 }
 
-func NewQueueFrameworkController() *FrameworkController {
-	log.Infof("Initializing " + ci.ControllerName)
+func NewFrameworkController() *FrameworkController {
+	log.Infof("Initializing " + ci.ComponentName)
 
-	cConfig := ci.NewControllerConfig()
-	common.LogLines("With ControllerConfig: \n%v", common.ToYaml(cConfig))
-	kConfig := util.BuildKubeConfig(cConfig)
+	cConfig := ci.NewConfig()
+	common.LogLines("With Config: \n%v", common.ToYaml(cConfig))
+	kConfig := ci.BuildKubeConfig(cConfig)
 
 	kClient, fClient := util.CreateClients(kConfig)
 
@@ -380,10 +380,10 @@ func (c *FrameworkController) getPodOwner(pod *core.Pod) *core.ConfigMap {
 
 func (c *FrameworkController) Run(stopCh <-chan struct{}) {
 	defer c.fQueue.ShutDown()
-	defer log.Errorf("Stopping " + ci.ControllerName)
+	defer log.Errorf("Stopping " + ci.ComponentName)
 	defer runtime.HandleCrash()
 
-	log.Infof("Recovering " + ci.ControllerName)
+	log.Infof("Recovering " + ci.ComponentName)
 	util.PutCRD(
 		c.kConfig,
 		ci.BuildFrameworkCRD(),
@@ -402,7 +402,7 @@ func (c *FrameworkController) Run(stopCh <-chan struct{}) {
 	}
 
 	log.Infof("Running %v with %v workers",
-		ci.ControllerName, *c.cConfig.WorkerNumber)
+		ci.ComponentName, *c.cConfig.WorkerNumber)
 
 	for i := int32(0); i < *c.cConfig.WorkerNumber; i++ {
 		// id is dedicated for each iteration, while i is not.
@@ -899,10 +899,11 @@ func (c *FrameworkController) getOrCleanupConfigMap(
 			return nil, c.deleteConfigMap(f, cm.UID)
 		} else {
 			return nil, fmt.Errorf(
-				"[%v]: ConfigMap naming conflicted with others, it is not controlled "+
-						"by %v, consult namespace admin to resolve ConfigMap naming "+
-						"conflict: %v, %v",
-				f.Key(), ci.ControllerName, cm.Name, cm.UID)
+				"[%v]: ConfigMap %v naming conflicts with others: "+
+						"Existing ConfigMap %v with DeletionTimestamp %v is not "+
+						"controlled by current Framework %v, %v",
+				f.Key(), f.ConfigMapName(),
+				cm.UID, cm.DeletionTimestamp, f.Name, f.UID)
 		}
 	} else {
 		// cm is the managed
@@ -1338,10 +1339,11 @@ func (c *FrameworkController) getOrCleanupPod(
 			return nil, c.deletePod(f, taskRoleName, taskIndex, pod.UID)
 		} else {
 			return nil, fmt.Errorf(
-				"[%v][%v][%v]: Pod naming conflicted with others, it is not controlled "+
-						"by %v, consult namespace admin to resolve Pod naming "+
-						"conflict: %v, %v",
-				f.Key(), taskRoleName, taskIndex, ci.ControllerName, pod.Name, pod.UID)
+				"[%v][%v][%v]: Pod %v naming conflicts with others: "+
+						"Existing Pod %v with DeletionTimestamp %v is not "+
+						"controlled by current ConfigMap %v, %v",
+				f.Key(), taskRoleName, taskIndex, taskStatus.PodName(),
+				pod.UID, pod.DeletionTimestamp, cm.Name, cm.UID)
 		}
 	} else {
 		// pod is the managed

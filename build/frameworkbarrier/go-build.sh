@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # MIT License
 #
 # Copyright (c) Microsoft Corporation. All rights reserved.
@@ -20,24 +22,23 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE
 
-FROM golang:alpine as builder
+set -o errexit
+set -o nounset
+set -o pipefail
 
-ENV PROJECT_DIR=${GOPATH}/src/github.com/microsoft/frameworkcontroller
-ENV INSTALL_DIR=/opt/frameworkcontroller/frameworkcontroller
+BASH_DIR=$(cd $(dirname ${BASH_SOURCE}) && pwd)
+# Ensure ${PROJECT_DIR} is ${GOPATH}/src/github.com/microsoft/frameworkcontroller
+PROJECT_DIR=${BASH_DIR}/../..
+DIST_DIR=${PROJECT_DIR}/dist/frameworkbarrier
 
-RUN apk update && apk add --no-cache bash && \
-  mkdir -p ${PROJECT_DIR} ${INSTALL_DIR}
-COPY . ${PROJECT_DIR}
-RUN ${PROJECT_DIR}/build/frameworkcontroller/go-build.sh && \
-  mv ${PROJECT_DIR}/dist/frameworkcontroller/* ${INSTALL_DIR}
+cd ${PROJECT_DIR}
 
+rm -rf ${DIST_DIR}
+mkdir -p ${DIST_DIR}
 
-FROM alpine:latest
+go build -o ${DIST_DIR}/frameworkbarrier cmd/frameworkbarrier/*
+chmod a+x ${DIST_DIR}/frameworkbarrier
+cp -r bin/frameworkbarrier/* ${DIST_DIR}
 
-ENV INSTALL_DIR=/opt/frameworkcontroller/frameworkcontroller
-
-RUN apk update && apk add --no-cache bash
-COPY --from=builder ${INSTALL_DIR} ${INSTALL_DIR}
-WORKDIR ${INSTALL_DIR}
-
-ENTRYPOINT ["./start.sh"]
+echo Succeeded to build binary distribution into ${DIST_DIR}:
+cd ${DIST_DIR} && ls -lR .

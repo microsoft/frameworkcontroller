@@ -39,7 +39,7 @@ mkdir -p ${DIST_DIR}
 go build -o ${DIST_DIR}/frameworkcontroller cmd/frameworkcontroller/*
 chmod a+x ${DIST_DIR}/frameworkcontroller
 cp -r bin/frameworkcontroller/* ${DIST_DIR}
-cp -r example/config/default/* ${DIST_DIR}
+cp -r example/config/default/frameworkcontroller.yaml ${DIST_DIR}
 
 echo Succeeded to build binary distribution into ${DIST_DIR}:
 cd ${DIST_DIR} && ls -lR .

@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # MIT License
 #
 # Copyright (c) Microsoft Corporation. All rights reserved.
@@ -20,24 +22,16 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE
 
-FROM golang:alpine as builder
+set -o errexit
+set -o nounset
+set -o pipefail
 
-ENV PROJECT_DIR=${GOPATH}/src/github.com/microsoft/frameworkcontroller
-ENV INSTALL_DIR=/opt/frameworkcontroller/frameworkcontroller
+BASH_DIR=$(cd $(dirname ${BASH_SOURCE}) && pwd)
+PROJECT_DIR=${BASH_DIR}
+IMAGE_NAME=tensorflow-examples:gpu
 
-RUN apk update && apk add --no-cache bash && \
-  mkdir -p ${PROJECT_DIR} ${INSTALL_DIR}
-COPY . ${PROJECT_DIR}
-RUN ${PROJECT_DIR}/build/frameworkcontroller/go-build.sh && \
-  mv ${PROJECT_DIR}/dist/frameworkcontroller/* ${INSTALL_DIR}
+cd ${PROJECT_DIR}
 
+docker build -t ${IMAGE_NAME} -f ${BASH_DIR}/Dockerfile .
 
-FROM alpine:latest
-
-ENV INSTALL_DIR=/opt/frameworkcontroller/frameworkcontroller
-
-RUN apk update && apk add --no-cache bash
-COPY --from=builder ${INSTALL_DIR} ${INSTALL_DIR}
-WORKDIR ${INSTALL_DIR}
-
-ENTRYPOINT ["./start.sh"]
+echo Succeeded to build docker image ${IMAGE_NAME}

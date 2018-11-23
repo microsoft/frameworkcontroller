@@ -10,31 +10,31 @@ spec:
     fancyRetryPolicy: false
     maxRetryCount: -1
   taskRoles:
-    - name: serverstateful
-      taskNumber: 3
-      frameworkAttemptCompletionPolicy:
-        minFailedTaskCount: 1
-        minSucceededTaskCount: -1
-      task:
-        retryPolicy:
-          fancyRetryPolicy: false
-          maxRetryCount: -1
-        pod:
-          spec:
-            # Using Never restartPolicy, ActiveDeadlineSeconds and initContainers
-            # just to demonstrate consistent identities in this example.
-            restartPolicy: Never
-            ActiveDeadlineSeconds: 60
-            containers:
-            - name: nginx
-              image: nginx:stable
-              ports:
-              - containerPort: 80
-            initContainers:
-            - name: ubuntu
-              image: ubuntu:trusty
-              # See comments in batchstatefulfailed.yaml
-              command: ["sh", "-c", "printenv"]
+  - name: serverstateful
+    taskNumber: 3
+    frameworkAttemptCompletionPolicy:
+      minFailedTaskCount: 1
+      minSucceededTaskCount: -1
+    task:
+      retryPolicy:
+        fancyRetryPolicy: false
+        maxRetryCount: -1
+      pod:
+        spec:
+          # Using Never restartPolicy, ActiveDeadlineSeconds and initContainers
+          # just to demonstrate consistent identities in this example.
+          restartPolicy: Never
+          ActiveDeadlineSeconds: 60
+          containers:
+          - name: nginx
+            image: nginx:stable
+            ports:
+            - containerPort: 80
+          initContainers:
+          - name: ubuntu
+            image: ubuntu:trusty
+            # See comments in batchstatefulfailed.yaml
+            command: ["sh", "-c", "printenv"]
 ---
 # Post to {kubeApiServerAddress}/api/v1/namespaces/default/services/
 apiVersion: v1

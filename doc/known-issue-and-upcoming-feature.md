@@ -13,7 +13,6 @@
    Tracked in [Dashboard errors if pod's owner reference is not supported](https://github.com/kubernetes/dashboard/issues/3251)
 
 ## <a name="UpcomingFeature">Upcoming Feature</a>
-- [ ] Add Distributed TensorFlow Training Example
 - [ ] Support Framework Spec Update
 - [ ] Support Framework Spec Validation and Defaulting
 - [ ] Support Framework Status Subresource
