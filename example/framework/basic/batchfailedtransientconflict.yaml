@@ -30,5 +30,5 @@ spec:
             command: [
             "sh", "-c",
             "sleep 10 &&
-            echo exit with transient conflict failure tell controller to back off retry &&
+            echo exit with transient conflict failure to tell controller to back off retry &&
             exit 201"]

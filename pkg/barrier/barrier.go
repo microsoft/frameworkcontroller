@@ -134,9 +134,10 @@ func newConfig() *Config {
 	} else {
 		i, err := strconv.ParseInt(barrierCheckIntervalSecStr, 10, 64)
 		if err != nil {
-			panic(fmt.Errorf(
+			log.Errorf(
 				"Failed to parse ${%v}: %v",
-				EnvNameBarrierCheckIntervalSec, err))
+				EnvNameBarrierCheckIntervalSec, err)
+			exit(ci.CompletionCodeContainerPermanentFailed)
 		}
 		c.BarrierCheckIntervalSec = i
 	}
@@ -147,8 +148,10 @@ func newConfig() *Config {
 	} else {
 		i, err := strconv.ParseInt(barrierCheckTimeoutSecStr, 10, 64)
 		if err != nil {
-			panic(fmt.Errorf("Failed to parse ${%v}: %v",
-				EnvNameBarrierCheckTimeoutSec, err))
+			log.Errorf(
+				"Failed to parse ${%v}: %v",
+				EnvNameBarrierCheckTimeoutSec, err)
+			exit(ci.CompletionCodeContainerPermanentFailed)
 		}
 		c.BarrierCheckTimeoutSec = i
 	}
@@ -156,19 +159,22 @@ func newConfig() *Config {
 	// Validation
 	errPrefix := "Validation Failed: "
 	if c.FrameworkName == "" {
-		panic(fmt.Errorf(errPrefix+
+		log.Errorf(errPrefix+
 				"${%v} should not be empty",
-			ci.EnvNameFrameworkName))
+			ci.EnvNameFrameworkName)
+		exit(ci.CompletionCodeContainerPermanentFailed)
 	}
 	if c.BarrierCheckIntervalSec < 5 {
-		panic(fmt.Errorf(errPrefix+
+		log.Errorf(errPrefix+
 				"${%v} %v should not be less than 5",
-			EnvNameBarrierCheckIntervalSec, c.BarrierCheckIntervalSec))
+			EnvNameBarrierCheckIntervalSec, c.BarrierCheckIntervalSec)
+		exit(ci.CompletionCodeContainerPermanentFailed)
 	}
 	if c.BarrierCheckTimeoutSec < 60 || c.BarrierCheckTimeoutSec > 20*60 {
-		panic(fmt.Errorf(errPrefix+
+		log.Errorf(errPrefix+
 				"${%v} %v should not be less than 60 or greater than 20 * 60",
-			EnvNameBarrierCheckTimeoutSec, c.BarrierCheckTimeoutSec))
+			EnvNameBarrierCheckTimeoutSec, c.BarrierCheckTimeoutSec)
+		exit(ci.CompletionCodeContainerPermanentFailed)
 	}
 
 	return &c
@@ -189,10 +195,11 @@ func buildKubeConfig(bConfig *Config) (*rest.Config) {
 	kConfig, err := clientcmd.BuildConfigFromFlags(
 		bConfig.KubeApiServerAddress, bConfig.KubeConfigFilePath)
 	if err != nil {
-		panic(fmt.Errorf("Failed to build KubeConfig, please ensure "+
+		log.Errorf("Failed to build KubeConfig, please ensure "+
 				"${KUBE_APISERVER_ADDRESS} or ${KUBECONFIG} or ${HOME}/.kube/config or "+
 				"${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT} is valid: "+
-				"Error: %v", err))
+				"Error: %v", err)
+		exit(ci.CompletionCode(1))
 	}
 	return kConfig
 }
@@ -216,7 +223,7 @@ func NewFrameworkBarrier() *FrameworkBarrier {
 	}
 }
 
-func (b *FrameworkBarrier) Run() (exitCode int) {
+func (b *FrameworkBarrier) Run() {
 	log.Infof("Running %v", ComponentName)
 
 	var f *ci.Framework
@@ -253,25 +260,18 @@ func (b *FrameworkBarrier) Run() (exitCode int) {
 				"All Tasks are ready with not nil PodIP.")
 		dumpFramework(f)
 		generateInjector(f)
-		return 0
+		exit(ci.CompletionCodeSucceeded)
 	} else {
 		if err == nil {
-			log.Warnf("BarrierNotPassed: " +
-					"Timeout to wait all Tasks are ready with not nil PodIP. " +
-					"Exit with transient conflict failure tell controller to back off " +
-					"retry.")
-			return int(ci.CompletionCodeContainerTransientConflictFailed)
+			log.Errorf("BarrierNotPassed: " +
+					"Timeout to wait all Tasks are ready with not nil PodIP.")
+			exit(ci.CompletionCodeContainerTransientConflictFailed)
 		} else {
+			log.Errorf("Failed to get Framework object from ApiServer: %v", err)
 			if isPermanentErr {
-				log.Warnf("Failed to get Framework object from ApiServer. "+
-						"Exit with permanent failure to tell controller not to retry. "+
-						"Error: %v", err)
-				return int(ci.CompletionCodeContainerPermanentFailed)
+				exit(ci.CompletionCodeContainerPermanentFailed)
 			} else {
-				log.Warnf("Failed to get Framework object from ApiServer. "+
-						"Exit with unknown failure to tell controller to retry within "+
-						"maxRetryCount. Error: %v", err)
-				return 1
+				exit(ci.CompletionCode(1))
 			}
 		}
 	}
@@ -316,9 +316,10 @@ func isTaskReady(taskStatus *ci.TaskStatus) bool {
 func dumpFramework(f *ci.Framework) {
 	err := ioutil.WriteFile(FrameworkObjectFilePath, []byte(common.ToJson(f)), 0644)
 	if err != nil {
-		panic(fmt.Errorf(
+		log.Errorf(
 			"Failed to dump the Framework object to local file: %v, %v",
-			FrameworkObjectFilePath, err))
+			FrameworkObjectFilePath, err)
+		exit(ci.CompletionCode(1))
 	}
 
 	log.Infof(
@@ -392,12 +393,34 @@ func generateInjector(f *ci.Framework) {
 
 	err := ioutil.WriteFile(InjectorFilePath, []byte(injector.String()), 0755)
 	if err != nil {
-		panic(fmt.Errorf(
+		log.Errorf(
 			"Failed to generate the injector script to local file: %v, %v",
-			InjectorFilePath, err))
+			InjectorFilePath, err)
+		exit(ci.CompletionCode(1))
 	}
 
 	log.Infof(
 		"Succeeded to generate the injector script to local file: %v",
 		InjectorFilePath)
+}
+
+func exit(cc ci.CompletionCode) {
+	logPfx := fmt.Sprintf("ExitCode: %v: Exit with ", cc)
+	if cc == ci.CompletionCodeSucceeded {
+		log.Infof(logPfx + "success.")
+	} else if cc == ci.CompletionCodeContainerTransientFailed {
+		log.Errorf(logPfx +
+				"transient failure to tell controller to retry.")
+	} else if cc == ci.CompletionCodeContainerTransientConflictFailed {
+		log.Errorf(logPfx +
+				"transient conflict failure to tell controller to back off retry.")
+	} else if cc == ci.CompletionCodeContainerPermanentFailed {
+		log.Errorf(logPfx +
+				"permanent failure to tell controller not to retry.")
+	} else {
+		log.Errorf(logPfx +
+				"unknown failure to tell controller to retry within maxRetryCount.")
+	}
+
+	os.Exit(int(cc))
 }

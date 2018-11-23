@@ -23,7 +23,6 @@
 package main
 
 import (
-	"os"
 	"github.com/microsoft/frameworkcontroller/pkg/common"
 	"github.com/microsoft/frameworkcontroller/pkg/barrier"
 )
@@ -33,5 +32,5 @@ func init() {
 }
 
 func main() {
-	os.Exit(barrier.NewFrameworkBarrier().Run())
+	barrier.NewFrameworkBarrier().Run()
 }
