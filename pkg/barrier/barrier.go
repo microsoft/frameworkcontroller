@@ -101,11 +101,11 @@ const (
 // Config
 ///////////////////////////////////////////////////////////////////////////////////////
 type Config struct {
-	// The Framework for which the barrier waits.
-	// Address should be in format http[s]://host:port
+	// See the same fields in pkg/apis/frameworkcontroller/v1/config.go
 	KubeApiServerAddress string `yaml:"kubeApiServerAddress"`
-	// See https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#config
 	KubeConfigFilePath string `yaml:"kubeConfigFilePath"`
+
+	// The Framework for which the barrier waits.
 	FrameworkNamespace string `yaml:"frameworkNamespace"`
 	FrameworkName      string `yaml:"frameworkName"`
 

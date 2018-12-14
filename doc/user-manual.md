@@ -10,26 +10,37 @@
    - [Best Practice](#BestPractice)
 
 ## <a name="FrameworkInterop">Framework Interop</a>
-**Supported interoperations with a Framework**
+### <a name="SupportedClient">Supported Client</a>
+As Framework is actually a [Kubernetes CRD](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/#customresourcedefinitions), all [CRD Clients](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/#accessing-a-custom-resource) can be used to interoperate with it, such as:
+1. [kubectl](https://kubernetes.io/docs/reference/kubectl)
+   ```shell
+   kubectl create -f {Framework File Path}
+   kubectl get framework {FrameworkName}
+   kubectl describe framework {FrameworkName}
+   kubectl get frameworks
+   kubectl describe frameworks
+   # kubectl delete does not support Foreground Deletion
+   #kubectl delete framework {FrameworkName}
+   ...
+   ```
+2. [Kubernetes Client Library](https://kubernetes.io/docs/reference/using-api/client-libraries)
+3. Any HTTP Client
 
+### <a name="SupportedInteroperation">Supported Interoperation</a>
 | API Kind | Operations |
 |:---- |:---- |
 | Framework | [CREATE](#CREATE_Framework) [DELETE](#DELETE_Framework) [GET](#GET_Framework) [LIST](#LIST_Frameworks) [WATCH](#WATCH_Framework) [WATCH_LIST](#WATCH_LIST_Frameworks) |
 | [ConfigMap](https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#configmap-v1-core) | All operations except for [CREATE](https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#create-193) [PUT](https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#replace-195) [PATCH](https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#patch-194) |
 | [Pod](https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#pod-v1-core) | All operations except for [CREATE](https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#create-55) [PUT](https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#replace-57) [PATCH](https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#patch-56) |
 
-**Supported clients to execute the interoperations with a Framework**
-
-As Framework is actually a Kubernetes [CRD](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/#customresourcedefinitions), all CRD clients can be used to execute the interoperations with a Framework, see them in [Accessing a custom resource](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/#accessing-a-custom-resource).
-
-### <a name="CREATE_Framework">CREATE Framework</a>
+#### <a name="CREATE_Framework">CREATE Framework</a>
 **Request**
 
     POST /apis/frameworkcontroller.microsoft.com/v1/namespaces/{FrameworkNamespace}/frameworks
 
 Body: [Framework](../pkg/apis/frameworkcontroller/v1/types.go)
 
-Type: application/json
+Type: application/json or application/yaml
 
 **Description**
 
@@ -44,26 +55,32 @@ Create the specified Framework.
 | Accepted(202) | [Framework](../pkg/apis/frameworkcontroller/v1/types.go) | Return current Framework. |
 | Conflict(409) | [Status](https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#status-v1-meta) | The specified Framework already exists. |
 
-### <a name="DELETE_Framework">DELETE Framework</a>
+#### <a name="DELETE_Framework">DELETE Framework</a>
 **Request**
 
     DELETE /apis/frameworkcontroller.microsoft.com/v1/namespaces/{FrameworkNamespace}/frameworks/{FrameworkName}
 
 Body:
+
+application/json
 ```json
 {
   "propagationPolicy": "Foreground"
 }
 ```
+application/yaml
+```yaml
+propagationPolicy: Foreground
+```
 
-Type: application/json
+Type: application/json or application/yaml
 
 **Description**
 
 Delete the specified Framework.
 
 Notes:
-* Should always use and only use the provided body, see [Framework Notes](../pkg/apis/frameworkcontroller/v1/types.go).
+* To ensure at most one instance of a specific Framework is running at any point in time, you should always use and only use the [Foreground Deletion](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#foreground-cascading-deletion) in the provided body, see [Framework Notes](../pkg/apis/frameworkcontroller/v1/types.go). However, `kubectl delete` does not support to specify the Foreground Deletion at least for [Kubernetes v1.10](https://github.com/kubernetes/kubernetes/issues/66110#issuecomment-413761559), so you may have to use other [Supported Client](#SupportedClient).
 
 **Response**
 
@@ -73,7 +90,7 @@ Notes:
 | OK(200) | [Status](https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#status-v1-meta) | The specified Framework is deleted. |
 | NotFound(200) | [Status](https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#status-v1-meta) | The specified Framework is not found. |
 
-### <a name="GET_Framework">GET Framework</a>
+#### <a name="GET_Framework">GET Framework</a>
 **Request**
 
     GET /apis/frameworkcontroller.microsoft.com/v1/namespaces/{FrameworkNamespace}/frameworks/{FrameworkName}
@@ -89,7 +106,7 @@ Get the specified Framework.
 | OK(200) | [Framework](../pkg/apis/frameworkcontroller/v1/types.go) | Return current Framework. |
 | NotFound(200) | [Status](https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#status-v1-meta) | The specified Framework is not found. |
 
-### <a name="LIST_Frameworks">LIST Frameworks</a>
+#### <a name="LIST_Frameworks">LIST Frameworks</a>
 **Request**
 
     GET /apis/frameworkcontroller.microsoft.com/v1/namespaces/{FrameworkNamespace}/frameworks
@@ -107,7 +124,7 @@ Get all Frameworks (in the specified FrameworkNamespace).
 |:---- |:---- |:---- |
 | OK(200) | [FrameworkList](../pkg/apis/frameworkcontroller/v1/types.go) | Return all Frameworks (in the specified FrameworkNamespace). |
 
-### <a name="WATCH_Framework">WATCH Framework</a>
+#### <a name="WATCH_Framework">WATCH Framework</a>
 **Request**
 
     GET /apis/frameworkcontroller.microsoft.com/v1/watch/namespaces/{FrameworkNamespace}/frameworks/{FrameworkName}
@@ -125,7 +142,7 @@ Watch the change events of the specified Framework.
 | OK(200) | [WatchEvent](https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#watchevent-v1-meta) | Streaming the change events of the specified Framework. |
 | NotFound(200) | [Status](https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#status-v1-meta) | The specified Framework is not found. |
 
-### <a name="WATCH_LIST_Frameworks">WATCH_LIST Frameworks</a>
+#### <a name="WATCH_LIST_Frameworks">WATCH_LIST Frameworks</a>
 **Request**
 
     GET /apis/frameworkcontroller.microsoft.com/v1/watch/namespaces/{FrameworkNamespace}/frameworks
@@ -305,8 +322,7 @@ Notes:
 ## <a name="ControllerExtension">Controller Extension</a>
 ### <a name="FrameworkBarrier">FrameworkBarrier</a>
 1. [Usage](../pkg/barrier/barrier.go)
-2. [Build](../build/frameworkbarrier)
-3. Example: [FrameworkBarrier Example](../example/framework/extension/frameworkbarrier.yaml), [Tensorflow Example](../example/framework/scenario/tensorflow), [etc](../example/framework/scenario).
+2. Example: [FrameworkBarrier Example](../example/framework/extension/frameworkbarrier.yaml), [Tensorflow Example](../example/framework/scenario/tensorflow), [etc](../example/framework/scenario).
 
 ## <a name="BestPractice">Best Practice</a>
 [Best Practice](../pkg/apis/frameworkcontroller/v1/types.go)

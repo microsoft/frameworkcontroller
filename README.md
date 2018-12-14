@@ -57,9 +57,8 @@ A Framework represents an application with a set of Tasks:
 1. A Kubernetes cluster, v1.10 or above, on-cloud or on-premise.
 
 ## Quick Start
-1. [Build](build/frameworkcontroller)
-2. [Run Example](example/run/frameworkcontroller.md)
-3. [Framework Example](example/framework)
+1. [Run Controller](example/run)
+2. [Submit Framework](example/framework)
 
 ## Doc
 1. [User Manual](doc/user-manual.md)
