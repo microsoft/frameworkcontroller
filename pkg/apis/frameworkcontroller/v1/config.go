@@ -32,11 +32,27 @@ import (
 )
 
 type Config struct {
-	// If both kubeApiServerAddress and kubeConfigFilePath after defaulting are still
-	// empty, falls back to k8s inClusterConfig.
+	// KubeApiServerAddress is default to ${KUBE_APISERVER_ADDRESS}.
+	// KubeConfigFilePath is default to ${KUBECONFIG} then falls back to ${HOME}/.kube/config.
+	//
+	// If both KubeApiServerAddress and KubeConfigFilePath after defaulting are still empty, falls back to the
+	// [k8s inClusterConfig](https://kubernetes.io/docs/tasks/access-application-cluster/access-cluster/#accessing-the-api-from-a-pod).
+	//
+	// If both KubeApiServerAddress and KubeConfigFilePath after defaulting are not empty,
+	// KubeApiServerAddress overrides the server address specified in the file referred by KubeConfigFilePath.
+	//
+	// If only KubeApiServerAddress after defaulting is not empty, it should be an insecure ApiServer address (can be got from
+	// [Insecure ApiServer](https://kubernetes.io/docs/reference/access-authn-authz/controlling-access/#api-server-ports-and-ips) or
+	// [kubectl proxy](https://kubernetes.io/docs/tasks/access-application-cluster/access-cluster/#using-kubectl-proxy))
+	// which does not enforce authentication.
+	//
+	// If only KubeConfigFilePath after defaulting is not empty, it should be an valid
+	// [KubeConfig File](https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/#explore-the-home-kube-directory)
+	// which inlines or refers the valid
+	// [ApiServer Credential Files](https://kubernetes.io/docs/reference/access-authn-authz/controlling-access/#transport-security).
+	//
 	// Address should be in format http[s]://host:port
 	KubeApiServerAddress *string `yaml:"kubeApiServerAddress"`
-	// See https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#config
 	KubeConfigFilePath *string `yaml:"kubeConfigFilePath"`
 
 	// Number of concurrent workers to process each different Frameworks

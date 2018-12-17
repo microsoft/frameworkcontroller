@@ -1,6 +1,9 @@
-# Post to {kubeApiServerAddress}/apis/frameworkcontroller.microsoft.com/v1/namespaces/default/frameworks
 # For the full spec setting and usage, see ./pkg/apis/frameworkcontroller/v1/types.go
 # For the full frameworkbarrier usage, see ./pkg/barrier/barrier.go
+
+############################### Prerequisite ###################################
+# See "[PREREQUISITE]" in this file.
+################################################################################
 apiVersion: frameworkcontroller.microsoft.com/v1
 kind: Framework
 metadata:
@@ -54,6 +57,19 @@ spec:
             volumeMounts:
             - name: frameworkbarrier-volume
               mountPath: /mnt/frameworkbarrier
+          # [PREREQUISITE]
+          # User needs to create a service account in the same namespace of this
+          # Framework with granted permission for frameworkbarrier, if the k8s
+          # cluster enforces authorization.
+          # For example, if the cluster enforces RBAC:
+          #   kubectl create serviceaccount frameworkbarrier --namespace default
+          #   kubectl create clusterrole frameworkbarrier \
+          #     --verb=get,list,watch \
+          #     --resource=frameworks
+          #   kubectl create clusterrolebinding frameworkbarrier \
+          #     --clusterrole=frameworkbarrier \
+          #     --user=system:serviceaccount:default:frameworkbarrier
+          serviceAccountName: frameworkbarrier
           initContainers:
           - name: frameworkbarrier
             # Using official image to demonstrate this example.
@@ -97,6 +113,9 @@ spec:
             volumeMounts:
             - name: frameworkbarrier-volume
               mountPath: /mnt/frameworkbarrier
+          # [PREREQUISITE]
+          # Same as server TaskRole.
+          serviceAccountName: frameworkbarrier
           initContainers:
           - name: frameworkbarrier
             image: frameworkcontroller/frameworkbarrier

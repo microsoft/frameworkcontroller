@@ -1,6 +1,9 @@
-# Post to {kubeApiServerAddress}/apis/frameworkcontroller.microsoft.com/v1/namespaces/default/frameworks
 # For the full spec setting and usage, see ./pkg/apis/frameworkcontroller/v1/types.go
 # For the full frameworkbarrier usage, see ./pkg/barrier/barrier.go
+
+############################### Prerequisite ###################################
+# See "[PREREQUISITE]" in this file.
+################################################################################
 apiVersion: frameworkcontroller.microsoft.com/v1
 kind: Framework
 metadata:
@@ -23,8 +26,15 @@ spec:
       pod:
         spec:
           restartPolicy: Never
-          # Using hostNetwork to avoid network overhead.
-          hostNetwork: true
+          # [PREREQUISITE]
+          # User needs to setup the k8s cluster networking model and aware the
+          # potential network overhead, if he want to disable the hostNetwork to
+          # avoid the coordination of the containerPort usage.
+          # And for this example, if the hostNetwork is disabled, it only needs
+          # at least 1 node, otherwise, it needs at least 3 nodes since all the
+          # 3 workers are specified with the same containerPort.
+          # See https://kubernetes.io/docs/concepts/cluster-administration/networking
+          hostNetwork: false
           containers:
           - name: tensorflow
             # Using official image to demonstrate this example.
@@ -53,6 +63,7 @@ spec:
             - containerPort: 4001
             resources:
               limits:
+                # [PREREQUISITE]
                 # User needs to setup GPU for the k8s cluster.
                 # See https://kubernetes.io/docs/tasks/manage-gpus/scheduling-gpus
                 nvidia.com/gpu: 1
@@ -61,6 +72,11 @@ spec:
               mountPath: /mnt/frameworkbarrier
             - name: data-volume
               mountPath: /mnt/data
+          # [PREREQUISITE]
+          # User needs to create a service account for frameworkbarrier, if the
+          # k8s cluster enforces authorization.
+          # See more in ./example/framework/extension/frameworkbarrier.yaml
+          serviceAccountName: frameworkbarrier
           initContainers:
           - name: frameworkbarrier
             # Using official image to demonstrate this example.
@@ -79,10 +95,12 @@ spec:
           - name: frameworkbarrier-volume
             emptyDir: {}
           - name: data-volume
+            # [PREREQUISITE]
             # User needs to specify his own data-volume for input data and
-            # output model and the data-volume must be a distributed shared
-            # file system, so that data can be "handed off" between Pods,
-            # such as nfs, cephfs or glusterfs, etc.
+            # output model.
+            # The data-volume must be a distributed shared file system, so that
+            # data can be "handed off" between Pods, such as nfs, cephfs or
+            # glusterfs, etc.
             # See https://kubernetes.io/docs/concepts/storage/volumes.
             #
             # And then he needs to download and extract the example input data
@@ -108,7 +126,9 @@ spec:
       pod:
         spec:
           restartPolicy: Never
-          hostNetwork: true
+          # [PREREQUISITE]
+          # Same as ps TaskRole.
+          hostNetwork: false
           containers:
           - name: tensorflow
             image: frameworkcontroller/tensorflow-examples:gpu
@@ -127,12 +147,17 @@ spec:
             - containerPort: 5001
             resources:
               limits:
+                # [PREREQUISITE]
+                # Same as ps TaskRole.
                 nvidia.com/gpu: 1
             volumeMounts:
             - name: frameworkbarrier-volume
               mountPath: /mnt/frameworkbarrier
             - name: data-volume
               mountPath: /mnt/data
+          # [PREREQUISITE]
+          # Same as ps TaskRole.
+          serviceAccountName: frameworkbarrier
           initContainers:
           - name: frameworkbarrier
             image: frameworkcontroller/frameworkbarrier
@@ -148,6 +173,8 @@ spec:
           - name: frameworkbarrier-volume
             emptyDir: {}
           - name: data-volume
+            # [PREREQUISITE]
+            # Same as ps TaskRole.
             #nfs:
             #  server: {NFS Server Host}
             #  path: {NFS Shared Directory}
