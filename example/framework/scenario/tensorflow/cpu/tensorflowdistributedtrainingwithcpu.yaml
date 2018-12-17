@@ -27,14 +27,14 @@ spec:
         spec:
           restartPolicy: Never
           # [PREREQUISITE]
-          # User needs to coordinate the containerPort usage, if he want to use
-          # the hostNetwork to avoid the network overhead or to avoid the setup
-          # of k8s cluster networking model.
-          # So, for this example, if hostNetwork is enabled, it needs at least 3
-          # nodes due to all the 3 workers are specified with the same
-          # containerPort, otherwise, it only needs at least 1 node.
+          # User needs to setup the k8s cluster networking model and aware the
+          # potential network overhead, if he want to disable the hostNetwork to
+          # avoid the coordination of the containerPort usage.
+          # And for this example, if the hostNetwork is disabled, it only needs
+          # at least 1 node, otherwise, it needs at least 3 nodes since all the
+          # 3 workers are specified with the same containerPort.
           # See https://kubernetes.io/docs/concepts/cluster-administration/networking
-          hostNetwork: true
+          hostNetwork: false
           containers:
           - name: tensorflow
             # Using official image to demonstrate this example.
@@ -122,7 +122,7 @@ spec:
           restartPolicy: Never
           # [PREREQUISITE]
           # Same as ps TaskRole.
-          hostNetwork: true
+          hostNetwork: false
           containers:
           - name: tensorflow
             image: frameworkcontroller/tensorflow-examples:cpu

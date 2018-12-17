@@ -15,12 +15,12 @@ As Framework is actually a [Kubernetes CRD](https://kubernetes.io/docs/concepts/
 1. [kubectl](https://kubernetes.io/docs/reference/kubectl)
    ```shell
    kubectl create -f {Framework File Path}
+   # Note this is not Foreground Deletion, see [DELETE Framework] section
+   kubectl delete framework {FrameworkName}
    kubectl get framework {FrameworkName}
    kubectl describe framework {FrameworkName}
    kubectl get frameworks
    kubectl describe frameworks
-   # kubectl delete does not support Foreground Deletion
-   #kubectl delete framework {FrameworkName}
    ...
    ```
 2. [Kubernetes Client Library](https://kubernetes.io/docs/reference/using-api/client-libraries)
@@ -80,7 +80,7 @@ Type: application/json or application/yaml
 Delete the specified Framework.
 
 Notes:
-* To ensure at most one instance of a specific Framework is running at any point in time, you should always use and only use the [Foreground Deletion](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#foreground-cascading-deletion) in the provided body, see [Framework Notes](../pkg/apis/frameworkcontroller/v1/types.go). However, `kubectl delete` does not support to specify the Foreground Deletion at least for [Kubernetes v1.10](https://github.com/kubernetes/kubernetes/issues/66110#issuecomment-413761559), so you may have to use other [Supported Client](#SupportedClient).
+* If you need to ensure at most one instance of a specific Framework (identified by the FrameworkName) is running at any point in time, you should always use and only use the [Foreground Deletion](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#foreground-cascading-deletion) in the provided body, see [Framework Notes](../pkg/apis/frameworkcontroller/v1/types.go). However, `kubectl delete` does not support to specify the Foreground Deletion at least for [Kubernetes v1.10](https://github.com/kubernetes/kubernetes/issues/66110#issuecomment-413761559), so you may have to use other [Supported Client](#SupportedClient).
 
 **Response**
 
@@ -322,7 +322,7 @@ Notes:
 ## <a name="ControllerExtension">Controller Extension</a>
 ### <a name="FrameworkBarrier">FrameworkBarrier</a>
 1. [Usage](../pkg/barrier/barrier.go)
-2. Example: [FrameworkBarrier Example](../example/framework/extension/frameworkbarrier.yaml), [Tensorflow Example](../example/framework/scenario/tensorflow), [etc](../example/framework/scenario).
+2. Example: [FrameworkBarrier Example](../example/framework/extension/frameworkbarrier.yaml), [TensorFlow Example](../example/framework/scenario/tensorflow), [etc](../example/framework/scenario).
 
 ## <a name="BestPractice">Best Practice</a>
 [Best Practice](../pkg/apis/frameworkcontroller/v1/types.go)

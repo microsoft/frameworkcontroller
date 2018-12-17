@@ -1,10 +1,10 @@
-# Tensorflow On FrameworkController
+# TensorFlow On FrameworkController
 
 ## Feature
 1. Support both GPU and CPU Distributed Training
 2. Automatically clean up PS when the whole FrameworkAttempt is completed
 3. No need to adjust existing TensorFlow image
-4. No need to setup [Kubernetes DNS](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service), [Kubernetes Service](https://kubernetes.io/docs/concepts/services-networking/service) and [Kubernetes Cluster Networking Model](https://kubernetes.io/docs/concepts/cluster-administration/networking/#how-to-implement-the-kubernetes-networking-model)
+4. No need to setup [Kubernetes DNS](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service) and [Kubernetes Service](https://kubernetes.io/docs/concepts/services-networking/service)
 5. [Common Feature](../../../../README.md#Feature)
 
 ## Prerequisite

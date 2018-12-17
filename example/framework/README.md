@@ -1,4 +1,5 @@
 # Submit Framework
+We provide various Framework examples that can be submitted by various clients:
 1. [Framework Supported Client](../../doc/user-manual.md#SupportedClient)
 2. Framework Example
    1. [Basic Example](basic)
