@@ -72,7 +72,7 @@ A Framework represents an application with a set of Tasks:
 ## Related Project
 ### Third Party Controller Wrapper
 A specialized wrapper can be built on top of FrameworkController to optimize for a specific kind of application:
-* [OpenPAI Controller Wrapper](https://github.com/Microsoft/pai) `[Developing`]: A wrapper client optimized for AI applications
+* [OpenPAI Controller Wrapper](https://github.com/Microsoft/pai) `[Developing]`: A wrapper client optimized for AI applications
 * [NNI Controller Wrapper (FrameworkController Training Service)](https://github.com/Microsoft/nni/blob/master/docs/FrameworkControllerMode.md): A wrapper client optimized for AutoML applications
 
 ### Similar Offering On Other Cluster Manager
