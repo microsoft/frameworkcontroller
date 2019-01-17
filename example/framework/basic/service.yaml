@@ -38,8 +38,8 @@ metadata:
 spec:
   selector:
     # Using predefined labels
-    FRAMEWORK_NAME: service
-    TASKROLE_NAME: server
+    FC_FRAMEWORK_NAME: service
+    FC_TASKROLE_NAME: server
     # Also can use customized labels
     #app: server
   ports:

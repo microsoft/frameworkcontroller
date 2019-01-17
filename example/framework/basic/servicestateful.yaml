@@ -43,8 +43,8 @@ metadata:
 spec:
   selector:
     # See comments in service.yaml
-    FRAMEWORK_NAME: servicestateful
-    TASKROLE_NAME: serverstateful
+    FC_FRAMEWORK_NAME: servicestateful
+    FC_TASKROLE_NAME: serverstateful
   ports:
   - port: 80
   type: NodePort
