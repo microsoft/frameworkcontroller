@@ -29,15 +29,15 @@ spec:
           containers:
           - name: ubuntu
             image: ubuntu:trusty
-            # Using /mnt/frameworkbarrier/injector.sh to inject environment
-            # variables, such as:
-            # {TaskRoleName}_ips=
+            # Using /mnt/frameworkbarrier/injector.sh to inject environment variables,
+            # such as:
+            # FB_{UpperCase({TaskRoleName})}_IPS=
             #   {Task[0].PodIP},...,
             #   {Task[TaskRole.TaskNumber-1].PodIP}
-            # {TaskRoleName}_addresses=
-            #   {Task[0].PodIP}:${{TaskRoleName}_port},...,
-            #   {Task[TaskRole.TaskNumber-1].PodIP}:${{TaskRoleName}_port}
-            #  Note, the environment variable {TaskRoleName}_port should be
+            # FB_{UpperCase({TaskRoleName})}_ADDRESSES=
+            #   {Task[0].PodIP}:${FB_{UpperCase({TaskRoleName})}_PORT},...,
+            #   {Task[TaskRole.TaskNumber-1].PodIP}:${FB_{UpperCase({TaskRoleName})}_PORT}
+            #  Note, the environment variable FB_{UpperCase({TaskRoleName})}_PORT should be
             #  provided by the caller in advance.
             #
             # User may need to tweak these environment variables to its own
@@ -48,8 +48,8 @@ spec:
             # /mnt/frameworkbarrier/framework.json.
             command: [
             "sh", "-c",
-            "server_port=4001 worker_port=5001 . /mnt/frameworkbarrier/injector.sh && printenv &&
-            server_port=4002 worker_port=5002 . /mnt/frameworkbarrier/injector.sh && printenv &&
+            "FB_SERVER_PORT=4001 FB_WORKER_PORT=5001 . /mnt/frameworkbarrier/injector.sh && printenv &&
+            FB_SERVER_PORT=4002 FB_WORKER_PORT=5002 . /mnt/frameworkbarrier/injector.sh && printenv &&
             sleep 60"]
             ports:
             - containerPort: 4001
@@ -104,8 +104,8 @@ spec:
             image: ubuntu:trusty
             command: [
             "sh", "-c",
-            "server_port=4001 worker_port=5001 . /mnt/frameworkbarrier/injector.sh && printenv &&
-            server_port=4002 worker_port=5002 . /mnt/frameworkbarrier/injector.sh && printenv &&
+            "FB_SERVER_PORT=4001 FB_WORKER_PORT=5001 . /mnt/frameworkbarrier/injector.sh && printenv &&
+            FB_SERVER_PORT=4002 FB_WORKER_PORT=5002 . /mnt/frameworkbarrier/injector.sh && printenv &&
             sleep 60"]
             ports:
             - containerPort: 5001

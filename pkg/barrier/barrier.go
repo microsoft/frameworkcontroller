@@ -66,14 +66,14 @@ import (
 //
 // ./injector.sh exports below environment variables:
 // For each {TaskRoleName} in the Framework:
-//   {TaskRoleName}_ips=
+//   FB_{UpperCase({TaskRoleName})}_IPS=
 //     {Task[0].PodIP},...,
 //     {Task[TaskRole.TaskNumber-1].PodIP}
-//   {TaskRoleName}_addresses=
-//     {Task[0].PodIP}:${{TaskRoleName}_port},...,
-//     {Task[TaskRole.TaskNumber-1].PodIP}:${{TaskRoleName}_port}
-//   Note, the environment variable {TaskRoleName}_port should be provided by
-//   the caller in advance.
+//   FB_{UpperCase({TaskRoleName})}_ADDRESSES=
+//     {Task[0].PodIP}:${FB_{UpperCase({TaskRoleName})}_PORT},...,
+//     {Task[TaskRole.TaskNumber-1].PodIP}:${FB_{UpperCase({TaskRoleName})}_PORT}
+//   Note, the environment variable FB_{UpperCase({TaskRoleName})}_PORT should be
+//   provided by the caller in advance.
 //
 // Caller can also write its own injector script to inject other Framework
 // information from the ./framework.json.
@@ -103,7 +103,7 @@ const (
 type Config struct {
 	// See the same fields in pkg/apis/frameworkcontroller/v1/config.go
 	KubeApiServerAddress string `yaml:"kubeApiServerAddress"`
-	KubeConfigFilePath string `yaml:"kubeConfigFilePath"`
+	KubeConfigFilePath   string `yaml:"kubeConfigFilePath"`
 
 	// The Framework for which the barrier waits.
 	FrameworkNamespace string `yaml:"frameworkNamespace"`
@@ -125,7 +125,7 @@ func newConfig() *Config {
 	} else {
 		c.KubeConfigFilePath = ci.EnvValueKubeConfigFilePath
 	}
-	c.FrameworkNamespace = os.Getenv(ci.EnvNamePodNamespace)
+	c.FrameworkNamespace = os.Getenv(ci.EnvNameFrameworkNamespace)
 	c.FrameworkName = os.Getenv(ci.EnvNameFrameworkName)
 
 	barrierCheckIntervalSecStr := os.Getenv(EnvNameBarrierCheckIntervalSec)
@@ -327,6 +327,10 @@ func dumpFramework(f *ci.Framework) {
 		FrameworkObjectFilePath)
 }
 
+func getTaskRoleEnvName(taskRoleName string, suffix string) string {
+	return strings.Join([]string{"FB", strings.ToUpper(taskRoleName), suffix}, "_")
+}
+
 func generateInjector(f *ci.Framework) {
 	var injector strings.Builder
 	injector.WriteString("#!/bin/bash")
@@ -338,14 +342,14 @@ func generateInjector(f *ci.Framework) {
 			"echo " + InjectorFilePath + ": Start to inject environment variables")
 		injector.WriteString("\n")
 
-		// {TaskRoleName}_ips=
+		// FB_{UpperCase({TaskRoleName})}_IPS=
 		//   {Task[0].PodIP},...,
 		//   {Task[TaskRole.TaskNumber-1].PodIP}
 		injector.WriteString("\n")
 		for _, taskRoleStatus := range f.TaskRoleStatuses() {
-			taskRoleName := taskRoleStatus.Name
-			injector.WriteString("export " + taskRoleName + "_ips=")
+			ipsEnvName := getTaskRoleEnvName(taskRoleStatus.Name, "IPS")
 
+			injector.WriteString("export " + ipsEnvName + "=")
 			for _, taskStatus := range taskRoleStatus.TaskStatuses {
 				taskIndex := taskStatus.Index
 				if taskIndex > 0 {
@@ -354,34 +358,30 @@ func generateInjector(f *ci.Framework) {
 				taskIP := *taskStatus.AttemptStatus.PodIP
 				injector.WriteString(taskIP)
 			}
-
 			injector.WriteString("\n")
-			injector.WriteString(
-				"echo " + taskRoleName + "_ips=${" + taskRoleName + "_ips}")
+			injector.WriteString("echo " + ipsEnvName + "=${" + ipsEnvName + "}")
 			injector.WriteString("\n")
 		}
 
-		// {TaskRoleName}_addresses=
-		//   {Task[0].PodIP}:${{TaskRoleName}_port},...,
-		//   {Task[TaskRole.TaskNumber-1].PodIP}:${{TaskRoleName}_port}
+		// FB_{UpperCase({TaskRoleName})}_ADDRESSES=
+		//   {Task[0].PodIP}:${FB_{UpperCase({TaskRoleName})}_PORT},...,
+		//   {Task[TaskRole.TaskNumber-1].PodIP}:${FB_{UpperCase({TaskRoleName})}_PORT}
 		injector.WriteString("\n")
 		for _, taskRoleStatus := range f.TaskRoleStatuses() {
-			taskRoleName := taskRoleStatus.Name
-			injector.WriteString("export " + taskRoleName + "_addresses=")
+			addrsEnvName := getTaskRoleEnvName(taskRoleStatus.Name, "ADDRESSES")
+			portEnvName := getTaskRoleEnvName(taskRoleStatus.Name, "PORT")
 
+			injector.WriteString("export " + addrsEnvName + "=")
 			for _, taskStatus := range taskRoleStatus.TaskStatuses {
 				taskIndex := taskStatus.Index
 				if taskIndex > 0 {
 					injector.WriteString(",")
 				}
-				taskAddr := *taskStatus.AttemptStatus.PodIP +
-						":" + "${" + taskRoleName + "_port}"
+				taskAddr := *taskStatus.AttemptStatus.PodIP + ":" + "${" + portEnvName + "}"
 				injector.WriteString(taskAddr)
 			}
-
 			injector.WriteString("\n")
-			injector.WriteString(
-				"echo " + taskRoleName + "_addresses=${" + taskRoleName + "_addresses}")
+			injector.WriteString("echo " + addrsEnvName + "=${" + addrsEnvName + "}")
 			injector.WriteString("\n")
 		}
 

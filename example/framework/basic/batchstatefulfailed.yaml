@@ -27,18 +27,19 @@ spec:
             # To locate a specific Task during its whole lifecycle regardless of
             # any retry:
             # Consistent Identity:
-            # PodName = {FrameworkName}-{TaskRoleName}-{TaskIndex}
             # PodNamespace = {FrameworkNamespace}
+            # PodName = {FrameworkName}-{TaskRoleName}-{TaskIndex}
             # Consistent Environment Variable Value:
-            # ${FRAMEWORK_NAME}, ${TASKROLE_NAME}, ${TASK_INDEX}
-            # ${CONFIGMAP_NAME}, ${POD_NAME}, ${POD_NAMESPACE}
+            # ${FC_FRAMEWORK_NAMESPACE},
+            # ${FC_FRAMEWORK_NAME}, ${FC_TASKROLE_NAME}, ${FC_TASK_INDEX},
+            # ${FC_CONFIGMAP_NAME}, ${FC_POD_NAME}
             #
             # To locate a specific execution attempt of a specific Task:
             # Attempt Specific Environment Variable Value:
-            # ${FRAMEWORK_ATTEMPT_ID}, ${TASK_ATTEMPT_ID}
+            # ${FC_FRAMEWORK_ATTEMPT_ID}, ${FC_TASK_ATTEMPT_ID}
             #
             # To locate a specific execution attempt instance of a specific Task:
             # Attempt Instance Specific Environment Variable Value:
-            # ${FRAMEWORK_ATTEMPT_INSTANCE_UID}, ${CONFIGMAP_UID}
-            # ${TASK_ATTEMPT_INSTANCE_UID}, ${POD_UID}
+            # ${FC_FRAMEWORK_ATTEMPT_INSTANCE_UID}, ${FC_CONFIGMAP_UID}
+            # ${FC_TASK_ATTEMPT_INSTANCE_UID}, ${FC_POD_UID}
             command: ["sh", "-c", "printenv && sleep 60 && exit 1"]

@@ -46,35 +46,40 @@ const (
 	ExtendedUnlimitedValue = -2
 
 	// For all managed objects
-	AnnotationKeyFrameworkName = "FRAMEWORK_NAME"
-	AnnotationKeyTaskRoleName  = "TASKROLE_NAME"
-	AnnotationKeyTaskIndex     = "TASK_INDEX"
-	AnnotationKeyConfigMapName = "CONFIGMAP_NAME"
-	AnnotationKeyPodName       = "POD_NAME"
-	AnnotationKeyPodNamespace  = "POD_NAMESPACE"
+	// Predefined Annotations
+	AnnotationKeyFrameworkNamespace = "FC_FRAMEWORK_NAMESPACE"
+	AnnotationKeyFrameworkName      = "FC_FRAMEWORK_NAME"
+	AnnotationKeyTaskRoleName       = "FC_TASKROLE_NAME"
+	AnnotationKeyTaskIndex          = "FC_TASK_INDEX"
+	AnnotationKeyConfigMapName      = "FC_CONFIGMAP_NAME"
+	AnnotationKeyPodName            = "FC_POD_NAME"
 
-	AnnotationKeyFrameworkAttemptID          = "FRAMEWORK_ATTEMPT_ID"
-	AnnotationKeyFrameworkAttemptInstanceUID = "FRAMEWORK_ATTEMPT_INSTANCE_UID"
-	AnnotationKeyConfigMapUID                = "CONFIGMAP_UID"
-	AnnotationKeyTaskAttemptID               = "TASK_ATTEMPT_ID"
+	AnnotationKeyFrameworkAttemptID          = "FC_FRAMEWORK_ATTEMPT_ID"
+	AnnotationKeyFrameworkAttemptInstanceUID = "FC_FRAMEWORK_ATTEMPT_INSTANCE_UID"
+	AnnotationKeyConfigMapUID                = "FC_CONFIGMAP_UID"
+	AnnotationKeyTaskAttemptID               = "FC_TASK_ATTEMPT_ID"
 
+	// Predefined Labels
 	LabelKeyFrameworkName = AnnotationKeyFrameworkName
 	LabelKeyTaskRoleName  = AnnotationKeyTaskRoleName
 
 	// For all managed containers
-	EnvNameFrameworkName = AnnotationKeyFrameworkName
-	EnvNameTaskRoleName  = AnnotationKeyTaskRoleName
-	EnvNameTaskIndex     = AnnotationKeyTaskIndex
-	EnvNameConfigMapName = AnnotationKeyConfigMapName
-	EnvNamePodName       = AnnotationKeyPodName
-	EnvNamePodNamespace  = AnnotationKeyPodNamespace
+	// Predefined Environment Variables
+	// It can be referred by the environment variable specified in the spec, i.e.
+	// specify the environment variable value to include "$(AnyPredefinedEnvName)".
+	EnvNameFrameworkNamespace = AnnotationKeyFrameworkNamespace
+	EnvNameFrameworkName      = AnnotationKeyFrameworkName
+	EnvNameTaskRoleName       = AnnotationKeyTaskRoleName
+	EnvNameTaskIndex          = AnnotationKeyTaskIndex
+	EnvNameConfigMapName      = AnnotationKeyConfigMapName
+	EnvNamePodName            = AnnotationKeyPodName
 
 	EnvNameFrameworkAttemptID          = AnnotationKeyFrameworkAttemptID
 	EnvNameFrameworkAttemptInstanceUID = AnnotationKeyFrameworkAttemptInstanceUID
 	EnvNameConfigMapUID                = AnnotationKeyConfigMapUID
 	EnvNameTaskAttemptID               = AnnotationKeyTaskAttemptID
-	EnvNameTaskAttemptInstanceUID      = "TASK_ATTEMPT_INSTANCE_UID"
-	EnvNamePodUID                      = "POD_UID"
+	EnvNameTaskAttemptInstanceUID      = "FC_TASK_ATTEMPT_INSTANCE_UID"
+	EnvNamePodUID                      = "FC_POD_UID"
 )
 
 var FrameworkGroupVersionKind = SchemeGroupVersion.WithKind(FrameworkKind)

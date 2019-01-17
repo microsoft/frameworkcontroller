@@ -261,6 +261,7 @@ func (f *Framework) NewConfigMap() *core.ConfigMap {
 	cm.Finalizers = []string{meta.FinalizerDeleteDependents}
 
 	cm.Annotations = map[string]string{}
+	cm.Annotations[AnnotationKeyFrameworkNamespace] = f.Namespace
 	cm.Annotations[AnnotationKeyFrameworkName] = f.Name
 	cm.Annotations[AnnotationKeyConfigMapName] = cm.Name
 	cm.Annotations[AnnotationKeyFrameworkAttemptID] = frameworkAttemptIDStr
@@ -305,12 +306,12 @@ func (f *Framework) NewPod(cm *core.ConfigMap, taskRoleName string, taskIndex in
 	if pod.Annotations == nil {
 		pod.Annotations = map[string]string{}
 	}
+	pod.Annotations[AnnotationKeyFrameworkNamespace] = f.Namespace
 	pod.Annotations[AnnotationKeyFrameworkName] = f.Name
 	pod.Annotations[AnnotationKeyTaskRoleName] = taskRoleName
 	pod.Annotations[AnnotationKeyTaskIndex] = taskIndexStr
 	pod.Annotations[AnnotationKeyConfigMapName] = f.ConfigMapName()
 	pod.Annotations[AnnotationKeyPodName] = pod.Name
-	pod.Annotations[AnnotationKeyPodNamespace] = pod.Namespace
 	pod.Annotations[AnnotationKeyFrameworkAttemptID] = frameworkAttemptIDStr
 	pod.Annotations[AnnotationKeyFrameworkAttemptInstanceUID] = frameworkAttemptInstanceUIDStr
 	pod.Annotations[AnnotationKeyConfigMapUID] = configMapUIDStr
@@ -322,13 +323,13 @@ func (f *Framework) NewPod(cm *core.ConfigMap, taskRoleName string, taskIndex in
 	pod.Labels[LabelKeyFrameworkName] = f.Name
 	pod.Labels[LabelKeyTaskRoleName] = taskRoleName
 
-	exEnvs := []core.EnvVar{
+	predefinedEnvs := []core.EnvVar{
+		{Name: EnvNameFrameworkNamespace, Value: f.Namespace},
 		{Name: EnvNameFrameworkName, Value: f.Name},
 		{Name: EnvNameTaskRoleName, Value: taskRoleName},
 		{Name: EnvNameTaskIndex, Value: taskIndexStr},
 		{Name: EnvNameConfigMapName, Value: f.ConfigMapName()},
 		{Name: EnvNamePodName, Value: pod.Name},
-		{Name: EnvNamePodNamespace, Value: pod.Namespace},
 		{Name: EnvNameFrameworkAttemptID, Value: frameworkAttemptIDStr},
 		{Name: EnvNameFrameworkAttemptInstanceUID, Value: frameworkAttemptInstanceUIDStr},
 		{Name: EnvNameConfigMapUID, Value: configMapUIDStr},
@@ -337,6 +338,8 @@ func (f *Framework) NewPod(cm *core.ConfigMap, taskRoleName string, taskIndex in
 		{Name: EnvNameTaskAttemptInstanceUID, Value: taskAttemptInstanceUIDReferStr},
 	}
 
+	// Prepend predefinedEnvs so that they can be referred by the environment variable
+	// specified in the spec.
 	// Change the default TerminationMessagePolicy to TerminationMessageFallbackToLogsOnError
 	// in case the cluster-level logging has not been setup for the cluster.
 	// See https://kubernetes.io/docs/concepts/cluster-administration/logging
@@ -344,17 +347,13 @@ func (f *Framework) NewPod(cm *core.ConfigMap, taskRoleName string, taskIndex in
 	// is failed and the termination message file specified by the terminationMessagePath
 	// is not found or empty.
 	for i := range pod.Spec.Containers {
-		for _, exEnv := range exEnvs {
-			pod.Spec.Containers[i].Env = append(pod.Spec.Containers[i].Env, exEnv)
-		}
+		pod.Spec.Containers[i].Env = append(predefinedEnvs, pod.Spec.Containers[i].Env...)
 		if len(pod.Spec.Containers[i].TerminationMessagePolicy) == 0 {
 			pod.Spec.Containers[i].TerminationMessagePolicy = core.TerminationMessageFallbackToLogsOnError
 		}
 	}
 	for i := range pod.Spec.InitContainers {
-		for _, exEnv := range exEnvs {
-			pod.Spec.InitContainers[i].Env = append(pod.Spec.InitContainers[i].Env, exEnv)
-		}
+		pod.Spec.InitContainers[i].Env = append(predefinedEnvs, pod.Spec.InitContainers[i].Env...)
 		if len(pod.Spec.InitContainers[i].TerminationMessagePolicy) == 0 {
 			pod.Spec.InitContainers[i].TerminationMessagePolicy = core.TerminationMessageFallbackToLogsOnError
 		}

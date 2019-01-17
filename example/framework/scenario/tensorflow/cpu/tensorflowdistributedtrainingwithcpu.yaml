@@ -43,22 +43,22 @@ spec:
             # For the tf_cnn_benchmarks usage, see
             # https://github.com/tensorflow/benchmarks/tree/master/scripts/tf_cnn_benchmarks
             workingDir: /tensorflow/benchmarks/scripts/tf_cnn_benchmarks
-            # Using /mnt/frameworkbarrier/injector.sh to inject environment
-            # variables without the need for image invasion and k8s DNS:
-            # {TaskRoleName}_addresses=
-            #   {Task[0].PodIP}:${{TaskRoleName}_port},...,
-            #   {Task[TaskRole.TaskNumber-1].PodIP}:${{TaskRoleName}_port}
+            # Using /mnt/frameworkbarrier/injector.sh to inject environment variables
+            # without the need for image invasion and k8s DNS:
+            # FB_{UpperCase({TaskRoleName})}_ADDRESSES=
+            #   {Task[0].PodIP}:${FB_{UpperCase({TaskRoleName})}_PORT},...,
+            #   {Task[TaskRole.TaskNumber-1].PodIP}:${FB_{UpperCase({TaskRoleName})}_PORT}
             # See more in ./example/framework/extension/frameworkbarrier.yaml
             command: [
             "sh", "-c",
-            "ps_port=4001 worker_port=5001 . /mnt/frameworkbarrier/injector.sh &&
-            python tf_cnn_benchmarks.py --job_name=ps --task_index=${TASK_INDEX}
-            --ps_hosts=${ps_addresses} --worker_hosts=${worker_addresses}
+            "FB_PS_PORT=4001 FB_WORKER_PORT=5001 . /mnt/frameworkbarrier/injector.sh &&
+            python tf_cnn_benchmarks.py --job_name=ps --task_index=${FC_TASK_INDEX}
+            --ps_hosts=${FB_PS_ADDRESSES} --worker_hosts=${FB_WORKER_ADDRESSES}
             --variable_update=parameter_server --cross_replica_sync=false
             --model=alexnet --batch_size=8 --num_batches=10
             --device=cpu --local_parameter_device=cpu --data_format=NHWC
             --data_name=cifar10 --data_dir=/mnt/data/cifar-10-batches-py
-            --train_dir=/mnt/data/${FRAMEWORK_NAME}/output"]
+            --train_dir=/mnt/data/${FC_FRAMEWORK_NAME}/output"]
             ports:
             - containerPort: 4001
             volumeMounts:
@@ -129,14 +129,14 @@ spec:
             workingDir: /tensorflow/benchmarks/scripts/tf_cnn_benchmarks
             command: [
             "sh", "-c",
-            "ps_port=4001 worker_port=5001 . /mnt/frameworkbarrier/injector.sh &&
-            python tf_cnn_benchmarks.py --job_name=worker --task_index=${TASK_INDEX}
-            --ps_hosts=${ps_addresses} --worker_hosts=${worker_addresses}
+            "FB_PS_PORT=4001 FB_WORKER_PORT=5001 . /mnt/frameworkbarrier/injector.sh &&
+            python tf_cnn_benchmarks.py --job_name=worker --task_index=${FC_TASK_INDEX}
+            --ps_hosts=${FB_PS_ADDRESSES} --worker_hosts=${FB_WORKER_ADDRESSES}
             --variable_update=parameter_server --cross_replica_sync=false
             --model=alexnet --batch_size=8 --num_batches=10
             --device=cpu --local_parameter_device=cpu --data_format=NHWC
             --data_name=cifar10 --data_dir=/mnt/data/cifar-10-batches-py
-            --train_dir=/mnt/data/${FRAMEWORK_NAME}/output"]
+            --train_dir=/mnt/data/${FC_FRAMEWORK_NAME}/output"]
             ports:
             - containerPort: 5001
             volumeMounts:
