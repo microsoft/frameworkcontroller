@@ -16,7 +16,7 @@ Notes:
 
 **Prerequisite**
 
-If the k8s cluster enforces [Authorization](https://kubernetes.io/docs/reference/access-authn-authz/authorization/#authorization-modules), you need to first create a [Service Account](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account) with granted permission for FrameworkController. For example, if the cluster enforces [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#kubectl-create-clusterrolebinding):
+If the k8s cluster enforces [Authorization](https://kubernetes.io/docs/reference/access-authn-authz/authorization/#using-flags-for-your-authorization-module), you need to first create a [Service Account](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account) with granted permission for FrameworkController. For example, if the cluster enforces [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#kubectl-create-clusterrolebinding):
 ```shell
 kubectl create serviceaccount frameworkcontroller --namespace default
 kubectl create clusterrolebinding frameworkcontroller \
