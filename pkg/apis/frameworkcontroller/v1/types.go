@@ -439,14 +439,17 @@ const (
 	FrameworkAttemptDeleting FrameworkState = "AttemptDeleting"
 
 	// ConfigMap does not exist and
-	// has been creation requested and is not expected to exist.
+	// has been creation requested and is not expected to exist and
+	// current attempt is not the last attempt or to be determined.
 	// [AttemptFinalState]
 	// [AssociatedState]
 	// -> FrameworkAttemptCreationPending
 	// -> FrameworkCompleted
 	FrameworkAttemptCompleted FrameworkState = "AttemptCompleted"
 
-	// Last FrameworkAttempt is completed.
+	// ConfigMap does not exist and
+	// has been creation requested and is not expected to exist and
+	// current attempt is the last attempt.
 	// [FinalState]
 	// [AssociatedState]
 	FrameworkCompleted FrameworkState = "Completed"
@@ -480,8 +483,8 @@ const (
 	// has not been deletion requested and
 	// is PodPending or PodUnknown afterwards.
 	// [AssociatedState]
-	// -> TaskAttemptDeletionPending
 	// -> TaskAttemptRunning
+	// -> TaskAttemptDeletionPending
 	// -> TaskAttemptDeleting
 	// -> TaskAttemptCompleted
 	TaskAttemptPreparing TaskState = "AttemptPreparing"
@@ -517,14 +520,17 @@ const (
 	TaskAttemptDeleting TaskState = "AttemptDeleting"
 
 	// Pod does not exist and
-	// has been creation requested and is not expected to exist.
+	// has been creation requested and is not expected to exist and
+	// current attempt is not the last attempt or to be determined.
 	// [AttemptFinalState]
 	// [AssociatedState]
 	// -> TaskAttemptCreationPending
 	// -> TaskCompleted
 	TaskAttemptCompleted TaskState = "AttemptCompleted"
 
-	// Last TaskAttempt is completed.
+	// Pod does not exist and
+	// has been creation requested and is not expected to exist and
+	// current attempt is the last attempt.
 	// [FinalState]
 	// [AssociatedState]
 	TaskCompleted TaskState = "Completed"

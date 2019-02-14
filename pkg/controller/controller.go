@@ -991,6 +991,17 @@ func (c *FrameworkController) syncTaskState(
 	taskRoleStatus := f.TaskRoleStatus(taskRoleName)
 	taskStatus := f.TaskStatus(taskRoleName, taskIndex)
 
+	if taskStatus.State == ci.TaskCompleted {
+		// The TaskCompleted should not trigger FrameworkAttemptDeletionPending, so
+		// it is safe to skip the attemptToCompleteFrameworkAttempt.
+		// Otherwise, given it is impossible that the TaskCompleted is persisted
+		// but the FrameworkAttemptDeletionPending is not persisted, the TaskCompleted
+		// should have already triggered and persisted FrameworkAttemptDeletionPending
+		// in previous sync, so current sync should have already been skipped but not.
+		log.Infof(logPfx + "Skipped: Task is already completed")
+		return false, nil
+	}
+
 	// Get the ground truth readonly pod
 	pod, err := c.getOrCleanupPod(f, cm, taskRoleName, taskIndex)
 	if err != nil {
@@ -1156,7 +1167,7 @@ func (c *FrameworkController) syncTaskState(
 		}
 	}
 	// At this point, taskStatus.State must be in:
-	// {TaskCompleted, TaskAttemptCreationPending, TaskAttemptCompleted}
+	// {TaskAttemptCreationPending, TaskAttemptCompleted}
 
 	if taskStatus.State == ci.TaskAttemptCompleted {
 		// attemptToRetryTask
@@ -1207,8 +1218,6 @@ func (c *FrameworkController) syncTaskState(
 	// At this point, taskStatus.State must be in:
 	// {TaskCompleted, TaskAttemptCreationPending}
 
-	// Totally reconstruct actions triggered by TaskCompleted in case these actions
-	// are missed due to FrameworkController restart.
 	if taskStatus.State == ci.TaskCompleted {
 		// attemptToCompleteFrameworkAttempt
 		completionPolicy := taskRoleSpec.FrameworkAttemptCompletionPolicy
