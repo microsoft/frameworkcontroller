@@ -1228,10 +1228,10 @@ func (c *FrameworkController) syncTaskState(
 			failedTaskCount := taskRoleStatus.GetTaskCount((*ci.TaskStatus).IsFailed)
 			if failedTaskCount >= minFailedTaskCount {
 				diag := fmt.Sprintf(
-					"TaskRole %v: FailedTaskCount %v has reached MinFailedTaskCount %v: "+
-							"Triggered by Task: [Index: %v, Diagnostics: %v]",
-					taskRoleName, failedTaskCount, minFailedTaskCount,
-					taskIndex, taskStatus.AttemptStatus.CompletionStatus.Diagnostics)
+					"FailedTaskCount %v has reached MinFailedTaskCount %v in TaskRole [%v]: "+
+							"Triggered by Task [%v][%v]: Diagnostics: %v",
+					failedTaskCount, minFailedTaskCount, taskRoleName,
+					taskRoleName, taskIndex, taskStatus.AttemptStatus.CompletionStatus.Diagnostics)
 				log.Infof(logPfx + diag)
 				c.completeFrameworkAttempt(f,
 					taskStatus.AttemptStatus.CompletionStatus.Code.NewCompletionStatus(diag))
@@ -1243,10 +1243,10 @@ func (c *FrameworkController) syncTaskState(
 			succeededTaskCount := taskRoleStatus.GetTaskCount((*ci.TaskStatus).IsSucceeded)
 			if succeededTaskCount >= minSucceededTaskCount {
 				diag := fmt.Sprintf(
-					"TaskRole %v: SucceededTaskCount %v has reached MinSucceededTaskCount %v: "+
-							"Triggered by Task: [Index: %v, Diagnostics: %v]",
-					taskRoleName, succeededTaskCount, minSucceededTaskCount,
-					taskIndex, taskStatus.AttemptStatus.CompletionStatus.Diagnostics)
+					"SucceededTaskCount %v has reached MinSucceededTaskCount %v in TaskRole [%v]: "+
+							"Triggered by Task [%v][%v]: Diagnostics: %v",
+					succeededTaskCount, minSucceededTaskCount, taskRoleName,
+					taskRoleName, taskIndex, taskStatus.AttemptStatus.CompletionStatus.Diagnostics)
 				log.Infof(logPfx + diag)
 				c.completeFrameworkAttempt(f,
 					ci.CompletionCodeSucceeded.NewCompletionStatus(diag))
@@ -1260,9 +1260,9 @@ func (c *FrameworkController) syncTaskState(
 			diag := fmt.Sprintf(
 				"All Tasks are completed and no FrameworkAttemptCompletionPolicy has "+
 						"ever been triggered: TotalTaskCount: %v, FailedTaskCount: %v: "+
-						"Triggered by Task: [Index: %v, Diagnostics: %v]",
+						"Triggered by Task [%v][%v]: Diagnostics: %v",
 				totalTaskCount, failedTaskCount,
-				taskIndex, taskStatus.AttemptStatus.CompletionStatus.Diagnostics)
+				taskRoleName, taskIndex, taskStatus.AttemptStatus.CompletionStatus.Diagnostics)
 			log.Infof(logPfx + diag)
 			c.completeFrameworkAttempt(f,
 				ci.CompletionCodeSucceeded.NewCompletionStatus(diag))
@@ -1284,7 +1284,9 @@ func (c *FrameworkController) syncTaskState(
 				// Directly complete the FrameworkAttempt, since we should not complete
 				// a TaskAttempt without an associated Pod in any case.
 				diag := fmt.Sprintf(
-					"TaskRole %v: Pod Spec is invalid: %v", taskRoleName, apiErr)
+					"Pod Spec is invalid in TaskRole [%v]: "+
+							"Triggered by Task [%v][%v]: Diagnostics: %v",
+					taskRoleName, taskRoleName, taskIndex, apiErr)
 				log.Infof(logPfx + diag)
 				c.completeFrameworkAttempt(f,
 					ci.CompletionCodePodSpecInvalid.NewCompletionStatus(diag))
