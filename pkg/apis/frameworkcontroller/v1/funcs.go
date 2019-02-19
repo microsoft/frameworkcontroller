@@ -183,6 +183,14 @@ func (ts *TaskStatus) IsCompleted() bool {
 	return ts.State == TaskCompleted
 }
 
+func (f *Framework) IsRunning() bool {
+	return f.Status.State == FrameworkAttemptRunning
+}
+
+func (ts *TaskStatus) IsRunning() bool {
+	return ts.State == TaskAttemptRunning
+}
+
 func (ct CompletionType) IsSucceeded() bool {
 	return ct.Name == CompletionTypeNameSucceeded
 }
@@ -243,7 +251,11 @@ func (f *Framework) GetTaskCount(selector TaskStatusSelector) int32 {
 }
 
 func (f *Framework) AreAllTasksCompleted() bool {
-	return f.GetTaskCount(nil) == f.GetTaskCount((*TaskStatus).IsCompleted)
+	return f.GetTaskCount((*TaskStatus).IsCompleted) == f.GetTaskCount(nil)
+}
+
+func (f *Framework) IsAnyTaskRunning() bool {
+	return f.GetTaskCount((*TaskStatus).IsRunning) > 0
 }
 
 func (f *Framework) NewConfigMap() *core.ConfigMap {

@@ -161,6 +161,9 @@ const (
 //    So, the actual retried attempt instances maybe exceed the RetryPolicySpec
 //    in rare cases, however, the RetryPolicyStatus will never exceed the
 //    RetryPolicySpec.
+// 2. Resort to other spec to control other kind of RetryPolicy:
+//    1. Container RetryPolicy is the RestartPolicy in Pod Spec.
+//       See https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#restart-policy
 type RetryPolicySpec struct {
 	FancyRetryPolicy bool  `json:"fancyRetryPolicy"`
 	MaxRetryCount    int32 `json:"maxRetryCount"`
@@ -193,6 +196,12 @@ type RetryPolicySpec struct {
 // 1. When the FrameworkAttempt is completed, the FrameworkState is transitioned to
 //    FrameworkAttemptCompleted, so the Framework may still be retried with another
 //    new FrameworkAttempt according to the Framework RetryPolicySpec.
+// 2. Resort to other spec to control other kind of CompletionPolicy:
+//    1. Framework CompletionPolicy is equivalent to Framework RetryPolicy.
+//    2. Task CompletionPolicy is equivalent to Task RetryPolicy.
+//    3. TaskAttempt CompletionPolicy is equivalent to Pod CompletionPolicy,
+//       i.e. the PodPhase conditions for PodSucceeded or PodFailed.
+//       See https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase
 type CompletionPolicySpec struct {
 	MinFailedTaskCount    int32 `json:"minFailedTaskCount"`
 	MinSucceededTaskCount int32 `json:"minSucceededTaskCount"`
@@ -406,15 +415,28 @@ const (
 	// ConfigMap does not exist and
 	// has been creation requested and is expected to exist.
 	// [AssociatedState]
-	// -> FrameworkAttemptRunning
+	// -> FrameworkAttemptPreparing
 	// -> FrameworkAttemptDeleting
 	// -> FrameworkAttemptCompleted
 	FrameworkAttemptCreationRequested FrameworkState = "AttemptCreationRequested"
 
 	// ConfigMap exists and is not deleting and
 	// has not been deletion requested and
-	// is not pending to be deletion requested.
+	// FrameworkAttemptCompletionPolicy has not been satisfied and
+	// there is no Task in TaskAttemptRunning state.
 	// [AssociatedState]
+	// -> FrameworkAttemptRunning
+	// -> FrameworkAttemptDeletionPending
+	// -> FrameworkAttemptDeleting
+	// -> FrameworkAttemptCompleted
+	FrameworkAttemptPreparing FrameworkState = "AttemptPreparing"
+
+	// ConfigMap exists and is not deleting and
+	// has not been deletion requested and
+	// FrameworkAttemptCompletionPolicy has not been satisfied and
+	// there is at least one Task in TaskAttemptRunning state.
+	// [AssociatedState]
+	// -> FrameworkAttemptPreparing
 	// -> FrameworkAttemptDeletionPending
 	// -> FrameworkAttemptDeleting
 	// -> FrameworkAttemptCompleted
@@ -422,7 +444,7 @@ const (
 
 	// ConfigMap exists and is not deleting and
 	// has not been deletion requested and
-	// is pending to be deletion requested.
+	// FrameworkAttemptCompletionPolicy has been satisfied.
 	// [AssociatedState]
 	// -> FrameworkAttemptDeletionRequested
 	// -> FrameworkAttemptDeleting
@@ -484,7 +506,7 @@ const (
 
 	// Pod exists and is not deleting and
 	// has not been deletion requested and
-	// is PodPending or PodUnknown afterwards.
+	// its PodPhase is PodPending or PodUnknown afterwards.
 	// [AssociatedState]
 	// -> TaskAttemptRunning
 	// -> TaskAttemptDeletionPending
@@ -494,7 +516,7 @@ const (
 
 	// Pod exists and is not deleting and
 	// has not been deletion requested and
-	// is PodRunning or PodUnknown afterwards.
+	// its PodPhase is PodRunning or PodUnknown afterwards.
 	// [AssociatedState]
 	// -> TaskAttemptDeletionPending
 	// -> TaskAttemptDeleting
@@ -503,7 +525,7 @@ const (
 
 	// Pod exists and is not deleting and
 	// has not been deletion requested and
-	// is PodSucceeded or PodFailed.
+	// its PodPhase is PodSucceeded or PodFailed.
 	// [AssociatedState]
 	// -> TaskAttemptDeletionRequested
 	// -> TaskAttemptDeleting

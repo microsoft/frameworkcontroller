@@ -772,7 +772,10 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) error {
 				return nil
 			}
 
-			f.TransitionFrameworkState(ci.FrameworkAttemptRunning)
+			if f.Status.State != ci.FrameworkAttemptPreparing &&
+					f.Status.State != ci.FrameworkAttemptRunning {
+				f.TransitionFrameworkState(ci.FrameworkAttemptPreparing)
+			}
 		} else {
 			f.TransitionFrameworkState(ci.FrameworkAttemptDeleting)
 			log.Infof(logPfx + "Waiting ConfigMap to be deleted")
@@ -780,7 +783,8 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) error {
 		}
 	}
 	// At this point, f.Status.State must be in:
-	// {FrameworkAttemptCreationPending, FrameworkAttemptCompleted, FrameworkAttemptRunning}
+	// {FrameworkAttemptCreationPending, FrameworkAttemptCompleted,
+	// FrameworkAttemptPreparing, FrameworkAttemptRunning}
 
 	if f.Status.State == ci.FrameworkAttemptCompleted {
 		// attemptToRetryFramework
@@ -831,7 +835,8 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) error {
 		}
 	}
 	// At this point, f.Status.State must be in:
-	// {FrameworkAttemptCreationPending, FrameworkAttemptRunning}
+	// {FrameworkAttemptCreationPending, FrameworkAttemptPreparing,
+	// FrameworkAttemptRunning}
 
 	if f.Status.State == ci.FrameworkAttemptCreationPending {
 		// createFrameworkAttempt
@@ -857,16 +862,26 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) error {
 		return nil
 	}
 	// At this point, f.Status.State must be in:
-	// {FrameworkAttemptRunning}
+	// {FrameworkAttemptPreparing, FrameworkAttemptRunning}
 
-	if f.Status.State == ci.FrameworkAttemptRunning {
-		// Only sync child Tasks when FrameworkAttemptRunning
-		return c.syncTaskRoleStatuses(f, cm)
+	if f.Status.State == ci.FrameworkAttemptPreparing ||
+			f.Status.State == ci.FrameworkAttemptRunning {
+		cancelled, err := c.syncTaskRoleStatuses(f, cm)
+
+		if !cancelled {
+			if !f.IsAnyTaskRunning() {
+				f.TransitionFrameworkState(ci.FrameworkAttemptPreparing)
+			} else {
+				f.TransitionFrameworkState(ci.FrameworkAttemptRunning)
+			}
+		}
+
+		return err
 	} else {
 		// Unreachable
 		panic(fmt.Errorf(logPfx+
-				"Failed: At this point, FrameworkState should be in {%v} instead of %v",
-			ci.FrameworkAttemptRunning, f.Status.State))
+				"Failed: At this point, FrameworkState should be in {%v, %v} instead of %v",
+			ci.FrameworkAttemptPreparing, ci.FrameworkAttemptRunning, f.Status.State))
 	}
 }
 
@@ -942,7 +957,7 @@ func (c *FrameworkController) createConfigMap(
 }
 
 func (c *FrameworkController) syncTaskRoleStatuses(
-		f *ci.Framework, cm *core.ConfigMap) error {
+		f *ci.Framework, cm *core.ConfigMap) (syncFrameworkCancelled bool, err error) {
 	logPfx := fmt.Sprintf("[%v]: syncTaskRoleStatuses: ", f.Key())
 	log.Infof(logPfx + "Started")
 	defer func() { log.Infof(logPfx + "Completed") }()
@@ -951,16 +966,16 @@ func (c *FrameworkController) syncTaskRoleStatuses(
 	for _, taskRoleStatus := range f.TaskRoleStatuses() {
 		log.Infof("[%v][%v]: syncTaskRoleStatus", f.Key(), taskRoleStatus.Name)
 		for _, taskStatus := range taskRoleStatus.TaskStatuses {
-			cancel, err := c.syncTaskState(f, cm, taskRoleStatus.Name, taskStatus.Index)
+			cancelled, err := c.syncTaskState(f, cm, taskRoleStatus.Name, taskStatus.Index)
 			if err != nil {
 				errs = append(errs, err)
 			}
 
-			if cancel {
+			if cancelled {
 				log.Infof(
-					"[%v][%v][%v]: Cancel Framework sync",
+					"[%v][%v][%v]: syncFramework is cancelled",
 					f.Key(), taskRoleStatus.Name, taskStatus.Index)
-				return errorAgg.NewAggregate(errs)
+				return true, errorAgg.NewAggregate(errs)
 			}
 
 			if err != nil {
@@ -975,12 +990,12 @@ func (c *FrameworkController) syncTaskRoleStatuses(
 		}
 	}
 
-	return errorAgg.NewAggregate(errs)
+	return false, errorAgg.NewAggregate(errs)
 }
 
 func (c *FrameworkController) syncTaskState(
 		f *ci.Framework, cm *core.ConfigMap,
-		taskRoleName string, taskIndex int32) (cancelFrameworkSync bool, err error) {
+		taskRoleName string, taskIndex int32) (syncFrameworkCancelled bool, err error) {
 	logPfx := fmt.Sprintf("[%v][%v][%v]: syncTaskState: ",
 		f.Key(), taskRoleName, taskIndex)
 	log.Infof(logPfx + "Started")
@@ -1258,8 +1273,9 @@ func (c *FrameworkController) syncTaskState(
 			totalTaskCount := f.GetTaskCount(nil)
 			failedTaskCount := f.GetTaskCount((*ci.TaskStatus).IsFailed)
 			diag := fmt.Sprintf(
-				"All Tasks are completed and no FrameworkAttemptCompletionPolicy has "+
-						"ever been triggered: TotalTaskCount: %v, FailedTaskCount: %v: "+
+				"All Tasks are completed and no user specified conditions in "+
+						"FrameworkAttemptCompletionPolicy have ever been triggered: "+
+						"TotalTaskCount: %v, FailedTaskCount: %v: "+
 						"Triggered by Task [%v][%v]: Diagnostics: %v",
 				totalTaskCount, failedTaskCount,
 				taskRoleName, taskIndex, taskStatus.AttemptStatus.CompletionStatus.Diagnostics)
