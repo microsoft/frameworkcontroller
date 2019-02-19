@@ -415,15 +415,28 @@ const (
 	// ConfigMap does not exist and
 	// has been creation requested and is expected to exist.
 	// [AssociatedState]
-	// -> FrameworkAttemptRunning
+	// -> FrameworkAttemptPreparing
 	// -> FrameworkAttemptDeleting
 	// -> FrameworkAttemptCompleted
 	FrameworkAttemptCreationRequested FrameworkState = "AttemptCreationRequested"
 
 	// ConfigMap exists and is not deleting and
 	// has not been deletion requested and
-	// is not pending to be deletion requested.
+	// FrameworkAttemptCompletionPolicy has not been satisfied and
+	// there is no Task in TaskAttemptRunning state.
 	// [AssociatedState]
+	// -> FrameworkAttemptRunning
+	// -> FrameworkAttemptDeletionPending
+	// -> FrameworkAttemptDeleting
+	// -> FrameworkAttemptCompleted
+	FrameworkAttemptPreparing FrameworkState = "AttemptPreparing"
+
+	// ConfigMap exists and is not deleting and
+	// has not been deletion requested and
+	// FrameworkAttemptCompletionPolicy has not been satisfied and
+	// there is at least one Task in TaskAttemptRunning state.
+	// [AssociatedState]
+	// -> FrameworkAttemptPreparing
 	// -> FrameworkAttemptDeletionPending
 	// -> FrameworkAttemptDeleting
 	// -> FrameworkAttemptCompleted
@@ -431,7 +444,7 @@ const (
 
 	// ConfigMap exists and is not deleting and
 	// has not been deletion requested and
-	// is pending to be deletion requested.
+	// FrameworkAttemptCompletionPolicy has been satisfied.
 	// [AssociatedState]
 	// -> FrameworkAttemptDeletionRequested
 	// -> FrameworkAttemptDeleting
