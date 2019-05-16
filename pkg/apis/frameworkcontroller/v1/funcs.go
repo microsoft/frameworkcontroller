@@ -443,6 +443,7 @@ func (f *Framework) NewTaskAttemptStatus(
 		PodIP:            nil,
 		PodHostIP:        nil,
 		CompletionStatus: nil,
+		ContainerStatuses: nil,
 	}
 }
 
@@ -545,16 +546,22 @@ func (f *Framework) TransitionFrameworkState(dstState FrameworkState) {
 }
 
 // This is the only interface to modify TaskState
-func (f *Framework) TransitionTaskState(
-		taskRoleName string, taskIndex int32, dstState TaskState) {
+func (f *Framework) TransitionTaskState(taskRoleName string, taskIndex int32, dstState TaskState,containerStatuses []core.ContainerStatus) {
+
 	taskStatus := f.TaskStatus(taskRoleName, taskIndex)
+
 	srcState := taskStatus.State
+
 	if srcState == dstState {
 		return
 	}
 
 	taskStatus.State = dstState
 	taskStatus.TransitionTime = meta.Now()
+
+	if (nil != containerStatuses){
+		taskStatus.AttemptStatus.ContainerStatuses = containerStatuses
+	}
 
 	log.Infof(
 		"[%v][%v][%v]: Transitioned Task from [%v] to [%v]",

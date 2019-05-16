@@ -57,7 +57,7 @@ type FrameworkList struct {
 //    Leverage CRD status subresource to isolate Status field modification with other fields.
 //    This can help to avoid unintended modification, such as users may unintendedly modify
 //    the status when updating the spec.
-// 2. To ensure at most one instance of a specific Task is running at any point in time:
+// 2. To ensure at most one instance of a specific Task is running at any point in time:ContainerStatus
 //    1. Do not delete the managed Pod with 0 gracePeriodSeconds.
 //       For example, the default Pod deletion is acceptable.
 //    2. Do not delete the Node which runs the managed Pod.
@@ -135,7 +135,7 @@ const (
 //   will retry if the completion is due to Transient Failed CompletionType,
 //   will not retry if the completion is due to Permanent Failed CompletionType,
 //   will apply the NormalRetryPolicy defined below if all above conditions are
-//   not satisfied.
+//   not satisfied.ContainerStatus
 //
 // If the FancyRetryPolicy is not enabled,
 //   will directly apply the NormalRetryPolicy for all kinds of completions.
@@ -311,6 +311,7 @@ type TaskAttemptStatus struct {
 	PodIP            *string           `json:"podIP"`
 	PodHostIP        *string           `json:"podHostIP"`
 	CompletionStatus *CompletionStatus `json:"completionStatus"`
+	ContainerStatuses []core.ContainerStatus `json:"containerStatuses,omitempty" protobuf:"bytes,8,rep,name=containerStatuses"`
 }
 
 type RetryPolicyStatus struct {

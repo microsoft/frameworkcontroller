@@ -1027,7 +1027,7 @@ func (c *FrameworkController) syncTaskState(
 	// due to FrameworkController restart.
 	if pod == nil {
 		if taskStatus.PodUID() == nil {
-			f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptCreationPending)
+			f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptCreationPending,nil)
 		} else {
 			// Avoid sync with outdated object:
 			// pod is remote creation requested but not found in the local cache.
@@ -1064,7 +1064,7 @@ func (c *FrameworkController) syncTaskState(
 				}
 
 				taskStatus.AttemptStatus.CompletionTime = common.PtrNow()
-				f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptCompleted)
+				f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptCompleted,nil)
 				log.Infof(logPfx+
 						"TaskAttemptInstance %v is completed with CompletionStatus: %v",
 					*taskStatus.TaskAttemptInstanceUID(),
@@ -1080,7 +1080,7 @@ func (c *FrameworkController) syncTaskState(
 				if err != nil {
 					return false, err
 				}
-				f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptDeletionRequested)
+				f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptDeletionRequested,nil)
 			}
 
 			// Avoid sync with outdated object:
@@ -1113,10 +1113,10 @@ func (c *FrameworkController) syncTaskState(
 			taskStatus.AttemptStatus.PodHostIP = &pod.Status.HostIP
 
 			if pod.Status.Phase == core.PodPending {
-				f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptPreparing)
+				f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptPreparing,nil)
 				return false, nil
 			} else if pod.Status.Phase == core.PodRunning {
-				f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptRunning)
+				f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptRunning,pod.Status.ContainerStatuses)
 				return false, nil
 			} else if pod.Status.Phase == core.PodSucceeded {
 				diag := fmt.Sprintf("Pod succeeded")
@@ -1176,7 +1176,7 @@ func (c *FrameworkController) syncTaskState(
 						"Failed: Got unrecognized Pod Phase: %v", pod.Status.Phase)
 			}
 		} else {
-			f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptDeleting)
+			f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptDeleting,nil)
 			log.Infof(logPfx + "Waiting Pod to be deleted")
 			return false, nil
 		}
@@ -1207,7 +1207,7 @@ func (c *FrameworkController) syncTaskState(
 					retryDecision)
 
 				taskStatus.CompletionTime = common.PtrNow()
-				f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskCompleted)
+				f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskCompleted,nil)
 			}
 		}
 
@@ -1227,7 +1227,7 @@ func (c *FrameworkController) syncTaskState(
 			taskStatus.RetryPolicyStatus.RetryDelaySec = nil
 			taskStatus.AttemptStatus = f.NewTaskAttemptStatus(
 				taskRoleName, taskIndex, taskStatus.RetryPolicyStatus.TotalRetriedCount)
-			f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptCreationPending)
+			f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptCreationPending,nil)
 		}
 	}
 	// At this point, taskStatus.State must be in:
@@ -1315,7 +1315,7 @@ func (c *FrameworkController) syncTaskState(
 		taskStatus.AttemptStatus.PodUID = &pod.UID
 		taskStatus.AttemptStatus.InstanceUID = ci.GetTaskAttemptInstanceUID(
 			taskStatus.TaskAttemptID(), taskStatus.PodUID())
-		f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptCreationRequested)
+		f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptCreationRequested,nil)
 
 		// Informer may not deliver any event if a create is immediately followed by
 		// a delete, so manually enqueue a sync to check the pod existence after the
@@ -1418,7 +1418,7 @@ func (c *FrameworkController) completeTaskAttempt(
 
 	taskStatus := f.TaskStatus(taskRoleName, taskIndex)
 	taskStatus.AttemptStatus.CompletionStatus = completionStatus
-	f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptDeletionPending)
+	f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptDeletionPending,nil)
 
 	// To ensure the CompletionStatus is persisted before deleting the pod,
 	// we need to wait until next sync to delete the pod, so manually enqueue
