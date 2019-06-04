@@ -54,7 +54,7 @@ A Framework represents an application with a set of Tasks:
 7. Aligned with Kubernetes [Controller Design Guidelines](https://github.com/kubernetes/community/blob/master/contributors/devel/controllers.md) and [API Conventions](https://github.com/kubernetes/community/blob/master/contributors/devel/api-conventions.md)
 
 ## Prerequisite
-1. A Kubernetes cluster, v1.10 or above, on-cloud or on-premise.
+1. A Kubernetes cluster, v1.14.2 or above, on-cloud or on-premise.
 
 ## Quick Start
 1. [Run Controller](example/run)
