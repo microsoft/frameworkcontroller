@@ -120,7 +120,7 @@ func InitLogger() {
 }
 
 func LogLines(format string, args ...interface{}) {
-	lines := strings.Split(fmt.Sprintf(format, args), "\n")
+	lines := strings.Split(fmt.Sprintf(format, args...), "\n")
 	for _, line := range lines {
 		log.Infof(line)
 	}
