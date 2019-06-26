@@ -401,7 +401,7 @@ func (c *FrameworkController) Run(stopCh <-chan struct{}) {
 		c.fInformer.HasSynced,
 		c.cmInformer.HasSynced,
 		c.podInformer.HasSynced) {
-		panic("Failed to WaitForCacheSync")
+		panic(fmt.Errorf("Failed to WaitForCacheSync"))
 	}
 
 	log.Infof("Running %v with %v workers",
@@ -1449,34 +1449,38 @@ func (c *FrameworkController) updateRemoteFrameworkStatus(f *ci.Framework) error
 	log.Infof(logPfx + "Started")
 	defer func() { log.Infof(logPfx + "Completed") }()
 
-	updateF := f
+	tried := false
 	updateErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		updateF.Status = f.Status
-		_, updateErr := c.fClient.FrameworkcontrollerV1().Frameworks(updateF.Namespace).Update(updateF)
-		if updateErr == nil {
-			return nil
-		}
-
-		// Try to resolve conflict by patching more recent object.
-		localF, getErr := c.fLister.Frameworks(updateF.Namespace).Get(updateF.Name)
-		if getErr != nil {
-			if apiErrors.IsNotFound(getErr) {
-				return fmt.Errorf("Framework cannot be found in local cache: %v", getErr)
-			} else {
-				log.Warnf(logPfx+"Framework cannot be got from local cache: %v", getErr)
-			}
+		var updateF *ci.Framework
+		if !tried {
+			// Using f to update optimistically, since f may not conflict with remote.
+			updateF = f
+			tried = true
 		} else {
-			// Only resolve conflict for the same object to avoid updating another
-			// object of the same name.
-			if f.UID != localF.UID {
-				return fmt.Errorf(
-					"Framework UID mismatch: Current UID %v, Local Cached UID %v",
-					f.UID, localF.UID)
+			// Only retry on conflict, so f must conflict with remote.
+			// Try to resolve conflict by patching f.Status on more recent object.
+			localF, getErr := c.fLister.Frameworks(f.Namespace).Get(f.Name)
+			if getErr != nil {
+				if apiErrors.IsNotFound(getErr) {
+					return fmt.Errorf("Framework cannot be found in local cache: %v", getErr)
+				} else {
+					return fmt.Errorf("Framework cannot be got from local cache: %v", getErr)
+				}
 			} else {
-				updateF = localF.DeepCopy()
+				// Only resolve conflict for the same object to avoid updating another
+				// object of the same name.
+				if f.UID != localF.UID {
+					return fmt.Errorf(
+						"Framework UID mismatch: Current UID %v, Local Cached UID %v",
+						f.UID, localF.UID)
+				} else {
+					updateF = localF.DeepCopy()
+					updateF.Status = f.Status
+				}
 			}
 		}
 
+		_, updateErr := c.fClient.FrameworkcontrollerV1().Frameworks(updateF.Namespace).Update(updateF)
 		return updateErr
 	})
 
