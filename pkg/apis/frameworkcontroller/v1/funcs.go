@@ -285,7 +285,8 @@ func (f *Framework) NewConfigMap() *core.ConfigMap {
 }
 
 func (f *Framework) NewPod(cm *core.ConfigMap, taskRoleName string, taskIndex int32) *core.Pod {
-	taskPod := f.TaskRoleSpec(taskRoleName).Task.Pod.DeepCopy()
+	// Deep copy Task.Pod before modify it
+	taskPodJson := common.ToJson(f.TaskRoleSpec(taskRoleName).Task.Pod)
 	taskStatus := f.TaskStatus(taskRoleName, taskIndex)
 	taskIndexStr := fmt.Sprint(taskIndex)
 	frameworkAttemptIDStr := fmt.Sprint(f.FrameworkAttemptID())
@@ -296,12 +297,26 @@ func (f *Framework) NewPod(cm *core.ConfigMap, taskRoleName string, taskIndex in
 		taskStatus.TaskAttemptID(),
 		common.PtrUIDStr(common.ReferEnvVar(EnvNamePodUID))))
 
+	// Replace Placeholders in Task.Pod
+	podTemplate := core.PodTemplateSpec{}
+
+	placeholderReplacer := strings.NewReplacer(
+		common.ReferPlaceholder(PlaceholderFrameworkNamespace), f.Namespace,
+		common.ReferPlaceholder(PlaceholderFrameworkName), f.Name,
+		common.ReferPlaceholder(PlaceholderTaskRoleName), taskRoleName,
+		common.ReferPlaceholder(PlaceholderTaskIndex), taskIndexStr,
+		common.ReferPlaceholder(PlaceholderConfigMapName), f.ConfigMapName(),
+		common.ReferPlaceholder(PlaceholderPodName), taskStatus.PodName())
+
+	// Using Json to avoid breaking one Placeholder to multiple lines
+	common.FromJson(placeholderReplacer.Replace(taskPodJson), &podTemplate)
+
+	// Override Task.Pod
 	pod := &core.Pod{
-		ObjectMeta: taskPod.ObjectMeta,
-		Spec:       taskPod.Spec,
+		ObjectMeta: podTemplate.ObjectMeta,
+		Spec:       podTemplate.Spec,
 	}
 
-	// Rewrite Task.Pod
 	pod.Name = taskStatus.PodName()
 	pod.Namespace = f.Namespace
 
