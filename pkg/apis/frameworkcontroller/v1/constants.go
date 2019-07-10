@@ -154,48 +154,48 @@ const (
 var CompletionCodeInfos = map[CompletionCode]CompletionCodeInfo{
 	CompletionCodeContainerSigTermReceived: {
 		"ContainerSigTermReceived", CompletionType{CompletionTypeNameFailed,
-			[]CompletionTypeAttribute{CompletionTypeAttributeTransient, CompletionTypeAttributeExternal}}},
+			[]CompletionTypeAttribute{CompletionTypeAttributeTransient, CompletionTypeAttributePlatform}}},
 	CompletionCodeContainerSigKillReceived: {
 		"ContainerSigKillReceived", CompletionType{CompletionTypeNameFailed,
-			[]CompletionTypeAttribute{CompletionTypeAttributeTransient, CompletionTypeAttributeExternal}}},
+			[]CompletionTypeAttribute{CompletionTypeAttributeTransient, CompletionTypeAttributePlatform}}},
 	CompletionCodeContainerSigIntReceived: {
 		"ContainerSigIntReceived", CompletionType{CompletionTypeNameFailed,
-			[]CompletionTypeAttribute{CompletionTypeAttributeTransient, CompletionTypeAttributeExternal}}},
+			[]CompletionTypeAttribute{CompletionTypeAttributeTransient, CompletionTypeAttributePlatform}}},
 	CompletionCodeContainerTransientFailed: {
 		"ContainerTransientFailed", CompletionType{CompletionTypeNameFailed,
-			[]CompletionTypeAttribute{CompletionTypeAttributeTransient, CompletionTypeAttributeInternal}}},
+			[]CompletionTypeAttribute{CompletionTypeAttributeTransient, CompletionTypeAttributePlatform}}},
 	CompletionCodeContainerTransientConflictFailed: {
 		"ContainerTransientConflictFailed", CompletionType{CompletionTypeNameFailed,
-			[]CompletionTypeAttribute{CompletionTypeAttributeTransient, CompletionTypeAttributeInternal,
+			[]CompletionTypeAttribute{CompletionTypeAttributeTransient, CompletionTypeAttributePlatform,
 				CompletionTypeAttributeConflict}}},
 	CompletionCodeContainerPermanentFailed: {
 		"ContainerPermanentFailed", CompletionType{CompletionTypeNameFailed,
-			[]CompletionTypeAttribute{CompletionTypeAttributePermanent, CompletionTypeAttributeInternal}}},
+			[]CompletionTypeAttribute{CompletionTypeAttributePermanent, CompletionTypeAttributeUser}}},
 	CompletionCodeSucceeded: {
 		"Succeeded", CompletionType{CompletionTypeNameSucceeded,
-			[]CompletionTypeAttribute{CompletionTypeAttributeInternal}}},
+			[]CompletionTypeAttribute{CompletionTypeAttributeUser}}},
 	CompletionCodeConfigMapExternalDeleted: {
 		"ConfigMapExternalDeleted", CompletionType{CompletionTypeNameFailed,
-			[]CompletionTypeAttribute{CompletionTypeAttributeTransient, CompletionTypeAttributeExternal}}},
+			[]CompletionTypeAttribute{CompletionTypeAttributeTransient, CompletionTypeAttributePlatform}}},
 	CompletionCodePodExternalDeleted: {
 		// Possibly be due to Pod Eviction.
 		"PodExternalDeleted", CompletionType{CompletionTypeNameFailed,
-			[]CompletionTypeAttribute{CompletionTypeAttributeTransient, CompletionTypeAttributeExternal}}},
+			[]CompletionTypeAttribute{CompletionTypeAttributeTransient, CompletionTypeAttributePlatform}}},
 	CompletionCodeConfigMapCreationTimeout: {
 		"ConfigMapCreationTimeout", CompletionType{CompletionTypeNameFailed,
-			[]CompletionTypeAttribute{CompletionTypeAttributeTransient, CompletionTypeAttributeExternal}}},
+			[]CompletionTypeAttribute{CompletionTypeAttributeTransient, CompletionTypeAttributePlatform}}},
 	CompletionCodePodCreationTimeout: {
 		"PodCreationTimeout", CompletionType{CompletionTypeNameFailed,
-			[]CompletionTypeAttribute{CompletionTypeAttributeTransient, CompletionTypeAttributeExternal}}},
+			[]CompletionTypeAttribute{CompletionTypeAttributeTransient, CompletionTypeAttributePlatform}}},
 	CompletionCodePodFailedWithoutFailedContainer: {
 		"PodFailedWithoutFailedContainer", CompletionType{CompletionTypeNameFailed,
-			[]CompletionTypeAttribute{CompletionTypeAttributeTransient, CompletionTypeAttributeExternal}}},
+			[]CompletionTypeAttribute{CompletionTypeAttributeTransient, CompletionTypeAttributePlatform}}},
 	CompletionCodePodSpecInvalid: {
 		"PodSpecInvalid", CompletionType{CompletionTypeNameFailed,
-			[]CompletionTypeAttribute{CompletionTypeAttributePermanent, CompletionTypeAttributeInternal}}},
+			[]CompletionTypeAttribute{CompletionTypeAttributePermanent, CompletionTypeAttributeUser}}},
 	CompletionCodeContainerOOMKilled: {
 		// May be due to exceed the Container memory limit or the Container workload spike or
-		// OS memory pressure, so it may be Permanent or Transient, Internal or External.
+		// OS memory pressure, so it may be Permanent or Transient, User or Platform.
 		"ContainerOOMKilled", CompletionType{CompletionTypeNameFailed,
 			[]CompletionTypeAttribute{}}},
 }

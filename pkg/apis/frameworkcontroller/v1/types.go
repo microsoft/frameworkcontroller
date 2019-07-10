@@ -387,10 +387,13 @@ const (
 	// such as failed due to incorrect usage, incorrect configuration, etc.
 	CompletionTypeAttributePermanent CompletionTypeAttribute = "Permanent"
 
-	// The completion must be caused by External, i.e. the Platform.
-	CompletionTypeAttributeExternal CompletionTypeAttribute = "External"
-	// The completion must be caused by Internal, i.e. the Framework itself.
-	CompletionTypeAttributeInternal CompletionTypeAttribute = "Internal"
+	// The completion must be caused by the Platform,
+	// such as failed due to the instability of FrameworkController, K8S, OS,
+	// machine, network, etc.
+	CompletionTypeAttributePlatform CompletionTypeAttribute = "Platform"
+	// The completion must be caused by the user of the Framework,
+	// such as failed due to user code bugs, user stop request, etc.
+	CompletionTypeAttributeUser CompletionTypeAttribute = "User"
 
 	// The completion must be caused by Resource Conflict (Resource Contention):
 	// such as failed due to Gang Allocation timeout.
