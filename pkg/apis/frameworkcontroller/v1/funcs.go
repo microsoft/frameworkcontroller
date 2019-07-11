@@ -499,9 +499,16 @@ func (rd RetryDecision) String() string {
 
 func (rp RetryPolicySpec) ShouldRetry(
 		rps RetryPolicyStatus,
-		ct CompletionType,
+		cs *CompletionStatus,
 		minDelaySecForTransientConflictFailed int64,
 		maxDelaySecForTransientConflictFailed int64) RetryDecision {
+	ct := cs.Type
+
+	// 0. Built-in Always-on RetryPolicy
+	if cs.Code == CompletionCodeStopFrameworkRequested {
+		return RetryDecision{false, true, 0, cs.Diagnostics}
+	}
+
 	// 1. FancyRetryPolicy
 	if rp.FancyRetryPolicy {
 		reason := fmt.Sprintf(

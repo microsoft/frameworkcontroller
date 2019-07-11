@@ -90,6 +90,7 @@ type Framework struct {
 //////////////////////////////////////////////////////////////////////////////////////////////////
 type FrameworkSpec struct {
 	Description   string          `json:"description"`
+	// Only support to update from ExecutionStart to ExecutionStop
 	ExecutionType ExecutionType   `json:"executionType"`
 	RetryPolicy   RetryPolicySpec `json:"retryPolicy"`
 	TaskRoles     []TaskRoleSpec  `json:"taskRoles"`
@@ -131,6 +132,9 @@ const (
 //    complete a single Task in the TaskRole.
 //
 // Usage:
+// If the ExecutionType is ExecutionStop,
+//   will not retry.
+//
 // If the FancyRetryPolicy is enabled,
 //   will retry if the completion is due to Transient Failed CompletionType,
 //   will not retry if the completion is due to Permanent Failed CompletionType,

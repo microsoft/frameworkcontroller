@@ -713,17 +713,26 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) error {
 			// Avoid sync with outdated object:
 			// cm is remote creation requested but not found in the local cache.
 			if f.Status.State == ci.FrameworkAttemptCreationRequested {
-				if c.enqueueFrameworkAttemptCreationTimeoutCheck(f, true) {
-					log.Infof(logPfx +
-							"Waiting ConfigMap to appear in the local cache or timeout")
-					return nil
-				}
+				var diag string
+				var code ci.CompletionCode
+				if f.Spec.ExecutionType == ci.ExecutionStop {
+					diag = fmt.Sprintf("User has requested to stop the Framework")
+					code = ci.CompletionCodeStopFrameworkRequested
+					log.Infof(logPfx + diag)
+				} else {
+					if c.enqueueFrameworkAttemptCreationTimeoutCheck(f, true) {
+						log.Infof(logPfx +
+								"Waiting ConfigMap to appear in the local cache or timeout")
+						return nil
+					}
 
-				diag := fmt.Sprintf(
-					"ConfigMap does not appear in the local cache within timeout %v, "+
-							"so consider it was deleted and force delete it",
-					common.SecToDuration(c.cConfig.ObjectLocalCacheCreationTimeoutSec))
-				log.Warnf(logPfx + diag)
+					diag = fmt.Sprintf(
+						"ConfigMap does not appear in the local cache within timeout %v, "+
+								"so consider it was deleted and force delete it",
+						common.SecToDuration(c.cConfig.ObjectLocalCacheCreationTimeoutSec))
+					code = ci.CompletionCodeConfigMapCreationTimeout
+					log.Warnf(logPfx + diag)
+				}
 
 				// Ensure cm is deleted in remote to avoid managed cm leak after
 				// FrameworkCompleted.
@@ -732,8 +741,7 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) error {
 					return err
 				}
 
-				f.Status.AttemptStatus.CompletionStatus =
-						ci.CompletionCodeConfigMapCreationTimeout.NewCompletionStatus(diag)
+				f.Status.AttemptStatus.CompletionStatus = code.NewCompletionStatus(diag)
 			}
 
 			if f.Status.State != ci.FrameworkAttemptCompleted {
@@ -793,12 +801,12 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) error {
 		// attemptToRetryFramework
 		retryDecision := f.Spec.RetryPolicy.ShouldRetry(
 			f.Status.RetryPolicyStatus,
-			f.Status.AttemptStatus.CompletionStatus.Type,
+			f.Status.AttemptStatus.CompletionStatus,
 			*c.cConfig.FrameworkMinRetryDelaySecForTransientConflictFailed,
 			*c.cConfig.FrameworkMaxRetryDelaySecForTransientConflictFailed)
 
+		// RetryFramework is not yet scheduled, so need to be decided.
 		if f.Status.RetryPolicyStatus.RetryDelaySec == nil {
-			// RetryFramework is not yet scheduled, so need to be decided.
 			if retryDecision.ShouldRetry {
 				// scheduleToRetryFramework
 				log.Infof(logPfx+
@@ -818,11 +826,18 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) error {
 			}
 		}
 
+		// RetryFramework is already scheduled, so just need to check whether it
+		// should be executed now.
 		if f.Status.RetryPolicyStatus.RetryDelaySec != nil {
-			// RetryFramework is already scheduled, so just need to check timeout.
-			if c.enqueueFrameworkRetryDelayTimeoutCheck(f, true) {
-				log.Infof(logPfx + "Waiting Framework to retry after delay")
-				return nil
+			if f.Spec.ExecutionType == ci.ExecutionStop {
+				log.Infof(logPfx +
+						"User has requested to stop the Framework, " +
+						"so immediately retry without delay")
+			} else {
+				if c.enqueueFrameworkRetryDelayTimeoutCheck(f, true) {
+					log.Infof(logPfx + "Waiting Framework to retry after delay")
+					return nil
+				}
 			}
 
 			// retryFramework
@@ -869,17 +884,25 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) error {
 
 	if f.Status.State == ci.FrameworkAttemptPreparing ||
 			f.Status.State == ci.FrameworkAttemptRunning {
-		cancelled, err := c.syncTaskRoleStatuses(f, cm)
+		if f.Spec.ExecutionType == ci.ExecutionStop {
+			diag := fmt.Sprintf("User has requested to stop the Framework")
+			log.Infof(logPfx + diag)
+			c.completeFrameworkAttempt(f,
+				ci.CompletionCodeStopFrameworkRequested.NewCompletionStatus(diag))
+			return nil
+		} else {
+			cancelled, err := c.syncTaskRoleStatuses(f, cm)
 
-		if !cancelled {
-			if !f.IsAnyTaskRunning() {
-				f.TransitionFrameworkState(ci.FrameworkAttemptPreparing)
-			} else {
-				f.TransitionFrameworkState(ci.FrameworkAttemptRunning)
+			if !cancelled {
+				if !f.IsAnyTaskRunning() {
+					f.TransitionFrameworkState(ci.FrameworkAttemptPreparing)
+				} else {
+					f.TransitionFrameworkState(ci.FrameworkAttemptRunning)
+				}
 			}
-		}
 
-		return err
+			return err
+		}
 	} else {
 		// Unreachable
 		panic(fmt.Errorf(logPfx+
@@ -1191,7 +1214,7 @@ func (c *FrameworkController) syncTaskState(
 		// attemptToRetryTask
 		retryDecision := taskSpec.RetryPolicy.ShouldRetry(
 			taskStatus.RetryPolicyStatus,
-			taskStatus.AttemptStatus.CompletionStatus.Type,
+			taskStatus.AttemptStatus.CompletionStatus,
 			0, 0)
 
 		if taskStatus.RetryPolicyStatus.RetryDelaySec == nil {
