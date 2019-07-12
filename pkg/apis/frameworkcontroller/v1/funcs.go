@@ -505,7 +505,8 @@ func (rp RetryPolicySpec) ShouldRetry(
 	ct := cs.Type
 
 	// 0. Built-in Always-on RetryPolicy
-	if cs.Code == CompletionCodeStopFrameworkRequested {
+	if cs.Code == CompletionCodePodSpecInvalid ||
+			cs.Code == CompletionCodeStopFrameworkRequested {
 		return RetryDecision{false, true, 0, cs.Diagnostics}
 	}
 

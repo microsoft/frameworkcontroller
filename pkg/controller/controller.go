@@ -688,7 +688,7 @@ func (c *FrameworkController) syncFrameworkStatus(f *ci.Framework) error {
 	return c.syncFrameworkState(f)
 }
 
-func (c *FrameworkController) syncFrameworkState(f *ci.Framework) error {
+func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 	logPfx := fmt.Sprintf("[%v]: syncFrameworkState: ", f.Key())
 	log.Infof(logPfx + "Started")
 	defer func() { log.Infof(logPfx + "Completed") }()
@@ -698,18 +698,16 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) error {
 		return nil
 	}
 
-	// Get the ground truth readonly cm
-	cm, err := c.getOrCleanupConfigMap(f)
-	if err != nil {
-		return err
-	}
+	var cm *core.ConfigMap
+	if f.Status.State != ci.FrameworkAttemptCompleted {
+		// ConfigMap may have been creation requested successfully and may exist in
+		// remote, so need to sync against it.
+		cm, err = c.getOrCleanupConfigMap(f, false)
+		if err != nil {
+			return err
+		}
 
-	// Totally reconstruct FrameworkState in case Framework.Status is failed to
-	// persist due to FrameworkController restart.
-	if cm == nil {
-		if f.ConfigMapUID() == nil {
-			f.TransitionFrameworkState(ci.FrameworkAttemptCreationPending)
-		} else {
+		if cm == nil {
 			// Avoid sync with outdated object:
 			// cm is remote creation requested but not found in the local cache.
 			if f.Status.State == ci.FrameworkAttemptCreationRequested {
@@ -735,8 +733,8 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) error {
 				}
 
 				// Ensure cm is deleted in remote to avoid managed cm leak after
-				// FrameworkCompleted.
-				err := c.deleteConfigMap(f, *f.ConfigMapUID())
+				// FrameworkAttemptCompleted.
+				err := c.deleteConfigMap(f, *f.ConfigMapUID(), true)
 				if err != nil {
 					return err
 				}
@@ -744,7 +742,7 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) error {
 				f.Status.AttemptStatus.CompletionStatus = code.NewCompletionStatus(diag)
 			}
 
-			if f.Status.State != ci.FrameworkAttemptCompleted {
+			if f.Status.State != ci.FrameworkAttemptCreationPending {
 				if f.Status.AttemptStatus.CompletionStatus == nil {
 					diag := fmt.Sprintf("ConfigMap was deleted by others")
 					log.Warnf(logPfx + diag)
@@ -756,41 +754,40 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) error {
 				f.TransitionFrameworkState(ci.FrameworkAttemptCompleted)
 				log.Infof(logPfx+
 						"FrameworkAttemptInstance %v is completed with CompletionStatus: %v",
-					*f.FrameworkAttemptInstanceUID(),
-					f.Status.AttemptStatus.CompletionStatus)
-			}
-		}
-	} else {
-		if cm.DeletionTimestamp == nil {
-			if f.Status.State == ci.FrameworkAttemptDeletionPending {
-				// The CompletionStatus has been persisted, so it is safe to delete the
-				// cm now.
-				err := c.deleteConfigMap(f, *f.ConfigMapUID())
-				if err != nil {
-					return err
-				}
-				f.TransitionFrameworkState(ci.FrameworkAttemptDeletionRequested)
-			}
-
-			// Avoid sync with outdated object:
-			// cm is remote deletion requested but not deleting or deleted in the local
-			// cache.
-			if f.Status.State == ci.FrameworkAttemptDeletionRequested {
-				// The deletion requested object will never appear again with the same UID,
-				// so always just wait.
-				log.Infof(logPfx +
-						"Waiting ConfigMap to disappearing or disappear in the local cache")
-				return nil
-			}
-
-			if f.Status.State != ci.FrameworkAttemptPreparing &&
-					f.Status.State != ci.FrameworkAttemptRunning {
-				f.TransitionFrameworkState(ci.FrameworkAttemptPreparing)
+					*f.FrameworkAttemptInstanceUID(), f.Status.AttemptStatus.CompletionStatus)
 			}
 		} else {
-			f.TransitionFrameworkState(ci.FrameworkAttemptDeleting)
-			log.Infof(logPfx + "Waiting ConfigMap to be deleted")
-			return nil
+			if cm.DeletionTimestamp == nil {
+				if f.Status.State == ci.FrameworkAttemptDeletionPending {
+					// The CompletionStatus has been persisted, so it is safe to delete the
+					// cm now.
+					err := c.deleteConfigMap(f, *f.ConfigMapUID(), false)
+					if err != nil {
+						return err
+					}
+					f.TransitionFrameworkState(ci.FrameworkAttemptDeletionRequested)
+				}
+
+				// Avoid sync with outdated object:
+				// cm is remote deletion requested but not deleting or deleted in the local
+				// cache.
+				if f.Status.State == ci.FrameworkAttemptDeletionRequested {
+					// The deletion requested object will never appear again with the same UID,
+					// so always just wait.
+					log.Infof(logPfx +
+							"Waiting ConfigMap to disappearing or disappear in the local cache")
+					return nil
+				}
+
+				if f.Status.State != ci.FrameworkAttemptPreparing &&
+						f.Status.State != ci.FrameworkAttemptRunning {
+					f.TransitionFrameworkState(ci.FrameworkAttemptPreparing)
+				}
+			} else {
+				f.TransitionFrameworkState(ci.FrameworkAttemptDeleting)
+				log.Infof(logPfx + "Waiting ConfigMap to be deleted")
+				return nil
+			}
 		}
 	}
 	// At this point, f.Status.State must be in:
@@ -805,8 +802,8 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) error {
 			*c.cConfig.FrameworkMinRetryDelaySecForTransientConflictFailed,
 			*c.cConfig.FrameworkMaxRetryDelaySecForTransientConflictFailed)
 
-		// RetryFramework is not yet scheduled, so need to be decided.
 		if f.Status.RetryPolicyStatus.RetryDelaySec == nil {
+			// RetryFramework is not yet scheduled, so need to be decided.
 			if retryDecision.ShouldRetry {
 				// scheduleToRetryFramework
 				log.Infof(logPfx+
@@ -826,9 +823,9 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) error {
 			}
 		}
 
-		// RetryFramework is already scheduled, so just need to check whether it
-		// should be executed now.
 		if f.Status.RetryPolicyStatus.RetryDelaySec != nil {
+			// RetryFramework is already scheduled, so just need to check whether it
+			// should be executed now.
 			if f.Spec.ExecutionType == ci.ExecutionStop {
 				log.Infof(logPfx +
 						"User has requested to stop the Framework, " +
@@ -857,8 +854,32 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) error {
 	// FrameworkAttemptRunning}
 
 	if f.Status.State == ci.FrameworkAttemptCreationPending {
+		if f.Spec.ExecutionType == ci.ExecutionStop {
+			diag := fmt.Sprintf("User has requested to stop the Framework")
+			log.Infof(logPfx + diag)
+
+			// Ensure cm is deleted in remote to avoid managed cm leak after
+			// FrameworkAttemptCompleted.
+			_, err = c.getOrCleanupConfigMap(f, true)
+			if err != nil {
+				return err
+			}
+
+			f.Status.AttemptStatus.CompletionStatus =
+					ci.CompletionCodeStopFrameworkRequested.NewCompletionStatus(diag)
+			f.Status.AttemptStatus.CompletionTime = common.PtrNow()
+			f.TransitionFrameworkState(ci.FrameworkAttemptCompleted)
+			log.Infof(logPfx+
+					"FrameworkAttempt %v is completed with CompletionStatus: %v",
+				f.FrameworkAttemptID(), f.Status.AttemptStatus.CompletionStatus)
+
+			// Manually enqueue a sync to drive it.
+			c.enqueueFramework(f, "FrameworkAttemptCompleted")
+			return nil
+		}
+
 		// createFrameworkAttempt
-		cm, err := c.createConfigMap(f)
+		cm, err = c.createConfigMap(f)
 		if err != nil {
 			return err
 		}
@@ -918,15 +939,23 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) error {
 // Clean up instead of recovery is because the ConfigMapUID is always the ground
 // truth.
 func (c *FrameworkController) getOrCleanupConfigMap(
-		f *ci.Framework) (*core.ConfigMap, error) {
-	cm, err := c.cmLister.ConfigMaps(f.Namespace).Get(f.ConfigMapName())
+		f *ci.Framework, force bool) (cm *core.ConfigMap, err error) {
+	cmName := f.ConfigMapName()
+
+	if force {
+		cm, err = c.kClient.CoreV1().ConfigMaps(f.Namespace).Get(cmName,
+			meta.GetOptions{})
+	} else {
+		cm, err = c.cmLister.ConfigMaps(f.Namespace).Get(cmName)
+	}
+
 	if err != nil {
 		if apiErrors.IsNotFound(err) {
 			return nil, nil
 		} else {
 			return nil, fmt.Errorf(
-				"[%v]: ConfigMap %v cannot be got from local cache: %v",
-				f.Key(), f.ConfigMapName(), err)
+				"[%v]: Failed to get ConfigMap %v: force: %v: %v",
+				f.Key(), cmName, force, err)
 		}
 	}
 
@@ -937,14 +966,12 @@ func (c *FrameworkController) getOrCleanupConfigMap(
 			// is failed to persist due to FrameworkController restart or create fails
 			// but succeeds on remote, so clean up the ConfigMap to avoid unmanaged cm
 			// leak.
-			return nil, c.deleteConfigMap(f, cm.UID)
+			return nil, c.deleteConfigMap(f, cm.UID, force)
 		} else {
-			return nil, fmt.Errorf(
-				"[%v]: ConfigMap %v naming conflicts with others: "+
-						"Existing ConfigMap %v with DeletionTimestamp %v is not "+
-						"controlled by current Framework %v, %v",
-				f.Key(), f.ConfigMapName(),
-				cm.UID, cm.DeletionTimestamp, f.Name, f.UID)
+			// Do not own and manage the life cycle of not controlled object, so still
+			// consider the get and controlled object clean up is success, and postpone
+			// the potential naming conflict when creating the controlled object.
+			return nil, nil
 		}
 	} else {
 		// cm is the managed
@@ -953,30 +980,74 @@ func (c *FrameworkController) getOrCleanupConfigMap(
 }
 
 // Using UID to ensure we delete the right object.
+// The cmUID should be controlled by f.
 func (c *FrameworkController) deleteConfigMap(
-		f *ci.Framework, cmUID types.UID) error {
+		f *ci.Framework, cmUID types.UID, force bool) error {
 	cmName := f.ConfigMapName()
-	err := c.kClient.CoreV1().ConfigMaps(f.Namespace).Delete(cmName,
+	errPfx := fmt.Sprintf(
+		"[%v]: Failed to delete ConfigMap %v, %v: force: %v: ",
+		f.Key(), cmName, cmUID, force)
+
+	// Do not set zero GracePeriodSeconds to do force deletion in any case, since
+	// it will also immediately delete Pod in PodUnknown state, while the Pod may
+	// be still running.
+	deleteErr := c.kClient.CoreV1().ConfigMaps(f.Namespace).Delete(cmName,
 		&meta.DeleteOptions{Preconditions: &meta.Preconditions{UID: &cmUID}})
-	if err != nil && !apiErrors.IsNotFound(err) {
-		return fmt.Errorf("[%v]: Failed to delete ConfigMap %v, %v: %v",
-			f.Key(), cmName, cmUID, err)
+	if deleteErr != nil {
+		if !apiErrors.IsNotFound(deleteErr) {
+			return fmt.Errorf(errPfx+"%v", deleteErr)
+		}
 	} else {
-		log.Infof("[%v]: Succeeded to delete ConfigMap %v, %v",
-			f.Key(), cmName, cmUID)
-		return nil
+		if force {
+			// Confirm it is deleted instead of still deleting.
+			cm, getErr := c.kClient.CoreV1().ConfigMaps(f.Namespace).Get(cmName,
+				meta.GetOptions{})
+			if getErr != nil {
+				if !apiErrors.IsNotFound(getErr) {
+					return fmt.Errorf(errPfx+
+							"ConfigMap cannot be got from remote: %v", getErr)
+				}
+			} else {
+				if cmUID == cm.UID {
+					return fmt.Errorf(errPfx+
+							"ConfigMap with DeletionTimestamp %v still exist after deletion",
+						cm.DeletionTimestamp)
+				}
+			}
+		}
 	}
+
+	log.Infof(
+		"[%v]: Succeeded to delete ConfigMap %v, %v: force: %v",
+		f.Key(), cmName, cmUID, force)
+	return nil
 }
 
 func (c *FrameworkController) createConfigMap(
 		f *ci.Framework) (*core.ConfigMap, error) {
 	cm := f.NewConfigMap()
-	remoteCM, err := c.kClient.CoreV1().ConfigMaps(f.Namespace).Create(cm)
-	if err != nil {
-		return nil, fmt.Errorf("[%v]: Failed to create ConfigMap %v: %v",
-			f.Key(), cm.Name, err)
+	errPfx := fmt.Sprintf(
+		"[%v]: Failed to create ConfigMap %v: ",
+		f.Key(), cm.Name)
+
+	remoteCM, createErr := c.kClient.CoreV1().ConfigMaps(f.Namespace).Create(cm)
+	if createErr != nil {
+		if apiErrors.IsConflict(createErr) {
+			// Best effort to judge if conflict with a not controlled object.
+			localCM, getErr := c.cmLister.ConfigMaps(f.Namespace).Get(cm.Name)
+			if getErr == nil && !meta.IsControlledBy(localCM, f) {
+				return nil, fmt.Errorf(errPfx+
+						"ConfigMap naming conflicts with others: "+
+						"Existing ConfigMap %v with DeletionTimestamp %v is not "+
+						"controlled by current Framework %v, %v: %v",
+					localCM.UID, localCM.DeletionTimestamp, f.Name, f.UID, createErr)
+			}
+		}
+
+		return nil, fmt.Errorf(errPfx+"%v", createErr)
 	} else {
-		log.Infof("[%v]: Succeeded to create ConfigMap %v",
+		log.Infof(
+			"[%v]: Succeeded to create ConfigMap %v",
 			f.Key(), cm.Name)
 		return remoteCM, nil
 	}
@@ -1043,18 +1114,16 @@ func (c *FrameworkController) syncTaskState(
 		return false, nil
 	}
 
-	// Get the ground truth readonly pod
-	pod, err := c.getOrCleanupPod(f, cm, taskRoleName, taskIndex)
-	if err != nil {
-		return false, err
-	}
+	var pod *core.Pod
+	if taskStatus.State != ci.TaskAttemptCompleted {
+		// Pod may have been creation requested successfully and may exist in remote,
+		// so need to sync against it.
+		pod, err = c.getOrCleanupPod(f, cm, taskRoleName, taskIndex, false)
+		if err != nil {
+			return false, err
+		}
 
-	// Totally reconstruct TaskState in case Framework.Status is failed to persist
-	// due to FrameworkController restart.
-	if pod == nil {
-		if taskStatus.PodUID() == nil {
-			f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptCreationPending)
-		} else {
+		if pod == nil {
 			// Avoid sync with outdated object:
 			// pod is remote creation requested but not found in the local cache.
 			if taskStatus.State == ci.TaskAttemptCreationRequested {
@@ -1071,8 +1140,8 @@ func (c *FrameworkController) syncTaskState(
 				log.Warnf(logPfx + diag)
 
 				// Ensure pod is deleted in remote to avoid managed pod leak after
-				// TaskCompleted.
-				err := c.deletePod(f, taskRoleName, taskIndex, *taskStatus.PodUID())
+				// TaskAttemptCompleted.
+				err := c.deletePod(f, taskRoleName, taskIndex, *taskStatus.PodUID(), true)
 				if err != nil {
 					return false, err
 				}
@@ -1081,7 +1150,7 @@ func (c *FrameworkController) syncTaskState(
 						ci.CompletionCodePodCreationTimeout.NewCompletionStatus(diag)
 			}
 
-			if taskStatus.State != ci.TaskAttemptCompleted {
+			if taskStatus.State != ci.TaskAttemptCreationPending {
 				if taskStatus.AttemptStatus.CompletionStatus == nil {
 					diag := fmt.Sprintf("Pod was deleted by others")
 					log.Warnf(logPfx + diag)
@@ -1093,118 +1162,117 @@ func (c *FrameworkController) syncTaskState(
 				f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptCompleted)
 				log.Infof(logPfx+
 						"TaskAttemptInstance %v is completed with CompletionStatus: %v",
-					*taskStatus.TaskAttemptInstanceUID(),
-					taskStatus.AttemptStatus.CompletionStatus)
-			}
-		}
-	} else {
-		if pod.DeletionTimestamp == nil {
-			if taskStatus.State == ci.TaskAttemptDeletionPending {
-				// The CompletionStatus has been persisted, so it is safe to delete the
-				// pod now.
-				err := c.deletePod(f, taskRoleName, taskIndex, *taskStatus.PodUID())
-				if err != nil {
-					return false, err
-				}
-				f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptDeletionRequested)
-			}
-
-			// Avoid sync with outdated object:
-			// pod is remote deletion requested but not deleting or deleted in the local
-			// cache.
-			if taskStatus.State == ci.TaskAttemptDeletionRequested {
-				// The deletion requested object will never appear again with the same UID,
-				// so always just wait.
-				log.Infof(logPfx +
-						"Waiting Pod to disappearing or disappear in the local cache")
-				return false, nil
-			}
-
-			// Possibly due to the NodeController has not heard from the kubelet who
-			// manages the Pod for more than node-monitor-grace-period but less than
-			// pod-eviction-timeout.
-			// And after pod-eviction-timeout, the Pod will be marked as deleting, but
-			// it will only be automatically deleted after the kubelet comes back and
-			// kills the Pod.
-			if pod.Status.Phase == core.PodUnknown {
-				log.Infof(logPfx+
-						"Waiting Pod to be deleted or deleting or transitioned from %v",
-					pod.Status.Phase)
-				return false, nil
-			}
-
-			// Below Pod fields may be available even when PodPending, such as the Pod
-			// has been bound to a Node, but one or more Containers has not been started.
-			taskStatus.AttemptStatus.PodIP = &pod.Status.PodIP
-			taskStatus.AttemptStatus.PodHostIP = &pod.Status.HostIP
-
-			if pod.Status.Phase == core.PodPending {
-				f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptPreparing)
-				return false, nil
-			} else if pod.Status.Phase == core.PodRunning {
-				f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptRunning)
-				return false, nil
-			} else if pod.Status.Phase == core.PodSucceeded {
-				diag := fmt.Sprintf("Pod succeeded")
-				log.Infof(logPfx + diag)
-				c.completeTaskAttempt(f, taskRoleName, taskIndex,
-					ci.CompletionCodeSucceeded.NewCompletionStatus(diag))
-				return false, nil
-			} else if pod.Status.Phase == core.PodFailed {
-				// All Container names in a Pod must be different, so we can still identify
-				// a Container even after the InitContainers is merged with the AppContainers.
-				allContainerStatuses := append(append([]core.ContainerStatus{},
-					pod.Status.InitContainerStatuses...),
-					pod.Status.ContainerStatuses...)
-
-				lastContainerExitCode := common.NilInt32()
-				lastContainerCompletionTime := time.Time{}
-				allContainerDiags := []string{}
-				for _, containerStatus := range allContainerStatuses {
-					terminated := containerStatus.State.Terminated
-					if terminated != nil && terminated.ExitCode != 0 {
-						allContainerDiags = append(allContainerDiags, fmt.Sprintf(
-							"[Container %v, ExitCode: %v, Reason: %v, Message: %v]",
-							containerStatus.Name, terminated.ExitCode, terminated.Reason,
-							terminated.Message))
-
-						if lastContainerExitCode == nil ||
-								lastContainerCompletionTime.Before(terminated.FinishedAt.Time) {
-							lastContainerExitCode = &terminated.ExitCode
-							lastContainerCompletionTime = terminated.FinishedAt.Time
-						}
-					}
-				}
-
-				if lastContainerExitCode == nil {
-					diag := fmt.Sprintf(
-						"Pod failed without any non-zero container exit code, maybe " +
-								"stopped by the system")
-					log.Warnf(logPfx + diag)
-					c.completeTaskAttempt(f, taskRoleName, taskIndex,
-						ci.CompletionCodePodFailedWithoutFailedContainer.NewCompletionStatus(diag))
-				} else {
-					diag := fmt.Sprintf(
-						"Pod failed with non-zero container exit code: %v",
-						strings.Join(allContainerDiags, ", "))
-					log.Infof(logPfx + diag)
-					if strings.Contains(diag, string(ci.ReasonOOMKilled)) {
-						c.completeTaskAttempt(f, taskRoleName, taskIndex,
-							ci.CompletionCodeContainerOOMKilled.NewCompletionStatus(diag))
-					} else {
-						c.completeTaskAttempt(f, taskRoleName, taskIndex,
-							ci.CompletionCode(*lastContainerExitCode).NewCompletionStatus(diag))
-					}
-				}
-				return false, nil
-			} else {
-				return false, fmt.Errorf(logPfx+
-						"Failed: Got unrecognized Pod Phase: %v", pod.Status.Phase)
+					*taskStatus.TaskAttemptInstanceUID(), taskStatus.AttemptStatus.CompletionStatus)
 			}
 		} else {
-			f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptDeleting)
-			log.Infof(logPfx + "Waiting Pod to be deleted")
-			return false, nil
+			if pod.DeletionTimestamp == nil {
+				if taskStatus.State == ci.TaskAttemptDeletionPending {
+					// The CompletionStatus has been persisted, so it is safe to delete the
+					// pod now.
+					err := c.deletePod(f, taskRoleName, taskIndex, *taskStatus.PodUID(), false)
+					if err != nil {
+						return false, err
+					}
+					f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptDeletionRequested)
+				}
+
+				// Avoid sync with outdated object:
+				// pod is remote deletion requested but not deleting or deleted in the local
+				// cache.
+				if taskStatus.State == ci.TaskAttemptDeletionRequested {
+					// The deletion requested object will never appear again with the same UID,
+					// so always just wait.
+					log.Infof(logPfx +
+							"Waiting Pod to disappearing or disappear in the local cache")
+					return false, nil
+				}
+
+				// Possibly due to the NodeController has not heard from the kubelet who
+				// manages the Pod for more than node-monitor-grace-period but less than
+				// pod-eviction-timeout.
+				// And after pod-eviction-timeout, the Pod will be marked as deleting, but
+				// it will only be automatically deleted after the kubelet comes back and
+				// kills the Pod.
+				if pod.Status.Phase == core.PodUnknown {
+					log.Infof(logPfx+
+							"Waiting Pod to be deleted or deleting or transitioned from %v",
+						pod.Status.Phase)
+					return false, nil
+				}
+
+				// Below Pod fields may be available even when PodPending, such as the Pod
+				// has been bound to a Node, but one or more Containers has not been started.
+				taskStatus.AttemptStatus.PodIP = &pod.Status.PodIP
+				taskStatus.AttemptStatus.PodHostIP = &pod.Status.HostIP
+
+				if pod.Status.Phase == core.PodPending {
+					f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptPreparing)
+					return false, nil
+				} else if pod.Status.Phase == core.PodRunning {
+					f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptRunning)
+					return false, nil
+				} else if pod.Status.Phase == core.PodSucceeded {
+					diag := fmt.Sprintf("Pod succeeded")
+					log.Infof(logPfx + diag)
+					c.completeTaskAttempt(f, taskRoleName, taskIndex,
+						ci.CompletionCodeSucceeded.NewCompletionStatus(diag))
+					return false, nil
+				} else if pod.Status.Phase == core.PodFailed {
+					// All Container names in a Pod must be different, so we can still identify
+					// a Container even after the InitContainers is merged with the AppContainers.
+					allContainerStatuses := append(append([]core.ContainerStatus{},
+						pod.Status.InitContainerStatuses...),
+						pod.Status.ContainerStatuses...)
+
+					lastContainerExitCode := common.NilInt32()
+					lastContainerCompletionTime := time.Time{}
+					allContainerDiags := []string{}
+					for _, containerStatus := range allContainerStatuses {
+						terminated := containerStatus.State.Terminated
+						if terminated != nil && terminated.ExitCode != 0 {
+							allContainerDiags = append(allContainerDiags, fmt.Sprintf(
+								"[Container %v, ExitCode: %v, Reason: %v, Message: %v]",
+								containerStatus.Name, terminated.ExitCode, terminated.Reason,
+								terminated.Message))
+
+							if lastContainerExitCode == nil ||
+									lastContainerCompletionTime.Before(terminated.FinishedAt.Time) {
+								lastContainerExitCode = &terminated.ExitCode
+								lastContainerCompletionTime = terminated.FinishedAt.Time
+							}
+						}
+					}
+
+					if lastContainerExitCode == nil {
+						diag := fmt.Sprintf(
+							"Pod failed without any non-zero container exit code, maybe " +
+									"stopped by the system")
+						log.Warnf(logPfx + diag)
+						c.completeTaskAttempt(f, taskRoleName, taskIndex,
+							ci.CompletionCodePodFailedWithoutFailedContainer.NewCompletionStatus(diag))
+					} else {
+						diag := fmt.Sprintf(
+							"Pod failed with non-zero container exit code: %v",
+							strings.Join(allContainerDiags, ", "))
+						log.Infof(logPfx + diag)
+						if strings.Contains(diag, string(ci.ReasonOOMKilled)) {
+							c.completeTaskAttempt(f, taskRoleName, taskIndex,
+								ci.CompletionCodeContainerOOMKilled.NewCompletionStatus(diag))
+						} else {
+							c.completeTaskAttempt(f, taskRoleName, taskIndex,
+								ci.CompletionCode(*lastContainerExitCode).NewCompletionStatus(diag))
+						}
+					}
+					return false, nil
+				} else {
+					return false, fmt.Errorf(logPfx+
+							"Failed: Got unrecognized Pod Phase: %v", pod.Status.Phase)
+				}
+			} else {
+				f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptDeleting)
+				log.Infof(logPfx + "Waiting Pod to be deleted")
+				return false, nil
+			}
 		}
 	}
 	// At this point, taskStatus.State must be in:
@@ -1238,7 +1306,8 @@ func (c *FrameworkController) syncTaskState(
 		}
 
 		if taskStatus.RetryPolicyStatus.RetryDelaySec != nil {
-			// RetryTask is already scheduled, so just need to check timeout.
+			// RetryTask is already scheduled, so just need to check whether it
+			// should be executed now.
 			if c.enqueueTaskRetryDelayTimeoutCheck(f, taskRoleName, taskIndex, true) {
 				log.Infof(logPfx + "Waiting Task to retry after delay")
 				return false, nil
@@ -1257,7 +1326,62 @@ func (c *FrameworkController) syncTaskState(
 		}
 	}
 	// At this point, taskStatus.State must be in:
-	// {TaskCompleted, TaskAttemptCreationPending}
+	// {TaskAttemptCreationPending, TaskCompleted}
+
+	if taskStatus.State == ci.TaskAttemptCreationPending {
+		// createTaskAttempt
+		pod, err = c.createPod(f, cm, taskRoleName, taskIndex)
+		if err != nil {
+			apiErr := errorWrap.Cause(err)
+			if apiErrors.IsInvalid(apiErr) {
+				// Should be Framework Error instead of Platform Transient Error.
+				diag := fmt.Sprintf(
+					"Pod Spec is invalid in TaskRole [%v]: "+
+							"Triggered by Task [%v][%v]: Diagnostics: %v",
+					taskRoleName, taskRoleName, taskIndex, apiErr)
+				log.Infof(logPfx + diag)
+
+				// Ensure pod is deleted in remote to avoid managed pod leak after
+				// TaskAttemptCompleted.
+				_, err = c.getOrCleanupPod(f, cm, taskRoleName, taskIndex, true)
+				if err != nil {
+					return false, err
+				}
+
+				taskStatus.AttemptStatus.CompletionStatus =
+						ci.CompletionCodePodSpecInvalid.NewCompletionStatus(diag)
+				taskStatus.AttemptStatus.CompletionTime = common.PtrNow()
+				f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptCompleted)
+				log.Infof(logPfx+
+						"TaskAttempt %v is completed with CompletionStatus: %v",
+					taskStatus.TaskAttemptID(), taskStatus.AttemptStatus.CompletionStatus)
+
+				// Manually enqueue a sync to drive it.
+				c.enqueueFramework(f, "TaskAttemptCompleted")
+				return false, nil
+			} else {
+				return false, err
+			}
+		}
+
+		taskStatus.AttemptStatus.PodUID = &pod.UID
+		taskStatus.AttemptStatus.InstanceUID = ci.GetTaskAttemptInstanceUID(
+			taskStatus.TaskAttemptID(), taskStatus.PodUID())
+		f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptCreationRequested)
+
+		// Informer may not deliver any event if a create is immediately followed by
+		// a delete, so manually enqueue a sync to check the pod existence after the
+		// timeout.
+		c.enqueueTaskAttemptCreationTimeoutCheck(f, taskRoleName, taskIndex, false)
+
+		// The ground truth pod is the local cached one instead of the remote one,
+		// so need to wait before continue the sync.
+		log.Infof(logPfx +
+				"Waiting Pod to appear in the local cache or timeout")
+		return false, nil
+	}
+	// At this point, taskStatus.State must be in:
+	// {TaskCompleted}
 
 	if taskStatus.State == ci.TaskCompleted {
 		// attemptToCompleteFrameworkAttempt
@@ -1314,47 +1438,6 @@ func (c *FrameworkController) syncTaskState(
 		return false, nil
 	}
 	// At this point, taskStatus.State must be in:
-	// {TaskAttemptCreationPending}
-
-	if taskStatus.State == ci.TaskAttemptCreationPending {
-		// createTaskAttempt
-		pod, err := c.createPod(f, cm, taskRoleName, taskIndex)
-		if err != nil {
-			apiErr := errorWrap.Cause(err)
-			if apiErrors.IsInvalid(apiErr) {
-				// Should be Framework Error instead of Platform Transient Error.
-				// Directly complete the FrameworkAttempt, since we should not complete
-				// a TaskAttempt without an associated Pod in any case.
-				diag := fmt.Sprintf(
-					"Pod Spec is invalid in TaskRole [%v]: "+
-							"Triggered by Task [%v][%v]: Diagnostics: %v",
-					taskRoleName, taskRoleName, taskIndex, apiErr)
-				log.Infof(logPfx + diag)
-				c.completeFrameworkAttempt(f,
-					ci.CompletionCodePodSpecInvalid.NewCompletionStatus(diag))
-				return true, nil
-			} else {
-				return false, err
-			}
-		}
-
-		taskStatus.AttemptStatus.PodUID = &pod.UID
-		taskStatus.AttemptStatus.InstanceUID = ci.GetTaskAttemptInstanceUID(
-			taskStatus.TaskAttemptID(), taskStatus.PodUID())
-		f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptCreationRequested)
-
-		// Informer may not deliver any event if a create is immediately followed by
-		// a delete, so manually enqueue a sync to check the pod existence after the
-		// timeout.
-		c.enqueueTaskAttemptCreationTimeoutCheck(f, taskRoleName, taskIndex, false)
-
-		// The ground truth pod is the local cached one instead of the remote one,
-		// so need to wait before continue the sync.
-		log.Infof(logPfx +
-				"Waiting Pod to appear in the local cache or timeout")
-		return false, nil
-	}
-	// At this point, taskStatus.State must be in:
 	// {}
 
 	// Unreachable
@@ -1370,16 +1453,24 @@ func (c *FrameworkController) syncTaskState(
 // Clean up instead of recovery is because the PodUID is always the ground truth.
 func (c *FrameworkController) getOrCleanupPod(
 		f *ci.Framework, cm *core.ConfigMap,
-		taskRoleName string, taskIndex int32) (*core.Pod, error) {
+		taskRoleName string, taskIndex int32, force bool) (pod *core.Pod, err error) {
 	taskStatus := f.TaskStatus(taskRoleName, taskIndex)
-	pod, err := c.podLister.Pods(f.Namespace).Get(taskStatus.PodName())
+	podName := taskStatus.PodName()
+
+	if force {
+		pod, err = c.kClient.CoreV1().Pods(f.Namespace).Get(podName,
+			meta.GetOptions{})
+	} else {
+		pod, err = c.podLister.Pods(f.Namespace).Get(podName)
+	}
+
 	if err != nil {
 		if apiErrors.IsNotFound(err) {
 			return nil, nil
 		} else {
 			return nil, fmt.Errorf(
-				"[%v][%v][%v]: Pod %v cannot be got from local cache: %v",
-				f.Key(), taskRoleName, taskIndex, taskStatus.PodName(), err)
+				"[%v][%v][%v]: Failed to get Pod %v: force: %v: %v",
+				f.Key(), taskRoleName, taskIndex, podName, force, err)
 		}
 	}
 
@@ -1389,14 +1480,12 @@ func (c *FrameworkController) getOrCleanupPod(
 			// The managed Pod becomes unmanaged if and only if Framework.Status
 			// is failed to persist due to FrameworkController restart or create fails
 			// but succeeds on remote, so clean up the Pod to avoid unmanaged pod leak.
-			return nil, c.deletePod(f, taskRoleName, taskIndex, pod.UID)
+			return nil, c.deletePod(f, taskRoleName, taskIndex, pod.UID, force)
 		} else {
-			return nil, fmt.Errorf(
-				"[%v][%v][%v]: Pod %v naming conflicts with others: "+
-						"Existing Pod %v with DeletionTimestamp %v is not "+
-						"controlled by current ConfigMap %v, %v",
-				f.Key(), taskRoleName, taskIndex, taskStatus.PodName(),
-				pod.UID, pod.DeletionTimestamp, cm.Name, cm.UID)
+			// Do not own and manage the life cycle of not controlled object, so still
+			// consider the get and controlled object clean up is success, and postpone
+			// the potential naming conflict when creating the controlled object.
+			return nil, nil
 		}
 	} else {
 		// pod is the managed
@@ -1405,33 +1494,78 @@ func (c *FrameworkController) getOrCleanupPod(
 }
 
 // Using UID to ensure we delete the right object.
+// The podUID should be controlled by cm.
 func (c *FrameworkController) deletePod(
 		f *ci.Framework, taskRoleName string, taskIndex int32,
-		podUID types.UID) error {
+		podUID types.UID, force bool) error {
 	taskStatus := f.TaskStatus(taskRoleName, taskIndex)
 	podName := taskStatus.PodName()
-	err := c.kClient.CoreV1().Pods(f.Namespace).Delete(podName,
+	errPfx := fmt.Sprintf(
+		"[%v][%v][%v]: Failed to delete Pod %v, %v: force: %v: ",
+		f.Key(), taskRoleName, taskIndex, podName, podUID, force)
+
+	// Do not set zero GracePeriodSeconds to do force deletion in any case, since
+	// it will also immediately delete Pod in PodUnknown state, while the Pod may
+	// be still running.
+	deleteErr := c.kClient.CoreV1().Pods(f.Namespace).Delete(podName,
 		&meta.DeleteOptions{Preconditions: &meta.Preconditions{UID: &podUID}})
-	if err != nil && !apiErrors.IsNotFound(err) {
-		return fmt.Errorf("[%v][%v][%v]: Failed to delete Pod %v, %v: %v",
-			f.Key(), taskRoleName, taskIndex, podName, podUID, err)
+	if deleteErr != nil {
+		if !apiErrors.IsNotFound(deleteErr) {
+			return fmt.Errorf(errPfx+"%v", deleteErr)
+		}
 	} else {
-		log.Infof("[%v][%v][%v]: Succeeded to delete Pod %v, %v",
-			f.Key(), taskRoleName, taskIndex, podName, podUID)
-		return nil
+		if force {
+			// Confirm it is deleted instead of still deleting.
+			pod, getErr := c.kClient.CoreV1().Pods(f.Namespace).Get(podName,
+				meta.GetOptions{})
+			if getErr != nil {
+				if !apiErrors.IsNotFound(getErr) {
+					return fmt.Errorf(errPfx+
+							"Pod cannot be got from remote: %v", getErr)
+				}
+			} else {
+				if podUID == pod.UID {
+					return fmt.Errorf(errPfx+
+							"Pod with DeletionTimestamp %v still exist after deletion",
+						pod.DeletionTimestamp)
+				}
+			}
+		}
 	}
+
+	log.Infof(
+		"[%v][%v][%v]: Succeeded to delete Pod %v, %v: force: %v",
+		f.Key(), taskRoleName, taskIndex, podName, podUID, force)
+	return nil
 }
 
 func (c *FrameworkController) createPod(
 		f *ci.Framework, cm *core.ConfigMap,
 		taskRoleName string, taskIndex int32) (*core.Pod, error) {
 	pod := f.NewPod(cm, taskRoleName, taskIndex)
-	remotePod, err := c.kClient.CoreV1().Pods(f.Namespace).Create(pod)
-	if err != nil {
-		return nil, errorWrap.Wrapf(err,
-			"[%v]: Failed to create Pod %v", f.Key(), pod.Name)
+	errPfx := fmt.Sprintf(
+		"[%v][%v][%v]: Failed to create Pod %v",
+		f.Key(), taskRoleName, taskIndex, pod.Name)
+
+	remotePod, createErr := c.kClient.CoreV1().Pods(f.Namespace).Create(pod)
+	if createErr != nil {
+		if apiErrors.IsConflict(createErr) {
+			// Best effort to judge if conflict with a not controlled object.
+			localPod, getErr := c.podLister.Pods(f.Namespace).Get(pod.Name)
+			if getErr == nil && !meta.IsControlledBy(localPod, cm) {
+				return nil, errorWrap.Wrapf(createErr, errPfx + ": "+
+						"Pod naming conflicts with others: "+
+						"Existing Pod %v with DeletionTimestamp %v is not "+
+						"controlled by current ConfigMap %v, %v",
+					localPod.UID, localPod.DeletionTimestamp, cm.Name, cm.UID)
+			}
+		}
+
+		return nil, errorWrap.Wrapf(createErr, errPfx)
 	} else {
-		log.Infof("[%v]: Succeeded to create Pod: %v", f.Key(), pod.Name)
+		log.Infof(
+			"[%v][%v][%v]: Succeeded to create Pod %v",
+			f.Key(), taskRoleName, taskIndex, pod.Name)
 		return remotePod, nil
 	}
 }
