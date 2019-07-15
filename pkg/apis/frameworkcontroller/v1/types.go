@@ -179,17 +179,20 @@ type RetryPolicySpec struct {
 //    2. The CompletionStatus of the completed FrameworkAttempt.
 //
 // Usage:
-// 1. If MinFailedTaskCount != -1 and MinFailedTaskCount <= failed Task count of
+// 1. If the ExecutionType is ExecutionStop, immediately complete the FrameworkAttempt,
+//    regardless of any uncompleted Task, and the CompletionStatus is failed which
+//    is not generated from any Task.
+// 2. If MinFailedTaskCount != -1 and MinFailedTaskCount <= failed Task count of
 //    current TaskRole, immediately complete the FrameworkAttempt, regardless of
 //    any uncompleted Task, and the CompletionStatus is failed which is generated
 //    from the Task which triggers the completion.
-// 2. If MinSucceededTaskCount != -1 and MinSucceededTaskCount <= succeeded Task
+// 3. If MinSucceededTaskCount != -1 and MinSucceededTaskCount <= succeeded Task
 //    count of current TaskRole, immediately complete the FrameworkAttempt, regardless
 //    of any uncompleted Task, and the CompletionStatus is succeeded which is
 //    generated from the Task which triggers the completion.
-// 3. If multiple above 1. and 2. conditions of all TaskRoles are satisfied at the
+// 4. If multiple above 1. and 2. conditions of all TaskRoles are satisfied at the
 //    same time, the behavior can be any one of these satisfied conditions.
-// 4. If none of above 1. and 2. conditions of all TaskRoles are satisfied until all
+// 5. If none of above 1. and 2. conditions of all TaskRoles are satisfied until all
 //    Tasks of the Framework are completed, immediately complete the FrameworkAttempt
 //    and the CompletionStatus is succeeded which is not generated from any Task.
 //

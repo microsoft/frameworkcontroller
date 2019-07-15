@@ -53,7 +53,7 @@ type Config struct {
 	//
 	// Address should be in format http[s]://host:port
 	KubeApiServerAddress *string `yaml:"kubeApiServerAddress"`
-	KubeConfigFilePath *string `yaml:"kubeConfigFilePath"`
+	KubeConfigFilePath   *string `yaml:"kubeConfigFilePath"`
 
 	// Number of concurrent workers to process each different Frameworks
 	WorkerNumber *int32 `yaml:"workerNumber"`
