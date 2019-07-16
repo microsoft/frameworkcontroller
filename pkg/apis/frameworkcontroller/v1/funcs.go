@@ -192,6 +192,18 @@ func (ts *TaskStatus) IsRunning() bool {
 	return ts.State == TaskAttemptRunning
 }
 
+func (f *Framework) IsCompleting() bool {
+	return f.Status.State == FrameworkAttemptDeletionPending ||
+			f.Status.State == FrameworkAttemptDeletionRequested ||
+			f.Status.State == FrameworkAttemptDeleting
+}
+
+func (ts *TaskStatus) IsCompleting() bool {
+	return ts.State == TaskAttemptDeletionPending ||
+			ts.State == TaskAttemptDeletionRequested ||
+			ts.State == TaskAttemptDeleting
+}
+
 func (ct CompletionType) IsSucceeded() bool {
 	return ct.Name == CompletionTypeNameSucceeded
 }
@@ -507,7 +519,8 @@ func (rp RetryPolicySpec) ShouldRetry(
 
 	// 0. Built-in Always-on RetryPolicy
 	if cs.Code == CompletionCodePodSpecInvalid ||
-			cs.Code == CompletionCodeStopFrameworkRequested {
+			cs.Code == CompletionCodeStopFrameworkRequested ||
+			cs.Code == CompletionCodeFrameworkAttemptCompletion {
 		return RetryDecision{false, true, 0, cs.Diagnostics}
 	}
 
