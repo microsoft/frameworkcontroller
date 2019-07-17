@@ -27,6 +27,7 @@ import (
 	"time"
 	"reflect"
 	"strings"
+	"sync"
 	log "github.com/sirupsen/logrus"
 	errorWrap "github.com/pkg/errors"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -172,7 +173,9 @@ type FrameworkController struct {
 	// See ExpectedFrameworkStatusInfo.
 	//
 	// Framework Key -> The expected Framework.Status info
-	fExpectedStatusInfos map[string]*ExpectedFrameworkStatusInfo
+	// Using sync.Map instead of RWMutex + map[string]*ExpectedFrameworkStatusInfo,
+	// because we can ensure the same item will not be processed concurrently.
+	fExpectedStatusInfos *sync.Map
 }
 
 type ExpectedFrameworkStatusInfo struct {
@@ -237,7 +240,7 @@ func NewFrameworkController() *FrameworkController {
 		podLister:            podLister,
 		fLister:              fLister,
 		fQueue:               fQueue,
-		fExpectedStatusInfos: map[string]*ExpectedFrameworkStatusInfo{},
+		fExpectedStatusInfos: &sync.Map{},
 	}
 
 	fInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -500,8 +503,8 @@ func (c *FrameworkController) syncFramework(key string) (returnedErr error) {
 			// From now on, f is a writable copy of the original local cached one, and
 			// it may be different from the original one.
 
-			expected, exists := c.getExpectedFrameworkStatusInfo(f.Key())
-			if !exists {
+			expected := c.getExpectedFrameworkStatusInfo(f.Key())
+			if expected == nil {
 				if f.Status != nil {
 					// Recover f related things, since it is the first time we see it and
 					// its Status is not nil.
@@ -1486,21 +1489,24 @@ func (c *FrameworkController) updateRemoteFrameworkStatus(f *ci.Framework) error
 }
 
 func (c *FrameworkController) getExpectedFrameworkStatusInfo(key string) (
-		*ExpectedFrameworkStatusInfo, bool) {
-	value, exists := c.fExpectedStatusInfos[key]
-	return value, exists
+*ExpectedFrameworkStatusInfo) {
+	if value, ok := c.fExpectedStatusInfos.Load(key); ok {
+		return value.(*ExpectedFrameworkStatusInfo)
+	} else {
+		return nil
+	}
 }
 
 func (c *FrameworkController) deleteExpectedFrameworkStatusInfo(key string) {
 	log.Infof("[%v]: deleteExpectedFrameworkStatusInfo: ", key)
-	delete(c.fExpectedStatusInfos, key)
+	c.fExpectedStatusInfos.Delete(key)
 }
 
 func (c *FrameworkController) updateExpectedFrameworkStatusInfo(key string,
 		status *ci.FrameworkStatus, remoteSynced bool) {
 	log.Infof("[%v]: updateExpectedFrameworkStatusInfo", key)
-	c.fExpectedStatusInfos[key] = &ExpectedFrameworkStatusInfo{
+	c.fExpectedStatusInfos.Store(key, &ExpectedFrameworkStatusInfo{
 		status:       status,
 		remoteSynced: remoteSynced,
-	}
+	})
 }
