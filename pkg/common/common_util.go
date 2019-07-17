@@ -27,12 +27,15 @@ import (
 	"strings"
 	"time"
 	"os"
+	"flag"
+	"math/rand"
+	"io/ioutil"
 	"gopkg.in/yaml.v2"
 	"encoding/json"
 	log "github.com/sirupsen/logrus"
-	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog"
 	"k8s.io/apimachinery/pkg/types"
-	"math/rand"
+	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func Quote(s string) string {
@@ -41,6 +44,10 @@ func Quote(s string) string {
 
 func ReferEnvVar(name string) string {
 	return "$(" + name + ")"
+}
+
+func ReferPlaceholder(name string) string {
+	return "{{" + name + "}}"
 }
 
 func PtrString(o string) *string {
@@ -106,6 +113,13 @@ func InitAll() {
 }
 
 func InitLogger() {
+	// K8S library logs to stderr
+	klog.InitFlags(flag.CommandLine)
+	flag.Set("alsologtostderr", "true")
+	flag.Set("stderrthreshold", "INFO")
+	klog.SetOutput(ioutil.Discard)
+
+	// We log to stdout
 	log.SetFormatter(&log.TextFormatter{
 		DisableColors: true,
 		// Always log with full timestamp, regardless of whether TTY is attached

@@ -65,8 +65,10 @@ const (
 
 	// For all managed containers
 	// Predefined Environment Variables
-	// It can be referred by the environment variable specified in the spec, i.e.
-	// specify the environment variable value to include "$(AnyPredefinedEnvName)".
+	// It can be referred by other environment variables specified in the Container Env,
+	// i.e. specify its value to include "$(AnyPredefinedEnvName)".
+	// If the reference is predefined, it will be replaced to its target value when
+	// start the Container, otherwise it will be unchanged.
 	EnvNameFrameworkNamespace = AnnotationKeyFrameworkNamespace
 	EnvNameFrameworkName      = AnnotationKeyFrameworkName
 	EnvNameTaskRoleName       = AnnotationKeyTaskRoleName
@@ -80,6 +82,19 @@ const (
 	EnvNameTaskAttemptID               = AnnotationKeyTaskAttemptID
 	EnvNameTaskAttemptInstanceUID      = "FC_TASK_ATTEMPT_INSTANCE_UID"
 	EnvNamePodUID                      = "FC_POD_UID"
+
+	// For Pod Spec
+	// Predefined Pod Template Placeholders
+	// It can be referred in any string value specified in the Pod Spec,
+	// i.e. specify the value to include "{{AnyPredefinedPlaceholder}}".
+	// If the reference is predefined, it will be replaced to its target value when
+	// create the Pod object, otherwise it will be unchanged.
+	PlaceholderFrameworkNamespace = AnnotationKeyFrameworkNamespace
+	PlaceholderFrameworkName      = AnnotationKeyFrameworkName
+	PlaceholderTaskRoleName       = AnnotationKeyTaskRoleName
+	PlaceholderTaskIndex          = AnnotationKeyTaskIndex
+	PlaceholderConfigMapName      = AnnotationKeyConfigMapName
+	PlaceholderPodName            = AnnotationKeyPodName
 )
 
 var FrameworkGroupVersionKind = SchemeGroupVersion.WithKind(FrameworkKind)
