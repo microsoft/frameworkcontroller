@@ -105,7 +105,7 @@ func (f *Framework) Key() string {
 func (f *Framework) TaskRoleSpec(taskRoleName string) *TaskRoleSpec {
 	for _, taskRole := range f.Spec.TaskRoles {
 		if taskRole.Name == taskRoleName {
-			return &taskRole
+			return taskRole
 		}
 	}
 	panic(fmt.Errorf("[%v]: TaskRole is not found in Spec", taskRoleName))
@@ -154,13 +154,12 @@ func (ts *TaskStatus) CompletionType() CompletionType {
 	return ts.AttemptStatus.CompletionStatus.Type
 }
 
-func (f *Framework) TaskRoleStatuses() []TaskRoleStatus {
+func (f *Framework) TaskRoleStatuses() []*TaskRoleStatus {
 	return f.Status.AttemptStatus.TaskRoleStatuses
 }
 
 func (f *Framework) TaskRoleStatus(taskRoleName string) *TaskRoleStatus {
-	for i := range f.TaskRoleStatuses() {
-		taskRoleStatus := &f.TaskRoleStatuses()[i]
+	for _, taskRoleStatus := range f.TaskRoleStatuses() {
 		if taskRoleStatus.Name == taskRoleName {
 			return taskRoleStatus
 		}
@@ -171,7 +170,7 @@ func (f *Framework) TaskRoleStatus(taskRoleName string) *TaskRoleStatus {
 func (f *Framework) TaskStatus(taskRoleName string, taskIndex int32) *TaskStatus {
 	taskRoleStatus := f.TaskRoleStatus(taskRoleName)
 	if 0 <= taskIndex && taskIndex < int32(len(taskRoleStatus.TaskStatuses)) {
-		return &taskRoleStatus.TaskStatuses[taskIndex]
+		return taskRoleStatus.TaskStatuses[taskIndex]
 	}
 	panic(fmt.Errorf("[%v][%v]: Task is not found in Status", taskRoleName, taskIndex))
 }
@@ -237,14 +236,14 @@ func (ct CompletionType) ContainsAttribute(attribute CompletionTypeAttribute) bo
 	return false
 }
 
-func (trs *TaskRoleStatus) GetTaskStatuses(selector TaskStatusSelector) []TaskStatus {
+func (trs *TaskRoleStatus) GetTaskStatuses(selector TaskStatusSelector) []*TaskStatus {
 	if selector == nil {
 		return trs.TaskStatuses
 	}
 
-	taskStatuses := []TaskStatus{}
+	taskStatuses := []*TaskStatus{}
 	for _, taskStatus := range trs.TaskStatuses {
-		if selector(&taskStatus) {
+		if selector(taskStatus) {
 			taskStatuses = append(taskStatuses, taskStatus)
 		}
 	}
@@ -433,20 +432,20 @@ func (f *Framework) NewFrameworkAttemptStatus(
 	}
 }
 
-func (f *Framework) NewTaskRoleStatuses() []TaskRoleStatus {
-	trss := []TaskRoleStatus{}
+func (f *Framework) NewTaskRoleStatuses() []*TaskRoleStatus {
+	trss := []*TaskRoleStatus{}
 	for _, taskRole := range f.Spec.TaskRoles {
-		trs := TaskRoleStatus{Name: taskRole.Name, TaskStatuses: []TaskStatus{}}
+		trs := TaskRoleStatus{Name: taskRole.Name, TaskStatuses: []*TaskStatus{}}
 		for taskIndex := int32(0); taskIndex < taskRole.TaskNumber; taskIndex++ {
 			trs.TaskStatuses = append(trs.TaskStatuses, f.NewTaskStatus(taskRole.Name, taskIndex))
 		}
-		trss = append(trss, trs)
+		trss = append(trss, &trs)
 	}
 	return trss
 }
 
-func (f *Framework) NewTaskStatus(taskRoleName string, taskIndex int32) TaskStatus {
-	return TaskStatus{
+func (f *Framework) NewTaskStatus(taskRoleName string, taskIndex int32) *TaskStatus {
+	return &TaskStatus{
 		Index:          taskIndex,
 		StartTime:      meta.Now(),
 		CompletionTime: nil,
