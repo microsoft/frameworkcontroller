@@ -146,7 +146,8 @@ const (
 	CompletionCodePodCreationTimeout              CompletionCode = -111
 	CompletionCodePodFailedWithoutFailedContainer CompletionCode = -120
 	// -2XX: Framework Predefined Permanent Error
-	CompletionCodePodSpecInvalid CompletionCode = -200
+	CompletionCodePodSpecInvalid         CompletionCode = -200
+	CompletionCodeStopFrameworkRequested CompletionCode = -210
 	// -3XX: Framework Predefined Unknown Error
 	CompletionCodeContainerOOMKilled CompletionCode = -300
 )
@@ -192,6 +193,9 @@ var CompletionCodeInfos = map[CompletionCode]CompletionCodeInfo{
 			[]CompletionTypeAttribute{CompletionTypeAttributeTransient, CompletionTypeAttributePlatform}}},
 	CompletionCodePodSpecInvalid: {
 		"PodSpecInvalid", CompletionType{CompletionTypeNameFailed,
+			[]CompletionTypeAttribute{CompletionTypeAttributePermanent, CompletionTypeAttributeUser}}},
+	CompletionCodeStopFrameworkRequested: {
+		"StopFrameworkRequested", CompletionType{CompletionTypeNameFailed,
 			[]CompletionTypeAttribute{CompletionTypeAttributePermanent, CompletionTypeAttributeUser}}},
 	CompletionCodeContainerOOMKilled: {
 		// May be due to exceed the Container memory limit or the Container workload spike or

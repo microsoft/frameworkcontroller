@@ -29,7 +29,7 @@ As Framework is actually a [Kubernetes CRD](https://kubernetes.io/docs/concepts/
 ### <a name="SupportedInteroperation">Supported Interoperation</a>
 | API Kind | Operations |
 |:---- |:---- |
-| Framework | [CREATE](#CREATE_Framework) [DELETE](#DELETE_Framework) [GET](#GET_Framework) [LIST](#LIST_Frameworks) [WATCH](#WATCH_Framework) [WATCH_LIST](#WATCH_LIST_Frameworks) |
+| Framework | [CREATE](#CREATE_Framework) [PATCH](#PATCH_Framework) [DELETE](#DELETE_Framework) [GET](#GET_Framework) [LIST](#LIST_Frameworks) [WATCH](#WATCH_Framework) [WATCH_LIST](#WATCH_LIST_Frameworks) |
 | [ConfigMap](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#configmap-v1-core) | All operations except for [CREATE](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#create-configmap-v1-core) [PUT](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#replace-configmap-v1-core) [PATCH](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#patch-configmap-v1-core) |
 | [Pod](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#pod-v1-core) | All operations except for [CREATE](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#create-pod-v1-core) [PUT](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#replace-pod-v1-core) [PATCH](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#patch-pod-v1-core) |
 
@@ -54,6 +54,37 @@ Create the specified Framework.
 | Created(201) | [Framework](../pkg/apis/frameworkcontroller/v1/types.go) | Return current Framework. |
 | Accepted(202) | [Framework](../pkg/apis/frameworkcontroller/v1/types.go) | Return current Framework. |
 | Conflict(409) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#status-v1-meta) | The specified Framework already exists. |
+
+#### <a name="PATCH_Framework">PATCH Framework</a>
+##### <a name="Stop_Framework">Stop Framework</a>
+**Request**
+
+    PATCH /apis/frameworkcontroller.microsoft.com/v1/namespaces/{FrameworkNamespace}/frameworks/{FrameworkName}
+
+Body:
+
+```json
+{
+  "spec": {
+    "executionType": "Stop"
+  }
+}
+```
+
+Type: application/merge-patch+json
+
+**Description**
+
+Stop the specified Framework:
+
+All running containers of the Framework will be stopped while the object of the Framework is still kept.
+
+**Response**
+
+| Code | Body | Description |
+|:---- |:---- |:---- |
+| OK(200) | [Framework](../pkg/apis/frameworkcontroller/v1/types.go) | Return current Framework. |
+| NotFound(200) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#status-v1-meta) | The specified Framework is not found. |
 
 #### <a name="DELETE_Framework">DELETE Framework</a>
 **Request**
