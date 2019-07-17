@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Kubernetes Authors.
+Copyright The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ limitations under the License.
 package versioned
 
 import (
-	glog "github.com/golang/glog"
 	frameworkcontrollerv1 "github.com/microsoft/frameworkcontroller/pkg/client/clientset/versioned/typed/frameworkcontroller/v1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
@@ -29,8 +28,6 @@ import (
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
 	FrameworkcontrollerV1() frameworkcontrollerv1.FrameworkcontrollerV1Interface
-	// Deprecated: please explicitly pick a version if possible.
-	Frameworkcontroller() frameworkcontrollerv1.FrameworkcontrollerV1Interface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
@@ -42,12 +39,6 @@ type Clientset struct {
 
 // FrameworkcontrollerV1 retrieves the FrameworkcontrollerV1Client
 func (c *Clientset) FrameworkcontrollerV1() frameworkcontrollerv1.FrameworkcontrollerV1Interface {
-	return c.frameworkcontrollerV1
-}
-
-// Deprecated: Frameworkcontroller retrieves the default version of FrameworkcontrollerClient.
-// Please explicitly pick a version.
-func (c *Clientset) Frameworkcontroller() frameworkcontrollerv1.FrameworkcontrollerV1Interface {
 	return c.frameworkcontrollerV1
 }
 
@@ -74,7 +65,6 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 
 	cs.DiscoveryClient, err = discovery.NewDiscoveryClientForConfig(&configShallowCopy)
 	if err != nil {
-		glog.Errorf("failed to create the DiscoveryClient: %v", err)
 		return nil, err
 	}
 	return &cs, nil

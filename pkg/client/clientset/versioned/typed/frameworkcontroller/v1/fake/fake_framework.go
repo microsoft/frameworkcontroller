@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Kubernetes Authors.
+Copyright The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -62,7 +62,7 @@ func (c *FakeFrameworks) List(opts v1.ListOptions) (result *frameworkcontrollerv
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &frameworkcontrollerv1.FrameworkList{}
+	list := &frameworkcontrollerv1.FrameworkList{ListMeta: obj.(*frameworkcontrollerv1.FrameworkList).ListMeta}
 	for _, item := range obj.(*frameworkcontrollerv1.FrameworkList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
@@ -119,7 +119,7 @@ func (c *FakeFrameworks) DeleteCollection(options *v1.DeleteOptions, listOptions
 // Patch applies the patch and returns the patched framework.
 func (c *FakeFrameworks) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *frameworkcontrollerv1.Framework, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(frameworksResource, c.ns, name, data, subresources...), &frameworkcontrollerv1.Framework{})
+		Invokes(testing.NewPatchSubresourceAction(frameworksResource, c.ns, name, pt, data, subresources...), &frameworkcontrollerv1.Framework{})
 
 	if obj == nil {
 		return nil, err
