@@ -132,7 +132,9 @@ const (
 //    complete a single Task in the TaskRole.
 //
 // Usage:
-// If the Pod Spec is invalid or the ExecutionType is ExecutionStop,
+// If the Pod Spec is invalid or
+// the ExecutionType is ExecutionStop or
+// the Task's FrameworkAttempt is completing,
 //   will not retry.
 //
 // If the FancyRetryPolicy is enabled,
@@ -506,7 +508,6 @@ const (
 	// must have been creation requested successfully and is expected to exist.
 	// [AssociatedState]
 	// -> TaskAttemptPreparing
-	// -> TaskAttemptRunning
 	// -> TaskAttemptDeleting
 	// -> TaskAttemptCompleted
 	TaskAttemptCreationRequested TaskState = "AttemptCreationRequested"
