@@ -89,7 +89,7 @@ type Framework struct {
 // Spec
 //////////////////////////////////////////////////////////////////////////////////////////////////
 type FrameworkSpec struct {
-	Description   string          `json:"description"`
+	Description string `json:"description"`
 	// Only support to update from ExecutionStart to ExecutionStop
 	ExecutionType ExecutionType   `json:"executionType"`
 	RetryPolicy   RetryPolicySpec `json:"retryPolicy"`
@@ -132,7 +132,7 @@ const (
 //    complete a single Task in the TaskRole.
 //
 // Usage:
-// If the ExecutionType is ExecutionStop,
+// If the Pod Spec is invalid or the ExecutionType is ExecutionStop,
 //   will not retry.
 //
 // If the FancyRetryPolicy is enabled,
@@ -179,20 +179,17 @@ type RetryPolicySpec struct {
 //    2. The CompletionStatus of the completed FrameworkAttempt.
 //
 // Usage:
-// 1. If Pod Spec of current TaskRole is invalid, immediately complete the
-//    FrameworkAttempt, regardless of any uncompleted Task, and the CompletionStatus
-//    is failed which is generated from the Task which triggers the completion.
-// 2. If MinFailedTaskCount != -1 and MinFailedTaskCount <= failed Task count of
+// 1. If MinFailedTaskCount != -1 and MinFailedTaskCount <= failed Task count of
 //    current TaskRole, immediately complete the FrameworkAttempt, regardless of
 //    any uncompleted Task, and the CompletionStatus is failed which is generated
 //    from the Task which triggers the completion.
-// 3. If MinSucceededTaskCount != -1 and MinSucceededTaskCount <= succeeded Task
+// 2. If MinSucceededTaskCount != -1 and MinSucceededTaskCount <= succeeded Task
 //    count of current TaskRole, immediately complete the FrameworkAttempt, regardless
 //    of any uncompleted Task, and the CompletionStatus is succeeded which is
 //    generated from the Task which triggers the completion.
-// 4. If multiple above 1. and 2. conditions of all TaskRoles are satisfied at the
+// 3. If multiple above 1. and 2. conditions of all TaskRoles are satisfied at the
 //    same time, the behavior can be any one of these satisfied conditions.
-// 5. If none of above 1. and 2. conditions of all TaskRoles are satisfied until all
+// 4. If none of above 1. and 2. conditions of all TaskRoles are satisfied until all
 //    Tasks of the Framework are completed, immediately complete the FrameworkAttempt
 //    and the CompletionStatus is succeeded which is not generated from any Task.
 //
@@ -413,14 +410,15 @@ type FrameworkState string
 
 const (
 	// ConfigMap does not exist and
-	// has not been creation requested.
+	// may not have been creation requested successfully and is expected to exist.
 	// [StartState]
 	// [AttemptStartState]
 	// -> FrameworkAttemptCreationRequested
+	// -> FrameworkAttemptCompleted
 	FrameworkAttemptCreationPending FrameworkState = "AttemptCreationPending"
 
 	// ConfigMap does not exist and
-	// has been creation requested and is expected to exist.
+	// must have been creation requested successfully and is expected to exist.
 	// [AssociatedState]
 	// -> FrameworkAttemptPreparing
 	// -> FrameworkAttemptDeleting
@@ -428,8 +426,8 @@ const (
 	FrameworkAttemptCreationRequested FrameworkState = "AttemptCreationRequested"
 
 	// ConfigMap exists and is not deleting and
-	// has not been deletion requested and
-	// FrameworkAttemptCompletionPolicy has not been satisfied and
+	// may not have been deletion requested successfully and
+	// FrameworkAttemptCompletionPolicy may not have been satisfied and
 	// there is no Task in TaskAttemptRunning state.
 	// [AssociatedState]
 	// -> FrameworkAttemptRunning
@@ -439,8 +437,8 @@ const (
 	FrameworkAttemptPreparing FrameworkState = "AttemptPreparing"
 
 	// ConfigMap exists and is not deleting and
-	// has not been deletion requested and
-	// FrameworkAttemptCompletionPolicy has not been satisfied and
+	// may not have been deletion requested successfully and
+	// FrameworkAttemptCompletionPolicy may not have been satisfied and
 	// there is at least one Task in TaskAttemptRunning state.
 	// [AssociatedState]
 	// -> FrameworkAttemptPreparing
@@ -450,8 +448,8 @@ const (
 	FrameworkAttemptRunning FrameworkState = "AttemptRunning"
 
 	// ConfigMap exists and is not deleting and
-	// has not been deletion requested and
-	// FrameworkAttemptCompletionPolicy has been satisfied.
+	// may not have been deletion requested successfully and
+	// FrameworkAttemptCompletionPolicy must have been satisfied.
 	// [AssociatedState]
 	// -> FrameworkAttemptDeletionRequested
 	// -> FrameworkAttemptDeleting
@@ -459,7 +457,7 @@ const (
 	FrameworkAttemptDeletionPending FrameworkState = "AttemptDeletionPending"
 
 	// ConfigMap exists and is not deleting and
-	// has been deletion requested.
+	// must have been deletion requested successfully.
 	// [AssociatedState]
 	// -> FrameworkAttemptDeleting
 	// -> FrameworkAttemptCompleted
@@ -471,19 +469,17 @@ const (
 	FrameworkAttemptDeleting FrameworkState = "AttemptDeleting"
 
 	// ConfigMap does not exist and
-	// has been creation requested and is not expected to exist and
+	// is not expected to exist and will never exist and
 	// current attempt is not the last attempt or to be determined.
 	// [AttemptFinalState]
-	// [AssociatedState]
 	// -> FrameworkAttemptCreationPending
 	// -> FrameworkCompleted
 	FrameworkAttemptCompleted FrameworkState = "AttemptCompleted"
 
 	// ConfigMap does not exist and
-	// has been creation requested and is not expected to exist and
+	// is not expected to exist and will never exist and
 	// current attempt is the last attempt.
 	// [FinalState]
-	// [AssociatedState]
 	FrameworkCompleted FrameworkState = "Completed"
 )
 
@@ -496,14 +492,15 @@ type TaskState string
 
 const (
 	// Pod does not exist and
-	// has not been creation requested.
+	// may not have been creation requested successfully and is expected to exist.
 	// [StartState]
 	// [AttemptStartState]
 	// -> TaskAttemptCreationRequested
+	// -> TaskAttemptCompleted
 	TaskAttemptCreationPending TaskState = "AttemptCreationPending"
 
 	// Pod does not exist and
-	// has been creation requested and is expected to exist.
+	// must have been creation requested successfully and is expected to exist.
 	// [AssociatedState]
 	// -> TaskAttemptPreparing
 	// -> TaskAttemptRunning
@@ -512,7 +509,7 @@ const (
 	TaskAttemptCreationRequested TaskState = "AttemptCreationRequested"
 
 	// Pod exists and is not deleting and
-	// has not been deletion requested and
+	// may not have been deletion requested successfully and
 	// its PodPhase is PodPending or PodUnknown afterwards.
 	// [AssociatedState]
 	// -> TaskAttemptRunning
@@ -522,7 +519,7 @@ const (
 	TaskAttemptPreparing TaskState = "AttemptPreparing"
 
 	// Pod exists and is not deleting and
-	// has not been deletion requested and
+	// may not have been deletion requested successfully and
 	// its PodPhase is PodRunning or PodUnknown afterwards.
 	// [AssociatedState]
 	// -> TaskAttemptDeletionPending
@@ -531,7 +528,7 @@ const (
 	TaskAttemptRunning TaskState = "AttemptRunning"
 
 	// Pod exists and is not deleting and
-	// has not been deletion requested and
+	// may not have been deletion requested successfully and
 	// its PodPhase is PodSucceeded or PodFailed.
 	// [AssociatedState]
 	// -> TaskAttemptDeletionRequested
@@ -540,7 +537,7 @@ const (
 	TaskAttemptDeletionPending TaskState = "AttemptDeletionPending"
 
 	// Pod exists and is not deleting and
-	// has been deletion requested.
+	// must have been deletion requested successfully.
 	// [AssociatedState]
 	// -> TaskAttemptDeleting
 	// -> TaskAttemptCompleted
@@ -552,18 +549,16 @@ const (
 	TaskAttemptDeleting TaskState = "AttemptDeleting"
 
 	// Pod does not exist and
-	// has been creation requested and is not expected to exist and
+	// is not expected to exist and will never exist and
 	// current attempt is not the last attempt or to be determined.
 	// [AttemptFinalState]
-	// [AssociatedState]
 	// -> TaskAttemptCreationPending
 	// -> TaskCompleted
 	TaskAttemptCompleted TaskState = "AttemptCompleted"
 
 	// Pod does not exist and
-	// has been creation requested and is not expected to exist and
+	// is not expected to exist and will never exist and
 	// current attempt is the last attempt.
 	// [FinalState]
-	// [AssociatedState]
 	TaskCompleted TaskState = "Completed"
 )
