@@ -1593,13 +1593,6 @@ func (c *FrameworkController) completeTaskAttempt(
 	// CompletionStatus should be immutable after set.
 	if taskStatus.AttemptStatus.CompletionStatus == nil {
 		taskStatus.AttemptStatus.CompletionStatus = completionStatus
-	} else if taskStatus.AttemptStatus.CompletionStatus.Code ==
-			ci.CompletionCodeFrameworkAttemptCompletion &&
-			completionStatus != nil && completionStatus.Code !=
-			ci.CompletionCodeFrameworkAttemptCompletion {
-		// Just append to diagnostics
-		taskStatus.AttemptStatus.CompletionStatus.Diagnostics +=
-				": More Recent CompletionStatus: " + completionStatus.String()
 	}
 
 	if force {
