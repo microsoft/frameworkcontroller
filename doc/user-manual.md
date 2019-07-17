@@ -30,8 +30,8 @@ As Framework is actually a [Kubernetes CRD](https://kubernetes.io/docs/concepts/
 | API Kind | Operations |
 |:---- |:---- |
 | Framework | [CREATE](#CREATE_Framework) [DELETE](#DELETE_Framework) [GET](#GET_Framework) [LIST](#LIST_Frameworks) [WATCH](#WATCH_Framework) [WATCH_LIST](#WATCH_LIST_Frameworks) |
-| [ConfigMap](https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#configmap-v1-core) | All operations except for [CREATE](https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#create-193) [PUT](https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#replace-195) [PATCH](https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#patch-194) |
-| [Pod](https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#pod-v1-core) | All operations except for [CREATE](https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#create-55) [PUT](https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#replace-57) [PATCH](https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#patch-56) |
+| [ConfigMap](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#configmap-v1-core) | All operations except for [CREATE](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#create-configmap-v1-core) [PUT](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#replace-configmap-v1-core) [PATCH](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#patch-configmap-v1-core) |
+| [Pod](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#pod-v1-core) | All operations except for [CREATE](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#create-pod-v1-core) [PUT](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#replace-pod-v1-core) [PATCH](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#patch-pod-v1-core) |
 
 #### <a name="CREATE_Framework">CREATE Framework</a>
 **Request**
@@ -53,7 +53,7 @@ Create the specified Framework.
 | OK(200) | [Framework](../pkg/apis/frameworkcontroller/v1/types.go) | Return current Framework. |
 | Created(201) | [Framework](../pkg/apis/frameworkcontroller/v1/types.go) | Return current Framework. |
 | Accepted(202) | [Framework](../pkg/apis/frameworkcontroller/v1/types.go) | Return current Framework. |
-| Conflict(409) | [Status](https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#status-v1-meta) | The specified Framework already exists. |
+| Conflict(409) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#status-v1-meta) | The specified Framework already exists. |
 
 #### <a name="DELETE_Framework">DELETE Framework</a>
 **Request**
@@ -87,8 +87,8 @@ Notes:
 | Code | Body | Description |
 |:---- |:---- |:---- |
 | OK(200) | [Framework](../pkg/apis/frameworkcontroller/v1/types.go) | The specified Framework is deleting.<br>Return current Framework. |
-| OK(200) | [Status](https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#status-v1-meta) | The specified Framework is deleted. |
-| NotFound(200) | [Status](https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#status-v1-meta) | The specified Framework is not found. |
+| OK(200) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#status-v1-meta) | The specified Framework is deleted. |
+| NotFound(200) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#status-v1-meta) | The specified Framework is not found. |
 
 #### <a name="GET_Framework">GET Framework</a>
 **Request**
@@ -104,7 +104,7 @@ Get the specified Framework.
 | Code | Body | Description |
 |:---- |:---- |:---- |
 | OK(200) | [Framework](../pkg/apis/frameworkcontroller/v1/types.go) | Return current Framework. |
-| NotFound(200) | [Status](https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#status-v1-meta) | The specified Framework is not found. |
+| NotFound(200) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#status-v1-meta) | The specified Framework is not found. |
 
 #### <a name="LIST_Frameworks">LIST Frameworks</a>
 **Request**
@@ -112,7 +112,7 @@ Get the specified Framework.
     GET /apis/frameworkcontroller.microsoft.com/v1/namespaces/{FrameworkNamespace}/frameworks
     GET /apis/frameworkcontroller.microsoft.com/v1/frameworks
 
-QueryParameters: Same as [StatefulSet QueryParameters](https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#list-122)
+QueryParameters: Same as [StatefulSet QueryParameters](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#list-statefulset-v1-apps)
 
 **Description**
 
@@ -129,7 +129,7 @@ Get all Frameworks (in the specified FrameworkNamespace).
 
     GET /apis/frameworkcontroller.microsoft.com/v1/watch/namespaces/{FrameworkNamespace}/frameworks/{FrameworkName}
 
-QueryParameters: Same as [StatefulSet QueryParameters](https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#watch-124)
+QueryParameters: Same as [StatefulSet QueryParameters](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#watch-statefulset-v1-apps)
 
 **Description**
 
@@ -139,8 +139,8 @@ Watch the change events of the specified Framework.
 
 | Code | Body | Description |
 |:---- |:---- |:---- |
-| OK(200) | [WatchEvent](https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#watchevent-v1-meta) | Streaming the change events of the specified Framework. |
-| NotFound(200) | [Status](https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#status-v1-meta) | The specified Framework is not found. |
+| OK(200) | [WatchEvent](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#watchevent-v1-meta) | Streaming the change events of the specified Framework. |
+| NotFound(200) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#status-v1-meta) | The specified Framework is not found. |
 
 #### <a name="WATCH_LIST_Frameworks">WATCH_LIST Frameworks</a>
 **Request**
@@ -148,7 +148,7 @@ Watch the change events of the specified Framework.
     GET /apis/frameworkcontroller.microsoft.com/v1/watch/namespaces/{FrameworkNamespace}/frameworks
     GET /apis/frameworkcontroller.microsoft.com/v1/watch/frameworks
 
-QueryParameters: Same as [StatefulSet QueryParameters](https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#watch-list-125)
+QueryParameters: Same as [StatefulSet QueryParameters](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#watch-list-statefulset-v1-apps)
 
 **Description**
 
@@ -158,7 +158,7 @@ Watch the change events of all Frameworks (in the specified FrameworkNamespace).
 
 | Code | Body | Description |
 |:---- |:---- |:---- |
-| OK(200) | [WatchEvent](https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#watchevent-v1-meta) | Streaming the change events of all Frameworks (in the specified FrameworkNamespace). |
+| OK(200) | [WatchEvent](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#watchevent-v1-meta) | Streaming the change events of all Frameworks (in the specified FrameworkNamespace). |
 
 ## <a name="ContainerEnvironmentVariable">Container EnvironmentVariable</a>
 [Container EnvironmentVariable](../pkg/apis/frameworkcontroller/v1/constants.go)
