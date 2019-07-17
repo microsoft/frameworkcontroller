@@ -1130,8 +1130,8 @@ func (c *FrameworkController) syncTaskState(
 			} else if pod.Status.Phase == core.PodFailed {
 				// All Container names in a Pod must be different, so we can still identify
 				// a Container even after the InitContainers is merged with the AppContainers.
-				allContainerStatuses := append(
-					pod.Status.InitContainerStatuses,
+				allContainerStatuses := append(append([]core.ContainerStatus{},
+					pod.Status.InitContainerStatuses...),
 					pod.Status.ContainerStatuses...)
 
 				lastContainerExitCode := common.NilInt32()

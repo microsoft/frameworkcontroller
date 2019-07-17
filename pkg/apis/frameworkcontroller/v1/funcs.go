@@ -359,13 +359,15 @@ func (f *Framework) NewPod(cm *core.ConfigMap, taskRoleName string, taskIndex in
 	// is failed and the termination message file specified by the terminationMessagePath
 	// is not found or empty.
 	for i := range pod.Spec.Containers {
-		pod.Spec.Containers[i].Env = append(predefinedEnvs, pod.Spec.Containers[i].Env...)
+		pod.Spec.Containers[i].Env = append(append([]core.EnvVar{},
+			predefinedEnvs...), pod.Spec.Containers[i].Env...)
 		if len(pod.Spec.Containers[i].TerminationMessagePolicy) == 0 {
 			pod.Spec.Containers[i].TerminationMessagePolicy = core.TerminationMessageFallbackToLogsOnError
 		}
 	}
 	for i := range pod.Spec.InitContainers {
-		pod.Spec.InitContainers[i].Env = append(predefinedEnvs, pod.Spec.InitContainers[i].Env...)
+		pod.Spec.InitContainers[i].Env = append(append([]core.EnvVar{},
+			predefinedEnvs...), pod.Spec.InitContainers[i].Env...)
 		if len(pod.Spec.InitContainers[i].TerminationMessagePolicy) == 0 {
 			pod.Spec.InitContainers[i].TerminationMessagePolicy = core.TerminationMessageFallbackToLogsOnError
 		}
