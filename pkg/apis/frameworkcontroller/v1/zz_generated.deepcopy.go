@@ -209,9 +209,13 @@ func (in *FrameworkAttemptStatus) DeepCopyInto(out *FrameworkAttemptStatus) {
 	}
 	if in.TaskRoleStatuses != nil {
 		in, out := &in.TaskRoleStatuses, &out.TaskRoleStatuses
-		*out = make([]TaskRoleStatus, len(*in))
+		*out = make([]*TaskRoleStatus, len(*in))
 		for i := range *in {
-			(*in)[i].DeepCopyInto(&(*out)[i])
+			if (*in)[i] != nil {
+				in, out := &(*in)[i], &(*out)[i]
+				*out = new(TaskRoleStatus)
+				(*in).DeepCopyInto(*out)
+			}
 		}
 	}
 	return
@@ -266,9 +270,13 @@ func (in *FrameworkSpec) DeepCopyInto(out *FrameworkSpec) {
 	out.RetryPolicy = in.RetryPolicy
 	if in.TaskRoles != nil {
 		in, out := &in.TaskRoles, &out.TaskRoles
-		*out = make([]TaskRoleSpec, len(*in))
+		*out = make([]*TaskRoleSpec, len(*in))
 		for i := range *in {
-			(*in)[i].DeepCopyInto(&(*out)[i])
+			if (*in)[i] != nil {
+				in, out := &(*in)[i], &(*out)[i]
+				*out = new(TaskRoleSpec)
+				(*in).DeepCopyInto(*out)
+			}
 		}
 	}
 	return
@@ -430,9 +438,13 @@ func (in *TaskRoleStatus) DeepCopyInto(out *TaskRoleStatus) {
 	*out = *in
 	if in.TaskStatuses != nil {
 		in, out := &in.TaskStatuses, &out.TaskStatuses
-		*out = make([]TaskStatus, len(*in))
+		*out = make([]*TaskStatus, len(*in))
 		for i := range *in {
-			(*in)[i].DeepCopyInto(&(*out)[i])
+			if (*in)[i] != nil {
+				in, out := &(*in)[i], &(*out)[i]
+				*out = new(TaskStatus)
+				(*in).DeepCopyInto(*out)
+			}
 		}
 	}
 	return

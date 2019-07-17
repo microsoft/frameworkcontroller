@@ -93,7 +93,7 @@ type FrameworkSpec struct {
 	// Only support to update from ExecutionStart to ExecutionStop
 	ExecutionType ExecutionType   `json:"executionType"`
 	RetryPolicy   RetryPolicySpec `json:"retryPolicy"`
-	TaskRoles     []TaskRoleSpec  `json:"taskRoles"`
+	TaskRoles     []*TaskRoleSpec `json:"taskRoles"`
 }
 
 type TaskRoleSpec struct {
@@ -270,7 +270,7 @@ type FrameworkAttemptStatus struct {
 	// ConfigMapUID can also universally locate the FrameworkAttemptInstance.
 	ConfigMapUID     *types.UID        `json:"configMapUID"`
 	CompletionStatus *CompletionStatus `json:"completionStatus"`
-	TaskRoleStatuses []TaskRoleStatus  `json:"taskRoleStatuses"`
+	TaskRoleStatuses []*TaskRoleStatus `json:"taskRoleStatuses"`
 }
 
 type TaskRoleStatus struct {
@@ -278,7 +278,7 @@ type TaskRoleStatus struct {
 	Name string `json:"name"`
 
 	// Tasks with TaskIndex in range [0, TaskNumber)
-	TaskStatuses []TaskStatus `json:"taskStatuses"`
+	TaskStatuses []*TaskStatus `json:"taskStatuses"`
 }
 
 type TaskStatus struct {

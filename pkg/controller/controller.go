@@ -1635,10 +1635,8 @@ func (c *FrameworkController) completeFrameworkAttempt(
 		f.Status.AttemptStatus.CompletionStatus = completionStatus
 	}
 
-	for i := range f.TaskRoleStatuses() {
-		taskRoleStatus := &f.TaskRoleStatuses()[i]
-		for j := range taskRoleStatus.TaskStatuses {
-			taskStatus := &taskRoleStatus.TaskStatuses[j]
+	for _, taskRoleStatus := range f.TaskRoleStatuses() {
+		for _, taskStatus := range taskRoleStatus.TaskStatuses {
 			if taskStatus.AttemptStatus.CompletionStatus == nil {
 				taskStatus.AttemptStatus.CompletionStatus =
 						ci.CompletionCodeFrameworkAttemptCompletion.
@@ -1648,11 +1646,9 @@ func (c *FrameworkController) completeFrameworkAttempt(
 	}
 
 	if force {
-		for i := range f.TaskRoleStatuses() {
-			taskRoleStatus := &f.TaskRoleStatuses()[i]
+		for _, taskRoleStatus := range f.TaskRoleStatuses() {
 			taskRoleName := taskRoleStatus.Name
-			for j := range taskRoleStatus.TaskStatuses {
-				taskStatus := &taskRoleStatus.TaskStatuses[j]
+			for _, taskStatus := range taskRoleStatus.TaskStatuses {
 				taskIndex := taskStatus.Index
 				if taskStatus.State != ci.TaskCompleted {
 					if taskStatus.State != ci.TaskAttemptCompleted {

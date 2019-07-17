@@ -287,7 +287,7 @@ func isBarrierPassed(f *ci.Framework) bool {
 	if f.Status != nil {
 		for _, taskRoleStatus := range f.TaskRoleStatuses() {
 			for _, taskStatus := range taskRoleStatus.TaskStatuses {
-				if isTaskReady(&taskStatus) {
+				if isTaskReady(taskStatus) {
 					readyTaskCount++
 				}
 			}
