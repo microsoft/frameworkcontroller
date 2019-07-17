@@ -739,22 +739,21 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 					return err
 				}
 
-				f.Status.AttemptStatus.CompletionStatus = code.NewCompletionStatus(diag)
+				c.completeFrameworkAttempt(f, true, code.NewCompletionStatus(diag))
+				return nil
 			}
 
 			if f.Status.State != ci.FrameworkAttemptCreationPending {
 				if f.Status.AttemptStatus.CompletionStatus == nil {
 					diag := fmt.Sprintf("ConfigMap was deleted by others")
 					log.Warnf(logPfx + diag)
-					f.Status.AttemptStatus.CompletionStatus =
-							ci.CompletionCodeConfigMapExternalDeleted.NewCompletionStatus(diag)
+					c.completeFrameworkAttempt(f, true,
+						ci.CompletionCodeConfigMapExternalDeleted.NewCompletionStatus(diag))
+				} else {
+					c.completeFrameworkAttempt(f, true, nil)
 				}
 
-				f.Status.AttemptStatus.CompletionTime = common.PtrNow()
-				f.TransitionFrameworkState(ci.FrameworkAttemptCompleted)
-				log.Infof(logPfx+
-						"FrameworkAttemptInstance %v is completed with CompletionStatus: %v",
-					*f.FrameworkAttemptInstanceUID(), f.Status.AttemptStatus.CompletionStatus)
+				return nil
 			}
 		} else {
 			if cm.DeletionTimestamp == nil {
@@ -784,6 +783,13 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 					f.TransitionFrameworkState(ci.FrameworkAttemptPreparing)
 				}
 			} else {
+				if f.Status.AttemptStatus.CompletionStatus == nil {
+					diag := fmt.Sprintf("ConfigMap is being deleted by others")
+					log.Warnf(logPfx + diag)
+					f.Status.AttemptStatus.CompletionStatus =
+							ci.CompletionCodeConfigMapExternalDeleted.NewCompletionStatus(diag)
+				}
+
 				f.TransitionFrameworkState(ci.FrameworkAttemptDeleting)
 				log.Infof(logPfx + "Waiting ConfigMap to be deleted")
 				return nil
@@ -865,16 +871,8 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 				return err
 			}
 
-			f.Status.AttemptStatus.CompletionStatus =
-					ci.CompletionCodeStopFrameworkRequested.NewCompletionStatus(diag)
-			f.Status.AttemptStatus.CompletionTime = common.PtrNow()
-			f.TransitionFrameworkState(ci.FrameworkAttemptCompleted)
-			log.Infof(logPfx+
-					"FrameworkAttempt %v is completed with CompletionStatus: %v",
-				f.FrameworkAttemptID(), f.Status.AttemptStatus.CompletionStatus)
-
-			// Manually enqueue a sync to drive it.
-			c.enqueueFramework(f, "FrameworkAttemptCompleted")
+			c.completeFrameworkAttempt(f, true,
+				ci.CompletionCodeStopFrameworkRequested.NewCompletionStatus(diag))
 			return nil
 		}
 
@@ -908,7 +906,7 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 		if f.Spec.ExecutionType == ci.ExecutionStop {
 			diag := fmt.Sprintf("User has requested to stop the Framework")
 			log.Infof(logPfx + diag)
-			c.completeFrameworkAttempt(f,
+			c.completeFrameworkAttempt(f, false,
 				ci.CompletionCodeStopFrameworkRequested.NewCompletionStatus(diag))
 			return nil
 		} else {
@@ -1146,23 +1144,22 @@ func (c *FrameworkController) syncTaskState(
 					return false, err
 				}
 
-				taskStatus.AttemptStatus.CompletionStatus =
-						ci.CompletionCodePodCreationTimeout.NewCompletionStatus(diag)
+				c.completeTaskAttempt(f, taskRoleName, taskIndex, true,
+					ci.CompletionCodePodCreationTimeout.NewCompletionStatus(diag))
+				return false, nil
 			}
 
 			if taskStatus.State != ci.TaskAttemptCreationPending {
 				if taskStatus.AttemptStatus.CompletionStatus == nil {
 					diag := fmt.Sprintf("Pod was deleted by others")
 					log.Warnf(logPfx + diag)
-					taskStatus.AttemptStatus.CompletionStatus =
-							ci.CompletionCodePodExternalDeleted.NewCompletionStatus(diag)
+					c.completeTaskAttempt(f, taskRoleName, taskIndex, true,
+						ci.CompletionCodePodExternalDeleted.NewCompletionStatus(diag))
+				} else {
+					c.completeTaskAttempt(f, taskRoleName, taskIndex, true, nil)
 				}
 
-				taskStatus.AttemptStatus.CompletionTime = common.PtrNow()
-				f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptCompleted)
-				log.Infof(logPfx+
-						"TaskAttemptInstance %v is completed with CompletionStatus: %v",
-					*taskStatus.TaskAttemptInstanceUID(), taskStatus.AttemptStatus.CompletionStatus)
+				return false, nil
 			}
 		} else {
 			if pod.DeletionTimestamp == nil {
@@ -1214,7 +1211,7 @@ func (c *FrameworkController) syncTaskState(
 				} else if pod.Status.Phase == core.PodSucceeded {
 					diag := fmt.Sprintf("Pod succeeded")
 					log.Infof(logPfx + diag)
-					c.completeTaskAttempt(f, taskRoleName, taskIndex,
+					c.completeTaskAttempt(f, taskRoleName, taskIndex, false,
 						ci.CompletionCodeSucceeded.NewCompletionStatus(diag))
 					return false, nil
 				} else if pod.Status.Phase == core.PodFailed {
@@ -1248,7 +1245,7 @@ func (c *FrameworkController) syncTaskState(
 							"Pod failed without any non-zero container exit code, maybe " +
 									"stopped by the system")
 						log.Warnf(logPfx + diag)
-						c.completeTaskAttempt(f, taskRoleName, taskIndex,
+						c.completeTaskAttempt(f, taskRoleName, taskIndex, false,
 							ci.CompletionCodePodFailedWithoutFailedContainer.NewCompletionStatus(diag))
 					} else {
 						diag := fmt.Sprintf(
@@ -1256,10 +1253,10 @@ func (c *FrameworkController) syncTaskState(
 							strings.Join(allContainerDiags, ", "))
 						log.Infof(logPfx + diag)
 						if strings.Contains(diag, string(ci.ReasonOOMKilled)) {
-							c.completeTaskAttempt(f, taskRoleName, taskIndex,
+							c.completeTaskAttempt(f, taskRoleName, taskIndex, false,
 								ci.CompletionCodeContainerOOMKilled.NewCompletionStatus(diag))
 						} else {
-							c.completeTaskAttempt(f, taskRoleName, taskIndex,
+							c.completeTaskAttempt(f, taskRoleName, taskIndex, false,
 								ci.CompletionCode(*lastContainerExitCode).NewCompletionStatus(diag))
 						}
 					}
@@ -1269,6 +1266,13 @@ func (c *FrameworkController) syncTaskState(
 							"Failed: Got unrecognized Pod Phase: %v", pod.Status.Phase)
 				}
 			} else {
+				if taskStatus.AttemptStatus.CompletionStatus == nil {
+					diag := fmt.Sprintf("Pod is being deleted by others")
+					log.Warnf(logPfx + diag)
+					taskStatus.AttemptStatus.CompletionStatus =
+							ci.CompletionCodePodExternalDeleted.NewCompletionStatus(diag)
+				}
+
 				f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptDeleting)
 				log.Infof(logPfx + "Waiting Pod to be deleted")
 				return false, nil
@@ -1348,16 +1352,8 @@ func (c *FrameworkController) syncTaskState(
 					return false, err
 				}
 
-				taskStatus.AttemptStatus.CompletionStatus =
-						ci.CompletionCodePodSpecInvalid.NewCompletionStatus(diag)
-				taskStatus.AttemptStatus.CompletionTime = common.PtrNow()
-				f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptCompleted)
-				log.Infof(logPfx+
-						"TaskAttempt %v is completed with CompletionStatus: %v",
-					taskStatus.TaskAttemptID(), taskStatus.AttemptStatus.CompletionStatus)
-
-				// Manually enqueue a sync to drive it.
-				c.enqueueFramework(f, "TaskAttemptCompleted")
+				c.completeTaskAttempt(f, taskRoleName, taskIndex, true,
+					ci.CompletionCodePodSpecInvalid.NewCompletionStatus(diag))
 				return false, nil
 			} else {
 				return false, err
@@ -1398,7 +1394,7 @@ func (c *FrameworkController) syncTaskState(
 					failedTaskCount, minFailedTaskCount, taskRoleName,
 					taskRoleName, taskIndex, taskStatus.AttemptStatus.CompletionStatus.Diagnostics)
 				log.Infof(logPfx + diag)
-				c.completeFrameworkAttempt(f,
+				c.completeFrameworkAttempt(f, false,
 					taskStatus.AttemptStatus.CompletionStatus.Code.NewCompletionStatus(diag))
 				return true, nil
 			}
@@ -1413,7 +1409,7 @@ func (c *FrameworkController) syncTaskState(
 					succeededTaskCount, minSucceededTaskCount, taskRoleName,
 					taskRoleName, taskIndex, taskStatus.AttemptStatus.CompletionStatus.Diagnostics)
 				log.Infof(logPfx + diag)
-				c.completeFrameworkAttempt(f,
+				c.completeFrameworkAttempt(f, false,
 					ci.CompletionCodeSucceeded.NewCompletionStatus(diag))
 				return true, nil
 			}
@@ -1430,7 +1426,7 @@ func (c *FrameworkController) syncTaskState(
 				totalTaskCount, failedTaskCount,
 				taskRoleName, taskIndex, taskStatus.AttemptStatus.CompletionStatus.Diagnostics)
 			log.Infof(logPfx + diag)
-			c.completeFrameworkAttempt(f,
+			c.completeFrameworkAttempt(f, false,
 				ci.CompletionCodeSucceeded.NewCompletionStatus(diag))
 			return true, nil
 		}
@@ -1572,33 +1568,118 @@ func (c *FrameworkController) createPod(
 
 func (c *FrameworkController) completeTaskAttempt(
 		f *ci.Framework, taskRoleName string, taskIndex int32,
-		completionStatus *ci.CompletionStatus) {
-	logPfx := fmt.Sprintf("[%v][%v][%v]: completeTaskAttempt: ",
-		f.Key(), taskRoleName, taskIndex)
-
+		force bool, completionStatus *ci.CompletionStatus) {
+	logPfx := fmt.Sprintf(
+		"[%v][%v][%v]: completeTaskAttempt: force: %v: ",
+		f.Key(), taskRoleName, taskIndex, force)
 	taskStatus := f.TaskStatus(taskRoleName, taskIndex)
-	taskStatus.AttemptStatus.CompletionStatus = completionStatus
-	f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptDeletionPending)
 
-	// To ensure the CompletionStatus is persisted before deleting the pod,
-	// we need to wait until next sync to delete the pod, so manually enqueue
-	// a sync.
-	c.enqueueFramework(f, "TaskAttemptDeletionPending")
-	log.Infof(logPfx + "Waiting TaskAttempt CompletionStatus to be persisted")
+	// CompletionStatus should be immutable after set.
+	if taskStatus.AttemptStatus.CompletionStatus == nil {
+		taskStatus.AttemptStatus.CompletionStatus = completionStatus
+	} else if taskStatus.AttemptStatus.CompletionStatus.Code ==
+			ci.CompletionCodeFrameworkAttemptCompletion &&
+			completionStatus != nil {
+		// Just append to diagnostics
+		taskStatus.AttemptStatus.CompletionStatus.Diagnostics +=
+				": More Recent CompletionStatus: " + completionStatus.String()
+	}
+
+	if force {
+		taskStatus.AttemptStatus.CompletionTime = common.PtrNow()
+		f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptCompleted)
+
+		if taskStatus.TaskAttemptInstanceUID() == nil {
+			log.Infof(logPfx+
+					"TaskAttempt %v is completed with CompletionStatus: %v",
+				taskStatus.TaskAttemptID(), taskStatus.AttemptStatus.CompletionStatus)
+		} else {
+			log.Infof(logPfx+
+					"TaskAttemptInstance %v is completed with CompletionStatus: %v",
+				*taskStatus.TaskAttemptInstanceUID(), taskStatus.AttemptStatus.CompletionStatus)
+		}
+
+		// To ensure the completed TaskAttempt is persisted before exposed,
+		// we need to wait until next sync to expose it, so manually enqueue a sync.
+		log.Infof(logPfx + "Waiting the completed TaskAttempt to be persisted")
+		c.enqueueFramework(f, "TaskAttemptCompleted")
+	} else {
+		f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptDeletionPending)
+
+		// To ensure the CompletionStatus is persisted before deleting the pod,
+		// we need to wait until next sync to delete the pod, so manually enqueue
+		// a sync.
+		log.Infof(logPfx + "Waiting the CompletionStatus to be persisted")
+		c.enqueueFramework(f, "TaskAttemptDeletionPending")
+	}
 }
 
 func (c *FrameworkController) completeFrameworkAttempt(
-		f *ci.Framework, completionStatus *ci.CompletionStatus) {
-	logPfx := fmt.Sprintf("[%v]: completeFrameworkAttempt: ", f.Key())
+		f *ci.Framework, force bool, completionStatus *ci.CompletionStatus) {
+	logPfx := fmt.Sprintf(
+		"[%v]: completeFrameworkAttempt: force: %v: ",
+		f.Key(), force)
 
-	f.Status.AttemptStatus.CompletionStatus = completionStatus
-	f.TransitionFrameworkState(ci.FrameworkAttemptDeletionPending)
+	// CompletionStatus should be immutable after set.
+	if f.Status.AttemptStatus.CompletionStatus == nil {
+		f.Status.AttemptStatus.CompletionStatus = completionStatus
+	}
 
-	// To ensure the CompletionStatus is persisted before deleting the cm,
-	// we need to wait until next sync to delete the cm, so manually enqueue
-	// a sync.
-	c.enqueueFramework(f, "FrameworkAttemptDeletionPending")
-	log.Infof(logPfx + "Waiting FrameworkAttempt CompletionStatus to be persisted")
+	taskCompletionStatus := ci.CompletionCodeFrameworkAttemptCompletion.
+		NewCompletionStatus("Stop to complete FrameworkAttempt")
+	for i := range f.TaskRoleStatuses() {
+		taskRoleStatus := &f.TaskRoleStatuses()[i]
+		for j := range taskRoleStatus.TaskStatuses {
+			taskStatus := &taskRoleStatus.TaskStatuses[j]
+			if taskStatus.AttemptStatus.CompletionStatus == nil {
+				taskStatus.AttemptStatus.CompletionStatus = taskCompletionStatus
+			}
+		}
+	}
+
+	if force {
+		for i := range f.TaskRoleStatuses() {
+			taskRoleStatus := &f.TaskRoleStatuses()[i]
+			taskRoleName := taskRoleStatus.Name
+			for j := range taskRoleStatus.TaskStatuses {
+				taskStatus := &taskRoleStatus.TaskStatuses[j]
+				taskIndex := taskStatus.Index
+				if taskStatus.State != ci.TaskCompleted {
+					if taskStatus.State != ci.TaskAttemptCompleted {
+						c.completeTaskAttempt(f, taskRoleName, taskIndex, true, nil)
+					}
+					taskStatus.CompletionTime = common.PtrNow()
+					f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskCompleted)
+				}
+			}
+		}
+
+		f.Status.AttemptStatus.CompletionTime = common.PtrNow()
+		f.TransitionFrameworkState(ci.FrameworkAttemptCompleted)
+
+		if f.FrameworkAttemptInstanceUID() == nil {
+			log.Infof(logPfx+
+					"FrameworkAttempt %v is completed with CompletionStatus: %v",
+				f.FrameworkAttemptID(), f.Status.AttemptStatus.CompletionStatus)
+		} else {
+			log.Infof(logPfx+
+					"FrameworkAttemptInstance %v is completed with CompletionStatus: %v",
+				*f.FrameworkAttemptInstanceUID(), f.Status.AttemptStatus.CompletionStatus)
+		}
+
+		// To ensure the completed FrameworkAttempt is persisted before exposed,
+		// we need to wait until next sync to expose it, so manually enqueue a sync.
+		log.Infof(logPfx + "Waiting the completed FrameworkAttempt to be persisted")
+		c.enqueueFramework(f, "FrameworkAttemptCompleted")
+	} else {
+		f.TransitionFrameworkState(ci.FrameworkAttemptDeletionPending)
+
+		// To ensure the CompletionStatus is persisted before deleting the cm,
+		// we need to wait until next sync to delete the cm, so manually enqueue
+		// a sync.
+		log.Infof(logPfx + "Waiting the CompletionStatus to be persisted")
+		c.enqueueFramework(f, "FrameworkAttemptDeletionPending")
+	}
 }
 
 func (c *FrameworkController) updateRemoteFrameworkStatus(f *ci.Framework) error {

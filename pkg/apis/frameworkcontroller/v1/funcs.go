@@ -159,9 +159,10 @@ func (f *Framework) TaskRoleStatuses() []TaskRoleStatus {
 }
 
 func (f *Framework) TaskRoleStatus(taskRoleName string) *TaskRoleStatus {
-	for _, taskRoleStatus := range f.TaskRoleStatuses() {
+	for i := range f.TaskRoleStatuses() {
+		taskRoleStatus := &f.TaskRoleStatuses()[i]
 		if taskRoleStatus.Name == taskRoleName {
-			return &taskRoleStatus
+			return taskRoleStatus
 		}
 	}
 	panic(fmt.Errorf("[%v]: TaskRole is not found in Status", taskRoleName))
