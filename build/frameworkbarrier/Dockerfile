@@ -20,7 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE
 
-FROM golang:alpine as builder
+FROM golang:1.12.6-alpine as builder
 
 ENV PROJECT_DIR=${GOPATH}/src/github.com/microsoft/frameworkcontroller
 ENV INSTALL_DIR=/opt/frameworkcontroller/frameworkbarrier
@@ -32,7 +32,7 @@ RUN ${PROJECT_DIR}/build/frameworkbarrier/go-build.sh && \
   mv ${PROJECT_DIR}/dist/frameworkbarrier/* ${INSTALL_DIR}
 
 
-FROM alpine:latest
+FROM alpine:3.10.1
 
 ENV INSTALL_DIR=/opt/frameworkcontroller/frameworkbarrier
 

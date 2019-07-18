@@ -97,7 +97,7 @@ docker run -e KUBECONFIG=/mnt/.kube/config \
 
 **Prerequisite**
 
-Ensure you have installed [Golang 1.10 or above](https://golang.org/doc/install#install) and the [${GOPATH}](https://golang.org/doc/code.html#GOPATH) is valid.
+Ensure you have installed [Golang 1.12.6 or above](https://golang.org/doc/install#install) and the [${GOPATH}](https://golang.org/doc/code.html#GOPATH) is valid.
 
 Then build the FrameworkController binary distribution:
 ```shell
