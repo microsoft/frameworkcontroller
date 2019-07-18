@@ -24,7 +24,7 @@ package util
 
 import (
 	"fmt"
-	"reflect"
+	"github.com/microsoft/frameworkcontroller/pkg/common"
 	log "github.com/sirupsen/logrus"
 	apiExtensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	apiClient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -32,12 +32,12 @@ import (
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
-	"github.com/microsoft/frameworkcontroller/pkg/common"
+	"reflect"
 )
 
 func PutCRD(
-		config *rest.Config, crd *apiExtensions.CustomResourceDefinition,
-		establishedCheckIntervalSec *int64, establishedCheckTimeoutSec *int64) {
+	config *rest.Config, crd *apiExtensions.CustomResourceDefinition,
+	establishedCheckIntervalSec *int64, establishedCheckTimeoutSec *int64) {
 	client := createCRDClient(config)
 
 	err := putCRDInternal(client, crd, establishedCheckIntervalSec, establishedCheckTimeoutSec)
@@ -69,8 +69,8 @@ func createCRDClient(config *rest.Config) apiClient.Interface {
 }
 
 func putCRDInternal(
-		client apiClient.Interface, newCRD *apiExtensions.CustomResourceDefinition,
-		establishedCheckIntervalSec *int64, establishedCheckTimeoutSec *int64) error {
+	client apiClient.Interface, newCRD *apiExtensions.CustomResourceDefinition,
+	establishedCheckIntervalSec *int64, establishedCheckTimeoutSec *int64) error {
 
 	remoteCRD, err := client.ApiextensionsV1beta1().CustomResourceDefinitions().Get(newCRD.Name, meta.GetOptions{})
 	if err == nil {
@@ -111,7 +111,7 @@ func putCRDInternal(
 func isCRDEstablished(crd *apiExtensions.CustomResourceDefinition) bool {
 	for _, cond := range crd.Status.Conditions {
 		if cond.Status == apiExtensions.ConditionTrue &&
-				cond.Type == apiExtensions.Established {
+			cond.Type == apiExtensions.Established {
 			return true
 		}
 	}

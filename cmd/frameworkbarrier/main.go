@@ -23,8 +23,8 @@
 package main
 
 import (
-	"github.com/microsoft/frameworkcontroller/pkg/common"
 	"github.com/microsoft/frameworkcontroller/pkg/barrier"
+	"github.com/microsoft/frameworkcontroller/pkg/common"
 )
 
 func init() {

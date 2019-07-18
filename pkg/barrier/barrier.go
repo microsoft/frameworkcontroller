@@ -24,21 +24,21 @@ package barrier
 
 import (
 	"fmt"
+	ci "github.com/microsoft/frameworkcontroller/pkg/apis/frameworkcontroller/v1"
+	frameworkClient "github.com/microsoft/frameworkcontroller/pkg/client/clientset/versioned"
+	"github.com/microsoft/frameworkcontroller/pkg/common"
+	"github.com/microsoft/frameworkcontroller/pkg/util"
+	log "github.com/sirupsen/logrus"
+	"io/ioutil"
+	apiErrors "k8s.io/apimachinery/pkg/api/errors"
+	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
+	kubeClient "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	"os"
 	"strconv"
 	"strings"
-	"io/ioutil"
-	log "github.com/sirupsen/logrus"
-	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
-	apiErrors "k8s.io/apimachinery/pkg/api/errors"
-	kubeClient "k8s.io/client-go/kubernetes"
-	frameworkClient "github.com/microsoft/frameworkcontroller/pkg/client/clientset/versioned"
-	ci "github.com/microsoft/frameworkcontroller/pkg/apis/frameworkcontroller/v1"
-	"github.com/microsoft/frameworkcontroller/pkg/util"
-	"github.com/microsoft/frameworkcontroller/pkg/common"
 )
 
 // FrameworkController Extension: FrameworkBarrier
@@ -160,19 +160,19 @@ func newConfig() *Config {
 	errPrefix := "Validation Failed: "
 	if c.FrameworkName == "" {
 		log.Errorf(errPrefix+
-				"${%v} should not be empty",
+			"${%v} should not be empty",
 			ci.EnvNameFrameworkName)
 		exit(ci.CompletionCodeContainerPermanentFailed)
 	}
 	if c.BarrierCheckIntervalSec < 5 {
 		log.Errorf(errPrefix+
-				"${%v} %v should not be less than 5",
+			"${%v} %v should not be less than 5",
 			EnvNameBarrierCheckIntervalSec, c.BarrierCheckIntervalSec)
 		exit(ci.CompletionCodeContainerPermanentFailed)
 	}
 	if c.BarrierCheckTimeoutSec < 60 || c.BarrierCheckTimeoutSec > 20*60 {
 		log.Errorf(errPrefix+
-				"${%v} %v should not be less than 60 or greater than 20 * 60",
+			"${%v} %v should not be less than 60 or greater than 20 * 60",
 			EnvNameBarrierCheckTimeoutSec, c.BarrierCheckTimeoutSec)
 		exit(ci.CompletionCodeContainerPermanentFailed)
 	}
@@ -191,14 +191,14 @@ func defaultKubeConfigFilePath() *string {
 	return &configPath
 }
 
-func buildKubeConfig(bConfig *Config) (*rest.Config) {
+func buildKubeConfig(bConfig *Config) *rest.Config {
 	kConfig, err := clientcmd.BuildConfigFromFlags(
 		bConfig.KubeApiServerAddress, bConfig.KubeConfigFilePath)
 	if err != nil {
 		log.Errorf("Failed to build KubeConfig, please ensure "+
-				"${KUBE_APISERVER_ADDRESS} or ${KUBECONFIG} or ${HOME}/.kube/config or "+
-				"${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT} is valid: "+
-				"Error: %v", err)
+			"${KUBE_APISERVER_ADDRESS} or ${KUBECONFIG} or ${HOME}/.kube/config or "+
+			"${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT} is valid: "+
+			"Error: %v", err)
 		exit(ci.CompletionCode(1))
 	}
 	return kConfig
@@ -257,14 +257,14 @@ func (b *FrameworkBarrier) Run() {
 
 	if isPassed {
 		log.Infof("BarrierPassed: " +
-				"All Tasks are ready with not nil PodIP.")
+			"All Tasks are ready with not nil PodIP.")
 		dumpFramework(f)
 		generateInjector(f)
 		exit(ci.CompletionCodeSucceeded)
 	} else {
 		if err == nil {
 			log.Errorf("BarrierNotPassed: " +
-					"Timeout to wait all Tasks are ready with not nil PodIP.")
+				"Timeout to wait all Tasks are ready with not nil PodIP.")
 			exit(ci.CompletionCodeContainerTransientConflictFailed)
 		} else {
 			log.Errorf("Failed to get Framework object from ApiServer: %v", err)
@@ -297,12 +297,12 @@ func isBarrierPassed(f *ci.Framework) bool {
 	// Wait until readyTaskCount is consistent with totalTaskCount.
 	if readyTaskCount == totalTaskCount {
 		log.Infof("BarrierPassed: "+
-				"%v/%v Tasks are ready with not nil PodIP.",
+			"%v/%v Tasks are ready with not nil PodIP.",
 			readyTaskCount, totalTaskCount)
 		return true
 	} else {
 		log.Warnf("BarrierNotPassed: "+
-				"%v/%v Tasks are ready with not nil PodIP.",
+			"%v/%v Tasks are ready with not nil PodIP.",
 			readyTaskCount, totalTaskCount)
 		return false
 	}
@@ -310,7 +310,7 @@ func isBarrierPassed(f *ci.Framework) bool {
 
 func isTaskReady(taskStatus *ci.TaskStatus) bool {
 	return taskStatus.AttemptStatus.PodIP != nil &&
-			*taskStatus.AttemptStatus.PodIP != ""
+		*taskStatus.AttemptStatus.PodIP != ""
 }
 
 func dumpFramework(f *ci.Framework) {
@@ -410,16 +410,16 @@ func exit(cc ci.CompletionCode) {
 		log.Infof(logPfx + "success.")
 	} else if cc == ci.CompletionCodeContainerTransientFailed {
 		log.Errorf(logPfx +
-				"transient failure to tell controller to retry.")
+			"transient failure to tell controller to retry.")
 	} else if cc == ci.CompletionCodeContainerTransientConflictFailed {
 		log.Errorf(logPfx +
-				"transient conflict failure to tell controller to back off retry.")
+			"transient conflict failure to tell controller to back off retry.")
 	} else if cc == ci.CompletionCodeContainerPermanentFailed {
 		log.Errorf(logPfx +
-				"permanent failure to tell controller not to retry.")
+			"permanent failure to tell controller not to retry.")
 	} else {
 		log.Errorf(logPfx +
-				"unknown failure to tell controller to retry within maxRetryCount.")
+			"unknown failure to tell controller to retry within maxRetryCount.")
 	}
 
 	os.Exit(int(cc))

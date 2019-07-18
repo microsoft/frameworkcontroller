@@ -24,13 +24,13 @@ package v1
 
 import (
 	"fmt"
-	"strings"
-	"strconv"
+	"github.com/microsoft/frameworkcontroller/pkg/common"
 	log "github.com/sirupsen/logrus"
 	core "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"github.com/microsoft/frameworkcontroller/pkg/common"
+	"k8s.io/apimachinery/pkg/types"
+	"strconv"
+	"strings"
 )
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -63,7 +63,7 @@ func GetFrameworkAttemptInstanceUID(frameworkAttemptID int32, configMapUID *type
 }
 
 func SplitFrameworkAttemptInstanceUID(frameworkAttemptInstanceUID *types.UID) (
-		frameworkAttemptID int32, configMapUID *types.UID) {
+	frameworkAttemptID int32, configMapUID *types.UID) {
 	parts := strings.Split(string(*frameworkAttemptInstanceUID), "_")
 	i, err := strconv.ParseInt(parts[0], 10, 32)
 	if err != nil {
@@ -79,7 +79,7 @@ func GetTaskAttemptInstanceUID(taskAttemptID int32, podUID *types.UID) *types.UI
 }
 
 func SplitTaskAttemptInstanceUID(taskAttemptInstanceUID *types.UID) (
-		taskAttemptID int32, podUID *types.UID) {
+	taskAttemptID int32, podUID *types.UID) {
 	parts := strings.Split(string(*taskAttemptInstanceUID), "_")
 	i, err := strconv.ParseInt(parts[0], 10, 32)
 	if err != nil {
@@ -193,14 +193,14 @@ func (ts *TaskStatus) IsRunning() bool {
 
 func (f *Framework) IsCompleting() bool {
 	return f.Status.State == FrameworkAttemptDeletionPending ||
-			f.Status.State == FrameworkAttemptDeletionRequested ||
-			f.Status.State == FrameworkAttemptDeleting
+		f.Status.State == FrameworkAttemptDeletionRequested ||
+		f.Status.State == FrameworkAttemptDeleting
 }
 
 func (ts *TaskStatus) IsCompleting() bool {
 	return ts.State == TaskAttemptDeletionPending ||
-			ts.State == TaskAttemptDeletionRequested ||
-			ts.State == TaskAttemptDeleting
+		ts.State == TaskAttemptDeletionRequested ||
+		ts.State == TaskAttemptDeleting
 }
 
 func (ct CompletionType) IsSucceeded() bool {
@@ -419,7 +419,7 @@ func (f *Framework) NewFrameworkStatus() *FrameworkStatus {
 }
 
 func (f *Framework) NewFrameworkAttemptStatus(
-		frameworkAttemptID int32) FrameworkAttemptStatus {
+	frameworkAttemptID int32) FrameworkAttemptStatus {
 	return FrameworkAttemptStatus{
 		ID:               frameworkAttemptID,
 		StartTime:        meta.Now(),
@@ -461,7 +461,7 @@ func (f *Framework) NewTaskStatus(taskRoleName string, taskIndex int32) *TaskSta
 }
 
 func (f *Framework) NewTaskAttemptStatus(
-		taskRoleName string, taskIndex int32, taskAttemptID int32) TaskAttemptStatus {
+	taskRoleName string, taskIndex int32, taskAttemptID int32) TaskAttemptStatus {
 	return TaskAttemptStatus{
 		ID:               taskAttemptID,
 		StartTime:        meta.Now(),
@@ -510,16 +510,16 @@ func (rd RetryDecision) String() string {
 }
 
 func (rp RetryPolicySpec) ShouldRetry(
-		rps RetryPolicyStatus,
-		cs *CompletionStatus,
-		minDelaySecForTransientConflictFailed int64,
-		maxDelaySecForTransientConflictFailed int64) RetryDecision {
+	rps RetryPolicyStatus,
+	cs *CompletionStatus,
+	minDelaySecForTransientConflictFailed int64,
+	maxDelaySecForTransientConflictFailed int64) RetryDecision {
 	ct := cs.Type
 
 	// 0. Built-in Always-on RetryPolicy
 	if cs.Code == CompletionCodePodSpecInvalid ||
-			cs.Code == CompletionCodeStopFrameworkRequested ||
-			cs.Code == CompletionCodeFrameworkAttemptCompletion {
+		cs.Code == CompletionCodeStopFrameworkRequested ||
+		cs.Code == CompletionCodeFrameworkAttemptCompletion {
 		return RetryDecision{false, true, 0, cs.Diagnostics}
 	}
 
@@ -547,8 +547,8 @@ func (rp RetryPolicySpec) ShouldRetry(
 
 	// 2. NormalRetryPolicy
 	if (rp.MaxRetryCount == ExtendedUnlimitedValue) ||
-			(ct.IsFailed() && rp.MaxRetryCount == UnlimitedValue) ||
-			(ct.IsFailed() && rps.AccountableRetriedCount < rp.MaxRetryCount) {
+		(ct.IsFailed() && rp.MaxRetryCount == UnlimitedValue) ||
+		(ct.IsFailed() && rps.AccountableRetriedCount < rp.MaxRetryCount) {
 		return RetryDecision{true, true, 0, fmt.Sprintf(
 			"AccountableRetriedCount %v has not reached MaxRetryCount %v",
 			rps.AccountableRetriedCount, rp.MaxRetryCount)}
@@ -584,7 +584,7 @@ func (f *Framework) TransitionFrameworkState(dstState FrameworkState) {
 
 // This is the only interface to modify TaskState
 func (f *Framework) TransitionTaskState(
-		taskRoleName string, taskIndex int32, dstState TaskState) {
+	taskRoleName string, taskIndex int32, dstState TaskState) {
 	taskStatus := f.TaskStatus(taskRoleName, taskIndex)
 	srcState := taskStatus.State
 	if srcState == dstState {
