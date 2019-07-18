@@ -23,12 +23,12 @@
 package v1
 
 import (
-	"os"
 	"fmt"
+	"github.com/microsoft/frameworkcontroller/pkg/common"
 	"io/ioutil"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"github.com/microsoft/frameworkcontroller/pkg/common"
+	"os"
 )
 
 type Config struct {
@@ -112,34 +112,34 @@ func NewConfig() *Config {
 	errPrefix := "Config Validation Failed: "
 	if *c.WorkerNumber <= 0 {
 		panic(fmt.Errorf(errPrefix+
-				"WorkerNumber %v should be positive",
+			"WorkerNumber %v should be positive",
 			*c.WorkerNumber))
 	}
 	if *c.CRDEstablishedCheckIntervalSec < 1 {
 		panic(fmt.Errorf(errPrefix+
-				"CRDEstablishedCheckIntervalSec %v should not be less than 1",
+			"CRDEstablishedCheckIntervalSec %v should not be less than 1",
 			*c.CRDEstablishedCheckIntervalSec))
 	}
 	if *c.CRDEstablishedCheckTimeoutSec < 10 {
 		panic(fmt.Errorf(errPrefix+
-				"CRDEstablishedCheckTimeoutSec %v should not be less than 10",
+			"CRDEstablishedCheckTimeoutSec %v should not be less than 10",
 			*c.CRDEstablishedCheckTimeoutSec))
 	}
 	if *c.ObjectLocalCacheCreationTimeoutSec < 60 {
 		panic(fmt.Errorf(errPrefix+
-				"ObjectLocalCacheCreationTimeoutSec %v should not be less than 60",
+			"ObjectLocalCacheCreationTimeoutSec %v should not be less than 60",
 			*c.ObjectLocalCacheCreationTimeoutSec))
 	}
 	if *c.FrameworkMinRetryDelaySecForTransientConflictFailed < 0 {
 		panic(fmt.Errorf(errPrefix+
-				"FrameworkMinRetryDelaySecForTransientConflictFailed %v should not be negative",
+			"FrameworkMinRetryDelaySecForTransientConflictFailed %v should not be negative",
 			*c.FrameworkMinRetryDelaySecForTransientConflictFailed))
 	}
 	if *c.FrameworkMaxRetryDelaySecForTransientConflictFailed <
-			*c.FrameworkMinRetryDelaySecForTransientConflictFailed {
+		*c.FrameworkMinRetryDelaySecForTransientConflictFailed {
 		panic(fmt.Errorf(errPrefix+
-				"FrameworkMaxRetryDelaySecForTransientConflictFailed %v should not be less than "+
-				"FrameworkMinRetryDelaySecForTransientConflictFailed %v",
+			"FrameworkMaxRetryDelaySecForTransientConflictFailed %v should not be less than "+
+			"FrameworkMinRetryDelaySecForTransientConflictFailed %v",
 			*c.FrameworkMaxRetryDelaySecForTransientConflictFailed,
 			*c.FrameworkMinRetryDelaySecForTransientConflictFailed))
 	}
@@ -177,15 +177,15 @@ func initConfig() *Config {
 	return &c
 }
 
-func BuildKubeConfig(cConfig *Config) (*rest.Config) {
+func BuildKubeConfig(cConfig *Config) *rest.Config {
 	kConfig, err := clientcmd.BuildConfigFromFlags(
 		*cConfig.KubeApiServerAddress, *cConfig.KubeConfigFilePath)
 	if err != nil {
 		panic(fmt.Errorf("Failed to build KubeConfig, please ensure "+
-				"config kubeApiServerAddress or config kubeConfigFilePath or "+
-				"${KUBE_APISERVER_ADDRESS} or ${KUBECONFIG} or ${HOME}/.kube/config or "+
-				"${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT} is valid: "+
-				"Error: %v", err))
+			"config kubeApiServerAddress or config kubeConfigFilePath or "+
+			"${KUBE_APISERVER_ADDRESS} or ${KUBECONFIG} or ${HOME}/.kube/config or "+
+			"${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT} is valid: "+
+			"Error: %v", err))
 	}
 	return kConfig
 }

@@ -24,16 +24,16 @@ package util
 
 import (
 	"fmt"
+	frameworkClient "github.com/microsoft/frameworkcontroller/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
-	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/rest"
 	core "k8s.io/api/core/v1"
 	kubeClient "k8s.io/client-go/kubernetes"
-	frameworkClient "github.com/microsoft/frameworkcontroller/pkg/client/clientset/versioned"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/cache"
 )
 
 func CreateClients(kConfig *rest.Config) (
-		kubeClient.Interface, frameworkClient.Interface) {
+	kubeClient.Interface, frameworkClient.Interface) {
 	kClient, err := kubeClient.NewForConfig(kConfig)
 	if err != nil {
 		panic(fmt.Errorf("Failed to create KubeClient: %v", err))

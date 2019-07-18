@@ -23,9 +23,9 @@
 package v1
 
 import (
+	"github.com/microsoft/frameworkcontroller/pkg/common"
 	apiExtensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"github.com/microsoft/frameworkcontroller/pkg/common"
 )
 
 const (

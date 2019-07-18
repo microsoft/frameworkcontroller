@@ -23,8 +23,8 @@
 package common
 
 import (
-	"io"
 	log "github.com/sirupsen/logrus"
+	"io"
 )
 
 type Empty struct{}

@@ -24,15 +24,15 @@ package v1
 
 import (
 	core "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type FrameworkList struct {
-	meta.TypeMeta     `json:",inline"`
-	meta.ListMeta     `json:"metadata"`
-	Items []Framework `json:"items"`
+	meta.TypeMeta `json:",inline"`
+	meta.ListMeta `json:"metadata"`
+	Items         []Framework `json:"items"`
 }
 
 // +genclient
@@ -79,10 +79,10 @@ type FrameworkList struct {
 //    2. Do not change the OwnerReferences of the managed ConfigMap and Pods.
 //////////////////////////////////////////////////////////////////////////////////////////////////
 type Framework struct {
-	meta.TypeMeta           `json:",inline"`
-	meta.ObjectMeta         `json:"metadata"`
-	Spec   FrameworkSpec    `json:"spec"`
-	Status *FrameworkStatus `json:"status"`
+	meta.TypeMeta   `json:",inline"`
+	meta.ObjectMeta `json:"metadata"`
+	Spec            FrameworkSpec    `json:"spec"`
+	Status          *FrameworkStatus `json:"status"`
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////

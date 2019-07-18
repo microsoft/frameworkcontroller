@@ -23,11 +23,11 @@
 package main
 
 import (
+	"github.com/microsoft/frameworkcontroller/pkg/common"
+	"github.com/microsoft/frameworkcontroller/pkg/controller"
 	"os"
 	"os/signal"
 	"syscall"
-	"github.com/microsoft/frameworkcontroller/pkg/common"
-	"github.com/microsoft/frameworkcontroller/pkg/controller"
 )
 
 func init() {

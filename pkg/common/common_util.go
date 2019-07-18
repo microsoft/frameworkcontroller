@@ -23,19 +23,19 @@
 package common
 
 import (
+	"encoding/json"
+	"flag"
 	"fmt"
+	log "github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v2"
+	"io/ioutil"
+	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog"
+	"math/rand"
+	"os"
 	"strings"
 	"time"
-	"os"
-	"flag"
-	"math/rand"
-	"io/ioutil"
-	"gopkg.in/yaml.v2"
-	"encoding/json"
-	log "github.com/sirupsen/logrus"
-	"k8s.io/klog"
-	"k8s.io/apimachinery/pkg/types"
-	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func Quote(s string) string {
