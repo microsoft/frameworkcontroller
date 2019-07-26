@@ -30,4 +30,4 @@ BASH_DIR=$(cd $(dirname ${BASH_SOURCE}) && pwd)
 
 cd ${BASH_DIR}
 
-./frameworkcontroller
+./frameworkcontroller "$@"

@@ -25,10 +25,10 @@ package v1
 import (
 	"fmt"
 	"github.com/microsoft/frameworkcontroller/pkg/common"
-	log "github.com/sirupsen/logrus"
 	core "k8s.io/api/core/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog"
 	"strconv"
 	"strings"
 )
@@ -577,7 +577,7 @@ func (f *Framework) TransitionFrameworkState(dstState FrameworkState) {
 	f.Status.State = dstState
 	f.Status.TransitionTime = meta.Now()
 
-	log.Infof(
+	klog.Infof(
 		"[%v]: Transitioned Framework from [%v] to [%v]",
 		f.Key(), srcState, dstState)
 }
@@ -594,7 +594,7 @@ func (f *Framework) TransitionTaskState(
 	taskStatus.State = dstState
 	taskStatus.TransitionTime = meta.Now()
 
-	log.Infof(
+	klog.Infof(
 		"[%v][%v][%v]: Transitioned Task from [%v] to [%v]",
 		f.Key(), taskRoleName, taskIndex, srcState, dstState)
 }

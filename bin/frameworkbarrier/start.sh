@@ -30,7 +30,7 @@ BASH_DIR=$(cd $(dirname ${BASH_SOURCE}) && pwd)
 
 cd ${BASH_DIR}
 
-./frameworkbarrier
+./frameworkbarrier "$@"
 
 MNT_DIR=/mnt/frameworkbarrier
 

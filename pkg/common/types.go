@@ -23,8 +23,7 @@
 package common
 
 import (
-	log "github.com/sirupsen/logrus"
-	"io"
+	"k8s.io/klog"
 )
 
 type Empty struct{}
@@ -69,20 +68,9 @@ func (s ImmutableSet) Contains(item T) bool {
 	return s.set.Contains(item)
 }
 
-type LogHook struct {
-	LogLevels []log.Level
-	LogWriter io.Writer
-}
+type KlogWriter struct{}
 
-func (lh *LogHook) Levels() []log.Level {
-	return lh.LogLevels
-}
-
-func (lh *LogHook) Fire(entry *log.Entry) error {
-	str, err := entry.String()
-	if err != nil {
-		return err
-	}
-	_, err = lh.LogWriter.Write([]byte(str))
-	return err
+func (w KlogWriter) Write(data []byte) (n int, err error) {
+	klog.InfoDepth(1, string(data))
+	return len(data), nil
 }
