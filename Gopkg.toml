@@ -9,10 +9,6 @@ required = [
 ]
 
 [[constraint]]
-  name = "github.com/sirupsen/logrus"
-  version = "1.0.4"
-
-[[constraint]]
   name = "github.com/pkg/errors"
   version = "v0.8.0"
 

@@ -27,8 +27,7 @@ import (
 	ci "github.com/microsoft/frameworkcontroller/pkg/apis/frameworkcontroller/v1"
 	frameworkClient "github.com/microsoft/frameworkcontroller/pkg/client/clientset/versioned"
 	"github.com/microsoft/frameworkcontroller/pkg/common"
-	"github.com/microsoft/frameworkcontroller/pkg/util"
-	log "github.com/sirupsen/logrus"
+	"github.com/microsoft/frameworkcontroller/pkg/internal"
 	"io/ioutil"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,6 +35,7 @@ import (
 	kubeClient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog"
 	"os"
 	"strconv"
 	"strings"
@@ -134,7 +134,7 @@ func newConfig() *Config {
 	} else {
 		i, err := strconv.ParseInt(barrierCheckIntervalSecStr, 10, 64)
 		if err != nil {
-			log.Errorf(
+			klog.Errorf(
 				"Failed to parse ${%v}: %v",
 				EnvNameBarrierCheckIntervalSec, err)
 			exit(ci.CompletionCodeContainerPermanentFailed)
@@ -148,7 +148,7 @@ func newConfig() *Config {
 	} else {
 		i, err := strconv.ParseInt(barrierCheckTimeoutSecStr, 10, 64)
 		if err != nil {
-			log.Errorf(
+			klog.Errorf(
 				"Failed to parse ${%v}: %v",
 				EnvNameBarrierCheckTimeoutSec, err)
 			exit(ci.CompletionCodeContainerPermanentFailed)
@@ -159,19 +159,19 @@ func newConfig() *Config {
 	// Validation
 	errPrefix := "Validation Failed: "
 	if c.FrameworkName == "" {
-		log.Errorf(errPrefix+
+		klog.Errorf(errPrefix+
 			"${%v} should not be empty",
 			ci.EnvNameFrameworkName)
 		exit(ci.CompletionCodeContainerPermanentFailed)
 	}
 	if c.BarrierCheckIntervalSec < 5 {
-		log.Errorf(errPrefix+
+		klog.Errorf(errPrefix+
 			"${%v} %v should not be less than 5",
 			EnvNameBarrierCheckIntervalSec, c.BarrierCheckIntervalSec)
 		exit(ci.CompletionCodeContainerPermanentFailed)
 	}
 	if c.BarrierCheckTimeoutSec < 60 || c.BarrierCheckTimeoutSec > 20*60 {
-		log.Errorf(errPrefix+
+		klog.Errorf(errPrefix+
 			"${%v} %v should not be less than 60 or greater than 20 * 60",
 			EnvNameBarrierCheckTimeoutSec, c.BarrierCheckTimeoutSec)
 		exit(ci.CompletionCodeContainerPermanentFailed)
@@ -195,7 +195,7 @@ func buildKubeConfig(bConfig *Config) *rest.Config {
 	kConfig, err := clientcmd.BuildConfigFromFlags(
 		bConfig.KubeApiServerAddress, bConfig.KubeConfigFilePath)
 	if err != nil {
-		log.Errorf("Failed to build KubeConfig, please ensure "+
+		klog.Errorf("Failed to build KubeConfig, please ensure "+
 			"${KUBE_APISERVER_ADDRESS} or ${KUBECONFIG} or ${HOME}/.kube/config or "+
 			"${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT} is valid: "+
 			"Error: %v", err)
@@ -208,12 +208,12 @@ func buildKubeConfig(bConfig *Config) *rest.Config {
 // Methods
 ///////////////////////////////////////////////////////////////////////////////////////
 func NewFrameworkBarrier() *FrameworkBarrier {
-	log.Infof("Initializing %v", ComponentName)
+	klog.Infof("Initializing %v", ComponentName)
 
 	bConfig := newConfig()
-	common.LogLines("With Config: \n%v", common.ToYaml(bConfig))
+	klog.Infof("With Config: \n%v", common.ToYaml(bConfig))
 	kConfig := buildKubeConfig(bConfig)
-	kClient, fClient := util.CreateClients(kConfig)
+	kClient, fClient := internal.CreateClients(kConfig)
 
 	return &FrameworkBarrier{
 		kConfig: kConfig,
@@ -224,7 +224,7 @@ func NewFrameworkBarrier() *FrameworkBarrier {
 }
 
 func (b *FrameworkBarrier) Run() {
-	log.Infof("Running %v", ComponentName)
+	klog.Infof("Running %v", ComponentName)
 
 	var f *ci.Framework
 	var err error
@@ -242,7 +242,7 @@ func (b *FrameworkBarrier) Run() {
 				isPassed = isBarrierPassed(f)
 				return isPassed, nil
 			} else {
-				log.Warnf("Failed to get Framework object from ApiServer: %v", err)
+				klog.Warningf("Failed to get Framework object from ApiServer: %v", err)
 				if apiErrors.IsNotFound(err) {
 					// Permanent Error: Early Stop
 					isPermanentErr = true
@@ -256,18 +256,18 @@ func (b *FrameworkBarrier) Run() {
 		})
 
 	if isPassed {
-		log.Infof("BarrierPassed: " +
+		klog.Infof("BarrierPassed: " +
 			"All Tasks are ready with not nil PodIP.")
 		dumpFramework(f)
 		generateInjector(f)
 		exit(ci.CompletionCodeSucceeded)
 	} else {
 		if err == nil {
-			log.Errorf("BarrierNotPassed: " +
+			klog.Errorf("BarrierNotPassed: " +
 				"Timeout to wait all Tasks are ready with not nil PodIP.")
 			exit(ci.CompletionCodeContainerTransientConflictFailed)
 		} else {
-			log.Errorf("Failed to get Framework object from ApiServer: %v", err)
+			klog.Errorf("Failed to get Framework object from ApiServer: %v", err)
 			if isPermanentErr {
 				exit(ci.CompletionCodeContainerPermanentFailed)
 			} else {
@@ -296,12 +296,12 @@ func isBarrierPassed(f *ci.Framework) bool {
 
 	// Wait until readyTaskCount is consistent with totalTaskCount.
 	if readyTaskCount == totalTaskCount {
-		log.Infof("BarrierPassed: "+
+		klog.Infof("BarrierPassed: "+
 			"%v/%v Tasks are ready with not nil PodIP.",
 			readyTaskCount, totalTaskCount)
 		return true
 	} else {
-		log.Warnf("BarrierNotPassed: "+
+		klog.Warningf("BarrierNotPassed: "+
 			"%v/%v Tasks are ready with not nil PodIP.",
 			readyTaskCount, totalTaskCount)
 		return false
@@ -316,13 +316,13 @@ func isTaskReady(taskStatus *ci.TaskStatus) bool {
 func dumpFramework(f *ci.Framework) {
 	err := ioutil.WriteFile(FrameworkObjectFilePath, []byte(common.ToJson(f)), 0644)
 	if err != nil {
-		log.Errorf(
+		klog.Errorf(
 			"Failed to dump the Framework object to local file: %v, %v",
 			FrameworkObjectFilePath, err)
 		exit(ci.CompletionCode(1))
 	}
 
-	log.Infof(
+	klog.Infof(
 		"Succeeded to dump the Framework object to local file: %v",
 		FrameworkObjectFilePath)
 }
@@ -393,13 +393,13 @@ func generateInjector(f *ci.Framework) {
 
 	err := ioutil.WriteFile(InjectorFilePath, []byte(injector.String()), 0755)
 	if err != nil {
-		log.Errorf(
+		klog.Errorf(
 			"Failed to generate the injector script to local file: %v, %v",
 			InjectorFilePath, err)
 		exit(ci.CompletionCode(1))
 	}
 
-	log.Infof(
+	klog.Infof(
 		"Succeeded to generate the injector script to local file: %v",
 		InjectorFilePath)
 }
@@ -407,18 +407,18 @@ func generateInjector(f *ci.Framework) {
 func exit(cc ci.CompletionCode) {
 	logPfx := fmt.Sprintf("ExitCode: %v: Exit with ", cc)
 	if cc == ci.CompletionCodeSucceeded {
-		log.Infof(logPfx + "success.")
+		klog.Infof(logPfx + "success.")
 	} else if cc == ci.CompletionCodeContainerTransientFailed {
-		log.Errorf(logPfx +
+		klog.Errorf(logPfx +
 			"transient failure to tell controller to retry.")
 	} else if cc == ci.CompletionCodeContainerTransientConflictFailed {
-		log.Errorf(logPfx +
+		klog.Errorf(logPfx +
 			"transient conflict failure to tell controller to back off retry.")
 	} else if cc == ci.CompletionCodeContainerPermanentFailed {
-		log.Errorf(logPfx +
+		klog.Errorf(logPfx +
 			"permanent failure to tell controller not to retry.")
 	} else {
-		log.Errorf(logPfx +
+		klog.Errorf(logPfx +
 			"unknown failure to tell controller to retry within maxRetryCount.")
 	}
 

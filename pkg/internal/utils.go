@@ -20,20 +20,39 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE
 
-package util
+package internal
 
 import (
 	"fmt"
+	frameworkClient "github.com/microsoft/frameworkcontroller/pkg/client/clientset/versioned"
 	"github.com/microsoft/frameworkcontroller/pkg/common"
-	log "github.com/sirupsen/logrus"
+	core "k8s.io/api/core/v1"
 	apiExtensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	apiClient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	kubeClient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/cache"
+	"k8s.io/klog"
 	"reflect"
 )
+
+func CreateClients(kConfig *rest.Config) (
+	kubeClient.Interface, frameworkClient.Interface) {
+	kClient, err := kubeClient.NewForConfig(kConfig)
+	if err != nil {
+		panic(fmt.Errorf("Failed to create KubeClient: %v", err))
+	}
+
+	fClient, err := frameworkClient.NewForConfig(kConfig)
+	if err != nil {
+		panic(fmt.Errorf("Failed to create FrameworkClient: %v", err))
+	}
+
+	return kClient, fClient
+}
 
 func PutCRD(
 	config *rest.Config, crd *apiExtensions.CustomResourceDefinition,
@@ -44,7 +63,7 @@ func PutCRD(
 	if err != nil {
 		panic(fmt.Errorf("Failed to put CRD: %v", err))
 	} else {
-		log.Infof("Succeeded to put CRD")
+		klog.Infof("Succeeded to put CRD")
 	}
 }
 
@@ -55,7 +74,7 @@ func DeleteCRD(config *rest.Config, name string) {
 	if err != nil && !apiErrors.IsNotFound(err) {
 		panic(fmt.Errorf("Failed to delete CRD: %v", err))
 	} else {
-		log.Infof("Succeeded to delete CRD")
+		klog.Infof("Succeeded to delete CRD")
 	}
 }
 
@@ -74,7 +93,7 @@ func putCRDInternal(
 
 	remoteCRD, err := client.ApiextensionsV1beta1().CustomResourceDefinitions().Get(newCRD.Name, meta.GetOptions{})
 	if err == nil {
-		log.Infof("Update CRD %v", newCRD.Name)
+		klog.Infof("Update CRD %v", newCRD.Name)
 		if !reflect.DeepEqual(remoteCRD.Spec, newCRD.Spec) {
 			updateCRD := remoteCRD
 			updateCRD.Spec = newCRD.Spec
@@ -84,7 +103,7 @@ func putCRDInternal(
 			}
 		}
 	} else if apiErrors.IsNotFound(err) {
-		log.Infof("Create CRD %v", newCRD.Name)
+		klog.Infof("Create CRD %v", newCRD.Name)
 		remoteCRD, err = client.ApiextensionsV1beta1().CustomResourceDefinitions().Create(newCRD)
 		if err != nil {
 			return err
@@ -116,4 +135,62 @@ func isCRDEstablished(crd *apiExtensions.CustomResourceDefinition) bool {
 		}
 	}
 	return false
+}
+
+func GetKey(obj interface{}) (string, error) {
+	return cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
+}
+
+func SplitKey(key string) (namespace, name string, err error) {
+	return cache.SplitMetaNamespaceKey(key)
+}
+
+// obj could be *core.ConfigMap or cache.DeletedFinalStateUnknown.
+func ToConfigMap(obj interface{}) *core.ConfigMap {
+	cm, ok := obj.(*core.ConfigMap)
+
+	if !ok {
+		deletedFinalStateUnknown, ok := obj.(cache.DeletedFinalStateUnknown)
+		if !ok {
+			klog.Errorf(
+				"Failed to convert obj to ConfigMap or DeletedFinalStateUnknown: %#v",
+				obj)
+			return nil
+		}
+
+		cm, ok = deletedFinalStateUnknown.Obj.(*core.ConfigMap)
+		if !ok {
+			klog.Errorf(
+				"Failed to convert DeletedFinalStateUnknown.Obj to ConfigMap: %#v",
+				deletedFinalStateUnknown)
+			return nil
+		}
+	}
+
+	return cm
+}
+
+// obj could be *core.Pod or cache.DeletedFinalStateUnknown.
+func ToPod(obj interface{}) *core.Pod {
+	pod, ok := obj.(*core.Pod)
+
+	if !ok {
+		deletedFinalStateUnknown, ok := obj.(cache.DeletedFinalStateUnknown)
+		if !ok {
+			klog.Errorf(
+				"Failed to convert obj to Pod or DeletedFinalStateUnknown: %#v",
+				obj)
+			return nil
+		}
+
+		pod, ok = deletedFinalStateUnknown.Obj.(*core.Pod)
+		if !ok {
+			klog.Errorf(
+				"Failed to convert DeletedFinalStateUnknown.Obj to Pod: %#v",
+				deletedFinalStateUnknown)
+			return nil
+		}
+	}
+
+	return pod
 }

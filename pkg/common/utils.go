@@ -26,15 +26,16 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
+	"log"
 	"math/rand"
 	"os"
-	"strings"
+	"os/signal"
+	"syscall"
 	"time"
 )
 
@@ -113,35 +114,50 @@ func InitAll() {
 }
 
 func InitLogger() {
-	// K8S library logs to stderr
+	// Defaulting
 	klog.InitFlags(flag.CommandLine)
+	flag.Set("v", "2")
+
+	// Configure klog from command line
+	flag.Parse()
+
+	// Only support stderr logging and not support file logging.
+	// To achieve file logging, user can redirect the stderr to file and rotate the
+	// file to avoid out of disk.
+	// This is because currently file logging in klog has some limitations:
+	// 1. klog will never remove old files even if the log_file_max_size is exceeded.
+	//    So, the total log data size cannot be limited.
+	// 2. We do not have the chance to flush log to file, if a panic is called in
+	//    an unmanaged goroutine and no one can recover it in the goroutine.
+	//    So, even if the log about the panic itself can be lost.
+	flag.Set("logtostderr", "true")
 	flag.Set("alsologtostderr", "true")
 	flag.Set("stderrthreshold", "INFO")
 	klog.SetOutput(ioutil.Discard)
 
-	// We log to stdout
-	log.SetFormatter(&log.TextFormatter{
-		DisableColors: true,
-		// Always log with full timestamp, regardless of whether TTY is attached
-		DisableTimestamp: false,
-		FullTimestamp:    true,
-		// Align with k8s.io/apimachinery/pkg/apis/meta/v1.Time
-		TimestampFormat: time.RFC3339,
-	})
-
-	log.SetLevel(log.DebugLevel)
-	log.SetOutput(os.Stdout)
-}
-
-func LogLines(format string, args ...interface{}) {
-	lines := strings.Split(fmt.Sprintf(format, args...), "\n")
-	for _, line := range lines {
-		log.Infof(line)
-	}
+	// Redirect the default golang log to klog
+	log.SetOutput(KlogWriter{})
+	log.SetFlags(0)
 }
 
 func InitRandSeed() {
 	rand.Seed(time.Now().UTC().UnixNano())
+}
+
+func NewStopChannel() <-chan struct{} {
+	stopCh := make(chan struct{})
+
+	// Stop on shutdown signal:
+	// Must be a buffered channel, otherwise the shutdown signal may be lost.
+	shutdownCh := make(chan os.Signal, 1)
+	signal.Notify(shutdownCh, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		s := <-shutdownCh
+		klog.Warningf("Received shutdown signal: %v", s)
+		close(stopCh)
+	}()
+
+	return stopCh
 }
 
 // Rand in range [min, max]

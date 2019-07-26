@@ -84,7 +84,7 @@ All running containers of the Framework will be stopped while the object of the 
 | Code | Body | Description |
 |:---- |:---- |:---- |
 | OK(200) | [Framework](../pkg/apis/frameworkcontroller/v1/types.go) | Return current Framework. |
-| NotFound(200) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#status-v1-meta) | The specified Framework is not found. |
+| NotFound(404) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#status-v1-meta) | The specified Framework is not found. |
 
 #### <a name="DELETE_Framework">DELETE Framework</a>
 **Request**
@@ -119,7 +119,7 @@ Notes:
 |:---- |:---- |:---- |
 | OK(200) | [Framework](../pkg/apis/frameworkcontroller/v1/types.go) | The specified Framework is deleting.<br>Return current Framework. |
 | OK(200) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#status-v1-meta) | The specified Framework is deleted. |
-| NotFound(200) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#status-v1-meta) | The specified Framework is not found. |
+| NotFound(404) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#status-v1-meta) | The specified Framework is not found. |
 
 #### <a name="GET_Framework">GET Framework</a>
 **Request**
@@ -135,7 +135,7 @@ Get the specified Framework.
 | Code | Body | Description |
 |:---- |:---- |:---- |
 | OK(200) | [Framework](../pkg/apis/frameworkcontroller/v1/types.go) | Return current Framework. |
-| NotFound(200) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#status-v1-meta) | The specified Framework is not found. |
+| NotFound(404) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#status-v1-meta) | The specified Framework is not found. |
 
 #### <a name="LIST_Frameworks">LIST Frameworks</a>
 **Request**
@@ -171,7 +171,7 @@ Watch the change events of the specified Framework.
 | Code | Body | Description |
 |:---- |:---- |:---- |
 | OK(200) | [WatchEvent](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#watchevent-v1-meta) | Streaming the change events of the specified Framework. |
-| NotFound(200) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#status-v1-meta) | The specified Framework is not found. |
+| NotFound(404) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#status-v1-meta) | The specified Framework is not found. |
 
 #### <a name="WATCH_LIST_Frameworks">WATCH_LIST Frameworks</a>
 **Request**

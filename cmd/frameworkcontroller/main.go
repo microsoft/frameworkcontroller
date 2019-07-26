@@ -25,9 +25,6 @@ package main
 import (
 	"github.com/microsoft/frameworkcontroller/pkg/common"
 	"github.com/microsoft/frameworkcontroller/pkg/controller"
-	"os"
-	"os/signal"
-	"syscall"
 )
 
 func init() {
@@ -35,13 +32,5 @@ func init() {
 }
 
 func main() {
-	stopCh := make(chan struct{})
-	defer close(stopCh)
-
-	go controller.NewFrameworkController().Run(stopCh)
-
-	sigTerm := make(chan os.Signal, 1)
-	signal.Notify(sigTerm, syscall.SIGTERM)
-	signal.Notify(sigTerm, syscall.SIGINT)
-	<-sigTerm
+	controller.NewFrameworkController().Run(common.NewStopChannel())
 }
