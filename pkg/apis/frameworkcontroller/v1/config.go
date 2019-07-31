@@ -76,6 +76,35 @@ type Config struct {
 	// all-or-nothing fashion in order to perform any useful work.
 	FrameworkMinRetryDelaySecForTransientConflictFailed *int64 `yaml:"frameworkMinRetryDelaySecForTransientConflictFailed"`
 	FrameworkMaxRetryDelaySecForTransientConflictFailed *int64 `yaml:"frameworkMaxRetryDelaySecForTransientConflictFailed"`
+
+	// Specify when to log the snapshot of which managed object.
+	// This enables external systems to collect and process the history snapshots,
+	// such as persistence, metrics conversion, visualization, alerting, acting,
+	// analysis, etc.
+	// Notes:
+	// 1. The snapshot is logged to stderr.
+	// 2. Check GetFrameworkSnapshotLogTail and GetPodSnapshotLogTail to see how
+	//    to extract the snapshot from stderr.
+	// 3. The same snapshot may be logged more than once in some rare cases, so
+	//    external systems may need to deduplicate them by object.ResourceVersion.
+	// 4. The snapshot triggered by deletion may be missed to log during the
+	//    FrameworkController downtime.
+	LogObjectSnapshot LogObjectSnapshot `yaml:"logObjectSnapshot"`
+}
+
+type LogObjectSnapshot struct {
+	Framework LogFrameworkSnapshot `yaml:"framework"`
+	Pod       LogPodSnapshot       `yaml:"pod"`
+}
+
+type LogFrameworkSnapshot struct {
+	OnTaskRetry         *bool `yaml:"onTaskRetry"`
+	OnFrameworkRetry    *bool `yaml:"onFrameworkRetry"`
+	OnFrameworkDeletion *bool `yaml:"onFrameworkDeletion"`
+}
+
+type LogPodSnapshot struct {
+	OnPodDeletion *bool `yaml:"onPodDeletion"`
 }
 
 func NewConfig() *Config {
@@ -106,6 +135,18 @@ func NewConfig() *Config {
 	}
 	if c.FrameworkMaxRetryDelaySecForTransientConflictFailed == nil {
 		c.FrameworkMaxRetryDelaySecForTransientConflictFailed = common.PtrInt64(15 * 60)
+	}
+	if c.LogObjectSnapshot.Framework.OnTaskRetry == nil {
+		c.LogObjectSnapshot.Framework.OnTaskRetry = common.PtrBool(true)
+	}
+	if c.LogObjectSnapshot.Framework.OnFrameworkRetry == nil {
+		c.LogObjectSnapshot.Framework.OnFrameworkRetry = common.PtrBool(true)
+	}
+	if c.LogObjectSnapshot.Framework.OnFrameworkDeletion == nil {
+		c.LogObjectSnapshot.Framework.OnFrameworkDeletion = common.PtrBool(true)
+	}
+	if c.LogObjectSnapshot.Pod.OnPodDeletion == nil {
+		c.LogObjectSnapshot.Pod.OnPodDeletion = common.PtrBool(true)
 	}
 
 	// Validation

@@ -90,6 +90,14 @@ func SplitTaskAttemptInstanceUID(taskAttemptInstanceUID *types.UID) (
 	return int32(i), common.PtrUIDStr(parts[1])
 }
 
+func GetFrameworkSnapshotLogTail(podPtr interface{}) string {
+	return "FrameworkSnapshot: " + common.ToJson(podPtr)
+}
+
+func GetPodSnapshotLogTail(frameworkPtr interface{}) string {
+	return "PodSnapshot: " + common.ToJson(frameworkPtr)
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////
 // Interfaces
 ///////////////////////////////////////////////////////////////////////////////////////

@@ -245,42 +245,54 @@ func NewFrameworkController() *FrameworkController {
 
 	fInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			c.enqueueFrameworkObj(obj, "Framework Added")
+			c.enqueueFrameworkObj(obj, "Framework Added", nil)
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			// FrameworkController only cares about Framework.Spec update
 			oldF := oldObj.(*ci.Framework)
 			newF := newObj.(*ci.Framework)
 			if !reflect.DeepEqual(oldF.Spec, newF.Spec) {
-				c.enqueueFrameworkObj(newObj, "Framework.Spec Updated")
+				c.enqueueFrameworkObj(newObj, "Framework.Spec Updated", nil)
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
-			c.enqueueFrameworkObj(obj, "Framework Deleted")
+			c.enqueueFrameworkObj(obj, "Framework Deleted", func() string {
+				if *c.cConfig.LogObjectSnapshot.Framework.OnFrameworkDeletion {
+					return ": " + ci.GetFrameworkSnapshotLogTail(obj)
+				} else {
+					return ""
+				}
+			})
 		},
 	})
 
 	cmInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			c.enqueueFrameworkConfigMapObj(obj, "Framework ConfigMap Added")
+			c.enqueueFrameworkConfigMapObj(obj, "Framework ConfigMap Added", nil)
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
-			c.enqueueFrameworkConfigMapObj(newObj, "Framework ConfigMap Updated")
+			c.enqueueFrameworkConfigMapObj(newObj, "Framework ConfigMap Updated", nil)
 		},
 		DeleteFunc: func(obj interface{}) {
-			c.enqueueFrameworkConfigMapObj(obj, "Framework ConfigMap Deleted")
+			c.enqueueFrameworkConfigMapObj(obj, "Framework ConfigMap Deleted", nil)
 		},
 	})
 
 	podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			c.enqueueFrameworkPodObj(obj, "Framework Pod Added")
+			c.enqueueFrameworkPodObj(obj, "Framework Pod Added", nil)
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
-			c.enqueueFrameworkPodObj(newObj, "Framework Pod Updated")
+			c.enqueueFrameworkPodObj(newObj, "Framework Pod Updated", nil)
 		},
 		DeleteFunc: func(obj interface{}) {
-			c.enqueueFrameworkPodObj(obj, "Framework Pod Deleted")
+			c.enqueueFrameworkPodObj(obj, "Framework Pod Deleted", func() string {
+				if *c.cConfig.LogObjectSnapshot.Pod.OnPodDeletion {
+					return ": " + ci.GetPodSnapshotLogTail(obj)
+				} else {
+					return ""
+				}
+			})
 		},
 	})
 
@@ -288,7 +300,8 @@ func NewFrameworkController() *FrameworkController {
 }
 
 // obj could be *ci.Framework or cache.DeletedFinalStateUnknown.
-func (c *FrameworkController) enqueueFrameworkObj(obj interface{}, msg string) {
+func (c *FrameworkController) enqueueFrameworkObj(
+	obj interface{}, logSfx string, logTailFunc func() string) {
 	key, err := internal.GetKey(obj)
 	if err != nil {
 		klog.Errorf("Failed to get key for obj %#v, skip to enqueue: %v", obj, err)
@@ -302,23 +315,29 @@ func (c *FrameworkController) enqueueFrameworkObj(obj interface{}, msg string) {
 	}
 
 	c.fQueue.Add(key)
-	klog.Infof("[%v]: enqueueFrameworkObj: %v", key, msg)
+
+	if logTailFunc != nil {
+		logSfx += logTailFunc()
+	}
+	klog.Infof("[%v]: enqueueFrameworkObj: %v", key, logSfx)
 }
 
 // obj could be *core.ConfigMap or cache.DeletedFinalStateUnknown.
-func (c *FrameworkController) enqueueFrameworkConfigMapObj(obj interface{}, msg string) {
+func (c *FrameworkController) enqueueFrameworkConfigMapObj(
+	obj interface{}, logSfx string, logTailFunc func() string) {
 	if cm := internal.ToConfigMap(obj); cm != nil {
 		if f := c.getConfigMapOwner(cm); f != nil {
-			c.enqueueFrameworkObj(f, msg+": "+cm.Name)
+			c.enqueueFrameworkObj(f, logSfx+": "+cm.Name, logTailFunc)
 		}
 	}
 }
 
 // obj could be *core.Pod or cache.DeletedFinalStateUnknown.
-func (c *FrameworkController) enqueueFrameworkPodObj(obj interface{}, msg string) {
+func (c *FrameworkController) enqueueFrameworkPodObj(
+	obj interface{}, logSfx string, logTailFunc func() string) {
 	if pod := internal.ToPod(obj); pod != nil {
 		if cm := c.getPodOwner(pod); cm != nil {
-			c.enqueueFrameworkConfigMapObj(cm, msg+": "+pod.Name)
+			c.enqueueFrameworkConfigMapObj(cm, logSfx+": "+pod.Name, logTailFunc)
 		}
 	}
 }
@@ -393,6 +412,8 @@ func (c *FrameworkController) Run(stopCh <-chan struct{}) {
 		c.cConfig.CRDEstablishedCheckIntervalSec,
 		c.cConfig.CRDEstablishedCheckTimeoutSec)
 
+	// The recovery order is not important, since all Frameworks will be enqueued
+	// to sync in any case.
 	go c.fInformer.Run(stopCh)
 	go c.cmInformer.Run(stopCh)
 	go c.podInformer.Run(stopCh)
@@ -669,9 +690,9 @@ func (c *FrameworkController) enqueueTaskRetryDelayTimeoutCheck(
 	return true
 }
 
-func (c *FrameworkController) enqueueFramework(f *ci.Framework, msg string) {
+func (c *FrameworkController) enqueueFramework(f *ci.Framework, logSfx string) {
 	c.fQueue.Add(f.Key())
-	klog.Infof("[%v]: enqueueFramework: %v", f.Key(), msg)
+	klog.Infof("[%v]: enqueueFramework: %v", f.Key(), logSfx)
 }
 
 func (c *FrameworkController) syncFrameworkStatus(f *ci.Framework) error {
@@ -847,6 +868,14 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 
 			// retryFramework
 			klog.Infof(logPfx + "Retry Framework")
+
+			// The completed FrameworkAttempt has been persisted, so it is safe to also
+			// expose it as one history snapshot.
+			if *c.cConfig.LogObjectSnapshot.Framework.OnFrameworkRetry {
+				klog.Infof(logPfx+
+					"Framework will be retried: %v", ci.GetFrameworkSnapshotLogTail(f))
+			}
+
 			f.Status.RetryPolicyStatus.TotalRetriedCount++
 			if retryDecision.IsAccountable {
 				f.Status.RetryPolicyStatus.AccountableRetriedCount++
@@ -1232,9 +1261,9 @@ func (c *FrameworkController) syncTaskState(
 						terminated := containerStatus.State.Terminated
 						if terminated != nil && terminated.ExitCode != 0 {
 							allContainerDiags = append(allContainerDiags, fmt.Sprintf(
-								"[Container %v, ExitCode: %v, Reason: %v, Message: %v]",
-								containerStatus.Name, terminated.ExitCode, terminated.Reason,
-								terminated.Message))
+								"[Container: %v, ExitCode: %v, Signal: %v, Reason: %v, Message: %v]",
+								containerStatus.Name, terminated.ExitCode, terminated.Signal,
+								terminated.Reason, common.ToJson(terminated.Message)))
 
 							if lastContainerExitCode == nil ||
 								lastContainerCompletionTime.Before(terminated.FinishedAt.Time) {
@@ -1323,6 +1352,14 @@ func (c *FrameworkController) syncTaskState(
 
 			// retryTask
 			klog.Infof(logPfx + "Retry Task")
+
+			// The completed TaskAttempt has been persisted, so it is safe to also
+			// expose it as one history snapshot.
+			if *c.cConfig.LogObjectSnapshot.Framework.OnTaskRetry {
+				klog.Infof(logPfx+
+					"Task will be retried: %v", ci.GetFrameworkSnapshotLogTail(f))
+			}
+
 			taskStatus.RetryPolicyStatus.TotalRetriedCount++
 			if retryDecision.IsAccountable {
 				taskStatus.RetryPolicyStatus.AccountableRetriedCount++
