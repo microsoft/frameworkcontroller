@@ -73,7 +73,7 @@ A Framework represents an application with a set of Tasks:
 ### Third Party Controller Wrapper
 A specialized wrapper can be built on top of FrameworkController to optimize for a specific kind of application:
 * [OpenPAI Controller Wrapper (Job RestServer)](https://github.com/microsoft/pai/tree/master/src/rest-server) `[Developing]`: A wrapper client optimized for AI applications
-* [NNI Controller Wrapper (FrameworkController Training Service)](https://github.com/microsoft/nni/blob/master/docs/en_US/TrainingService/FrameworkControllerMode.md): A wrapper client optimized for AutoML applications
+* [NNI Controller Wrapper (TrainingService)](https://github.com/microsoft/nni/blob/master/docs/en_US/TrainingService/FrameworkControllerMode.md): A wrapper client optimized for AutoML applications
 
 ### Similar Offering On Other Cluster Manager
 * [YARN FrameworkLauncher](https://github.com/Microsoft/pai/blob/master/subprojects/frameworklauncher/yarn): Similar offering natively supports [Apache YARN](http://hadoop.apache.org)
