@@ -18,4 +18,3 @@
 - [ ] Support Framework Status Subresource
 - [ ] Support Framework CompletedRetainSec
 - [ ] Add AttemptCreating state to move the object initialization time out of the ObjectLocalCacheCreationTimeoutSec
-- [ ] Support Framework History Server
