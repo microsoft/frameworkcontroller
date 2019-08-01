@@ -258,10 +258,11 @@ func NewFrameworkController() *FrameworkController {
 		DeleteFunc: func(obj interface{}) {
 			c.enqueueFrameworkObj(obj, "Framework Deleted", func() string {
 				if *c.cConfig.LogObjectSnapshot.Framework.OnFrameworkDeletion {
-					return ": " + ci.GetFrameworkSnapshotLogTail(obj)
-				} else {
-					return ""
+					if f := internal.ToFramework(obj); f != nil {
+						return ci.GetFrameworkSnapshotLogTail(f)
+					}
 				}
+				return ""
 			})
 		},
 	})
@@ -288,10 +289,11 @@ func NewFrameworkController() *FrameworkController {
 		DeleteFunc: func(obj interface{}) {
 			c.enqueueFrameworkPodObj(obj, "Framework Pod Deleted", func() string {
 				if *c.cConfig.LogObjectSnapshot.Pod.OnPodDeletion {
-					return ": " + ci.GetPodSnapshotLogTail(obj)
-				} else {
-					return ""
+					if pod := internal.ToPod(obj); pod != nil {
+						return ci.GetPodSnapshotLogTail(pod)
+					}
 				}
+				return ""
 			})
 		},
 	})
@@ -872,8 +874,8 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 			// The completed FrameworkAttempt has been persisted, so it is safe to also
 			// expose it as one history snapshot.
 			if *c.cConfig.LogObjectSnapshot.Framework.OnFrameworkRetry {
-				klog.Infof(logPfx+
-					"Framework will be retried: %v", ci.GetFrameworkSnapshotLogTail(f))
+				klog.Infof(logPfx + "Framework will be retried" +
+					ci.GetFrameworkSnapshotLogTail(f))
 			}
 
 			f.Status.RetryPolicyStatus.TotalRetriedCount++
@@ -1356,8 +1358,8 @@ func (c *FrameworkController) syncTaskState(
 			// The completed TaskAttempt has been persisted, so it is safe to also
 			// expose it as one history snapshot.
 			if *c.cConfig.LogObjectSnapshot.Framework.OnTaskRetry {
-				klog.Infof(logPfx+
-					"Task will be retried: %v", ci.GetFrameworkSnapshotLogTail(f))
+				klog.Infof(logPfx + "Task will be retried" +
+					ci.GetFrameworkSnapshotLogTail(f))
 			}
 
 			taskStatus.RetryPolicyStatus.TotalRetriedCount++

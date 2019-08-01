@@ -39,6 +39,7 @@ const (
 	FrameworkCRDName   = FrameworkPlural + "." + GroupName
 	FrameworkKind      = "Framework"
 	ConfigMapKind      = "ConfigMap"
+	PodKind            = "Pod"
 	ObjectUIDFieldPath = "metadata.uid"
 
 	ConfigFilePath         = "./frameworkcontroller.yaml"
@@ -99,6 +100,8 @@ const (
 
 var FrameworkGroupVersionKind = SchemeGroupVersion.WithKind(FrameworkKind)
 var ConfigMapGroupVersionKind = core.SchemeGroupVersion.WithKind(ConfigMapKind)
+var PodGroupVersionKind = core.SchemeGroupVersion.WithKind(PodKind)
+
 var ObjectUIDEnvVarSource = &core.EnvVarSource{
 	FieldRef: &core.ObjectFieldSelector{FieldPath: ObjectUIDFieldPath},
 }

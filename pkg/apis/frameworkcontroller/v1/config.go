@@ -82,11 +82,12 @@ type Config struct {
 	// such as persistence, metrics conversion, visualization, alerting, acting,
 	// analysis, etc.
 	// Notes:
-	// 1. The snapshot is logged to stderr.
-	// 2. Check GetFrameworkSnapshotLogTail and GetPodSnapshotLogTail to see how
-	//    to extract the snapshot from stderr.
+	// 1. The snapshot is logged to stderr and can be extracted by the regular
+	//    expression ": ObjectSnapshot: (.+)".
+	// 2. To determine the type of the snapshot, using object.apiVersion and
+	//    object.kind.
 	// 3. The same snapshot may be logged more than once in some rare cases, so
-	//    external systems may need to deduplicate them by object.ResourceVersion.
+	//    external systems may need to deduplicate them by object.resourceVersion.
 	// 4. The snapshot triggered by deletion may be missed to log during the
 	//    FrameworkController downtime.
 	LogObjectSnapshot LogObjectSnapshot `yaml:"logObjectSnapshot"`

@@ -90,12 +90,24 @@ func SplitTaskAttemptInstanceUID(taskAttemptInstanceUID *types.UID) (
 	return int32(i), common.PtrUIDStr(parts[1])
 }
 
-func GetFrameworkSnapshotLogTail(podPtr interface{}) string {
-	return "FrameworkSnapshot: " + common.ToJson(podPtr)
+func getObjectSnapshotLogTail(obj interface{}) string {
+	return ": ObjectSnapshot: " + common.ToJson(obj)
 }
 
-func GetPodSnapshotLogTail(frameworkPtr interface{}) string {
-	return "PodSnapshot: " + common.ToJson(frameworkPtr)
+func GetFrameworkSnapshotLogTail(f *Framework) string {
+	if f.GroupVersionKind().Empty() {
+		f = f.DeepCopy()
+		f.SetGroupVersionKind(FrameworkGroupVersionKind)
+	}
+	return getObjectSnapshotLogTail(f)
+}
+
+func GetPodSnapshotLogTail(pod *core.Pod) string {
+	if pod.GroupVersionKind().Empty() {
+		pod = pod.DeepCopy()
+		pod.SetGroupVersionKind(PodGroupVersionKind)
+	}
+	return getObjectSnapshotLogTail(pod)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
