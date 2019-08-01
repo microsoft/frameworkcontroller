@@ -24,6 +24,7 @@ package internal
 
 import (
 	"fmt"
+	ci "github.com/microsoft/frameworkcontroller/pkg/apis/frameworkcontroller/v1"
 	frameworkClient "github.com/microsoft/frameworkcontroller/pkg/client/clientset/versioned"
 	"github.com/microsoft/frameworkcontroller/pkg/common"
 	core "k8s.io/api/core/v1"
@@ -143,6 +144,31 @@ func GetKey(obj interface{}) (string, error) {
 
 func SplitKey(key string) (namespace, name string, err error) {
 	return cache.SplitMetaNamespaceKey(key)
+}
+
+// obj could be *core.Framework or cache.DeletedFinalStateUnknown.
+func ToFramework(obj interface{}) *ci.Framework {
+	f, ok := obj.(*ci.Framework)
+
+	if !ok {
+		deletedFinalStateUnknown, ok := obj.(cache.DeletedFinalStateUnknown)
+		if !ok {
+			klog.Errorf(
+				"Failed to convert obj to Framework or DeletedFinalStateUnknown: %#v",
+				obj)
+			return nil
+		}
+
+		f, ok = deletedFinalStateUnknown.Obj.(*ci.Framework)
+		if !ok {
+			klog.Errorf(
+				"Failed to convert DeletedFinalStateUnknown.Obj to Framework: %#v",
+				deletedFinalStateUnknown)
+			return nil
+		}
+	}
+
+	return f
 }
 
 // obj could be *core.ConfigMap or cache.DeletedFinalStateUnknown.
