@@ -5,7 +5,8 @@
 2. Automatically clean up PS when the whole FrameworkAttempt is completed
 3. No need to adjust existing TensorFlow image
 4. No need to setup [Kubernetes DNS](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service) and [Kubernetes Service](https://kubernetes.io/docs/concepts/services-networking/service)
-5. [Common Feature](../../../../README.md#Feature)
+5. Easy to leverage [HivedScheduler](https://github.com/microsoft/pai/tree/master/subprojects/hivedscheduler) to be GPU Multi-Tenant and Topology-Aware.
+6. [Common Feature](../../../../README.md#Feature)
 
 ## Prerequisite
 1. See `[PREREQUISITE]` in each specific Framework yaml file.

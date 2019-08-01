@@ -75,6 +75,11 @@ A specialized wrapper can be built on top of FrameworkController to optimize for
 * [OpenPAI Controller Wrapper (Job RestServer)](https://github.com/microsoft/pai/tree/master/src/rest-server): A wrapper client optimized for AI applications
 * [NNI Controller Wrapper (TrainingService)](https://github.com/microsoft/nni/blob/master/docs/en_US/TrainingService/FrameworkControllerMode.md): A wrapper client optimized for AutoML applications
 
+### Recommended Kubernetes Scheduler
+FrameworkController can directly leverage many [Kubernetes Schedulers](https://kubernetes.io/docs/tasks/administer-cluster/configure-multiple-schedulers) and among them we recommend below best fit ones:
+* [Kubernetes Default Scheduler](https://kubernetes.io/docs/concepts/scheduling/kube-scheduler/#kube-scheduler): A General-Purpose Kubernetes Scheduler
+* [HivedScheduler](https://github.com/microsoft/pai/tree/master/subprojects/hivedscheduler): A Kubernetes Scheduler Extender optimized for GPUs ([Example](example/framework/scenario/tensorflow/gpu/tensorflowdistributedtrainingwithhivedscheduledgpu.yaml))
+
 ### Similar Offering On Other Cluster Manager
 * [YARN FrameworkLauncher](https://github.com/Microsoft/pai/blob/master/subprojects/frameworklauncher/yarn): Similar offering natively supports [Apache YARN](http://hadoop.apache.org)
 
