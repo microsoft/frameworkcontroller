@@ -7,7 +7,7 @@
 apiVersion: frameworkcontroller.microsoft.com/v1
 kind: Framework
 metadata:
-  name: tensorflowdistributedtrainingwithgpu
+  name: tensorflowdistributedtrainingwithdefaultscheduledgpu
 spec:
   executionType: Start
   retryPolicy:
