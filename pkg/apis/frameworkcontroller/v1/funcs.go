@@ -443,6 +443,7 @@ func (f *Framework) NewFrameworkAttemptStatus(
 	return FrameworkAttemptStatus{
 		ID:               frameworkAttemptID,
 		StartTime:        meta.Now(),
+		RunTime:          nil,
 		CompletionTime:   nil,
 		InstanceUID:      nil,
 		ConfigMapName:    GetConfigMapName(f.Name),
@@ -485,6 +486,7 @@ func (f *Framework) NewTaskAttemptStatus(
 	return TaskAttemptStatus{
 		ID:               taskAttemptID,
 		StartTime:        meta.Now(),
+		RunTime:          nil,
 		CompletionTime:   nil,
 		InstanceUID:      nil,
 		PodName:          GetPodName(f.Name, taskRoleName, taskIndex),
@@ -594,8 +596,19 @@ func (f *Framework) TransitionFrameworkState(dstState FrameworkState) {
 		return
 	}
 
+	now := common.PtrNow()
+	if dstState == FrameworkAttemptRunning {
+		f.Status.AttemptStatus.RunTime = now
+	}
+	if dstState == FrameworkAttemptCompleted {
+		f.Status.AttemptStatus.CompletionTime = now
+	}
+	if dstState == FrameworkCompleted {
+		f.Status.CompletionTime = now
+	}
+
 	f.Status.State = dstState
-	f.Status.TransitionTime = meta.Now()
+	f.Status.TransitionTime = *now
 
 	klog.Infof(
 		"[%v]: Transitioned Framework from [%v] to [%v]",
@@ -611,8 +624,19 @@ func (f *Framework) TransitionTaskState(
 		return
 	}
 
+	now := common.PtrNow()
+	if dstState == TaskAttemptRunning {
+		taskStatus.AttemptStatus.RunTime = now
+	}
+	if dstState == TaskAttemptCompleted {
+		taskStatus.AttemptStatus.CompletionTime = now
+	}
+	if dstState == TaskCompleted {
+		taskStatus.CompletionTime = now
+	}
+
 	taskStatus.State = dstState
-	taskStatus.TransitionTime = meta.Now()
+	taskStatus.TransitionTime = *now
 
 	klog.Infof(
 		"[%v][%v][%v]: Transitioned Task from [%v] to [%v]",

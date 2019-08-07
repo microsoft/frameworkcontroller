@@ -848,7 +848,6 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 					"Will complete Framework: RetryDecision: %v",
 					retryDecision)
 
-				f.Status.CompletionTime = common.PtrNow()
 				f.TransitionFrameworkState(ci.FrameworkCompleted)
 				return nil
 			}
@@ -951,11 +950,8 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 
 		err := c.syncTaskRoleStatuses(f, cm)
 
-		if f.Status.State == ci.FrameworkAttemptPreparing ||
-			f.Status.State == ci.FrameworkAttemptRunning {
-			if !f.IsAnyTaskRunning() {
-				f.TransitionFrameworkState(ci.FrameworkAttemptPreparing)
-			} else {
+		if f.Status.State == ci.FrameworkAttemptPreparing {
+			if f.IsAnyTaskRunning() {
 				f.TransitionFrameworkState(ci.FrameworkAttemptRunning)
 			}
 		}
@@ -1339,7 +1335,6 @@ func (c *FrameworkController) syncTaskState(
 					"Will complete Task: RetryDecision: %v",
 					retryDecision)
 
-				taskStatus.CompletionTime = common.PtrNow()
 				f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskCompleted)
 			}
 		}
@@ -1635,7 +1630,6 @@ func (c *FrameworkController) completeTaskAttempt(
 	}
 
 	if force {
-		taskStatus.AttemptStatus.CompletionTime = common.PtrNow()
 		f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptCompleted)
 
 		if taskStatus.TaskAttemptInstanceUID() == nil {
@@ -1693,13 +1687,11 @@ func (c *FrameworkController) completeFrameworkAttempt(
 					if taskStatus.State != ci.TaskAttemptCompleted {
 						c.completeTaskAttempt(f, taskRoleName, taskIndex, true, nil)
 					}
-					taskStatus.CompletionTime = common.PtrNow()
 					f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskCompleted)
 				}
 			}
 		}
 
-		f.Status.AttemptStatus.CompletionTime = common.PtrNow()
 		f.TransitionFrameworkState(ci.FrameworkAttemptCompleted)
 
 		if f.FrameworkAttemptInstanceUID() == nil {
