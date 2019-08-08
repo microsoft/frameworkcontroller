@@ -256,6 +256,7 @@ type FrameworkAttemptStatus struct {
 	ID int32 `json:"id"`
 
 	StartTime      meta.Time  `json:"startTime"`
+	RunTime        *meta.Time `json:"runTime"`
 	CompletionTime *meta.Time `json:"completionTime"`
 
 	// Current associated FrameworkAttemptInstance:
@@ -301,6 +302,7 @@ type TaskAttemptStatus struct {
 	ID int32 `json:"id"`
 
 	StartTime      meta.Time  `json:"startTime"`
+	RunTime        *meta.Time `json:"runTime"`
 	CompletionTime *meta.Time `json:"completionTime"`
 
 	// Current associated TaskAttemptInstance:
@@ -433,7 +435,7 @@ const (
 	// ConfigMap exists and is not deleting and
 	// may not have been deletion requested successfully and
 	// FrameworkAttemptCompletionPolicy may not have been satisfied and
-	// there is no Task in TaskAttemptRunning state.
+	// no Task of current attempt has ever entered TaskAttemptRunning state.
 	// [AssociatedState]
 	// -> FrameworkAttemptRunning
 	// -> FrameworkAttemptDeletionPending
@@ -444,9 +446,8 @@ const (
 	// ConfigMap exists and is not deleting and
 	// may not have been deletion requested successfully and
 	// FrameworkAttemptCompletionPolicy may not have been satisfied and
-	// there is at least one Task in TaskAttemptRunning state.
+	// at least one Task of current attempt has ever entered TaskAttemptRunning state.
 	// [AssociatedState]
-	// -> FrameworkAttemptPreparing
 	// -> FrameworkAttemptDeletionPending
 	// -> FrameworkAttemptDeleting
 	// -> FrameworkAttemptCompleted
