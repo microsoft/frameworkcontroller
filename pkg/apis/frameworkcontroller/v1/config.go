@@ -68,6 +68,11 @@ type Config struct {
 	// it is considered as deleted.
 	ObjectLocalCacheCreationTimeoutSec *int64 `yaml:"objectLocalCacheCreationTimeoutSec"`
 
+	// A Framework will only be retained within recent FrameworkCompletedRetainSec
+	// after it is completed, i.e. it will be automatically deleted after
+	// f.Status.CompletionTime + FrameworkCompletedRetainSec.
+	FrameworkCompletedRetainSec *int64 `yaml:"frameworkCompletedRetainSec"`
+
 	// If the Framework FancyRetryPolicy is enabled and its FrameworkAttempt is
 	// completed with Transient Conflict Failed CompletionType, it will be retried
 	// after a random delay within this range.
@@ -130,6 +135,9 @@ func NewConfig() *Config {
 	if c.ObjectLocalCacheCreationTimeoutSec == nil {
 		// Default to k8s.io/kubernetes/pkg/controller.ExpectationsTimeout
 		c.ObjectLocalCacheCreationTimeoutSec = common.PtrInt64(5 * 60)
+	}
+	if c.FrameworkCompletedRetainSec == nil {
+		c.FrameworkCompletedRetainSec = common.PtrInt64(30 * 24 * 3600)
 	}
 	if c.FrameworkMinRetryDelaySecForTransientConflictFailed == nil {
 		c.FrameworkMinRetryDelaySecForTransientConflictFailed = common.PtrInt64(60)
