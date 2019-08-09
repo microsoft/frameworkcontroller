@@ -129,6 +129,11 @@ func (in *Config) DeepCopyInto(out *Config) {
 		*out = new(int64)
 		**out = **in
 	}
+	if in.FrameworkCompletedRetainSec != nil {
+		in, out := &in.FrameworkCompletedRetainSec, &out.FrameworkCompletedRetainSec
+		*out = new(int64)
+		**out = **in
+	}
 	if in.FrameworkMinRetryDelaySecForTransientConflictFailed != nil {
 		in, out := &in.FrameworkMinRetryDelaySecForTransientConflictFailed, &out.FrameworkMinRetryDelaySecForTransientConflictFailed
 		*out = new(int64)

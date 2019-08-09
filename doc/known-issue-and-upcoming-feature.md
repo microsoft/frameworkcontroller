@@ -16,5 +16,4 @@
 - [ ] Support Framework Spec Update
 - [ ] Support Framework Spec Validation and Defaulting
 - [ ] Support Framework Status Subresource
-- [ ] Support Framework CompletedRetainSec
 - [ ] Add AttemptCreating state to move the object initialization time out of the ObjectLocalCacheCreationTimeoutSec
