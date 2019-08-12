@@ -531,7 +531,11 @@ func (c *FrameworkController) syncFramework(key string) (returnedErr error) {
 				if f.Status != nil {
 					// Recover f related things, since it is the first time we see it and
 					// its Status is not nil.
-					c.recoverFrameworkWorkItems(f)
+					// No need to recover previous enqueued items, because the Informer has
+					// already delivered the Add events for all recovered Frameworks which
+					// caused all Frameworks will be enqueued to sync.
+					// No need to recover previous scheduled to enqueue items, because the
+					// schedule will be recovered during sync.
 				}
 
 				// f.Status must be the same as the remote one, since it is the first
@@ -578,41 +582,6 @@ func (c *FrameworkController) syncFramework(key string) (returnedErr error) {
 			}
 
 			return errorAgg.NewAggregate(errs)
-		}
-	}
-}
-
-// No need to recover the non-AddAfter items, because the Informer has already
-// delivered the Add events for all recovered Frameworks which caused all
-// Frameworks will be enqueued to sync.
-func (c *FrameworkController) recoverFrameworkWorkItems(f *ci.Framework) {
-	logPfx := fmt.Sprintf("[%v]: recoverFrameworkWorkItems: ", f.Key())
-	klog.Infof(logPfx + "Started")
-	defer func() { klog.Infof(logPfx + "Completed") }()
-
-	if f.Status == nil {
-		return
-	}
-
-	c.recoverTimeoutChecks(f)
-}
-
-func (c *FrameworkController) recoverTimeoutChecks(f *ci.Framework) {
-	// If a check is already timeout, the timeout will be handled by the following
-	// sync after the recover, so no need to enqueue it again.
-	if f.Status.State == ci.FrameworkCompleted {
-		c.enqueueFrameworkCompletedRetainTimeoutCheck(f, true)
-		return
-	}
-	c.enqueueFrameworkAttemptCreationTimeoutCheck(f, true)
-	c.enqueueFrameworkRetryDelayTimeoutCheck(f, true)
-
-	for _, taskRoleStatus := range f.TaskRoleStatuses() {
-		for _, taskStatus := range taskRoleStatus.TaskStatuses {
-			taskRoleName := taskRoleStatus.Name
-			taskIndex := taskStatus.Index
-			c.enqueueTaskAttemptCreationTimeoutCheck(f, taskRoleName, taskIndex, true)
-			c.enqueueTaskRetryDelayTimeoutCheck(f, taskRoleName, taskIndex, true)
 		}
 	}
 }
