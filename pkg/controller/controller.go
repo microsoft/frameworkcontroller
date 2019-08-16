@@ -1414,10 +1414,7 @@ func (c *FrameworkController) syncTaskState(
 			apiErr := errorWrap.Cause(err)
 			if apiErrors.IsInvalid(apiErr) {
 				// Should be Framework Error instead of Platform Transient Error.
-				diag := fmt.Sprintf(
-					"Pod Spec is invalid in TaskRole [%v]: "+
-						"Triggered by Task [%v][%v]: Diagnostics: %v",
-					taskRoleName, taskRoleName, taskIndex, apiErr)
+				diag := fmt.Sprintf("%v", apiErr)
 				klog.Infof(logPfx + diag)
 
 				// Ensure pod is deleted in remote to avoid managed pod leak after
@@ -1675,16 +1672,16 @@ func (c *FrameworkController) completeTaskAttempt(
 
 		// To ensure the completed TaskAttempt is persisted before exposed,
 		// we need to wait until next sync to expose it, so manually enqueue a sync.
-		klog.Infof(logPfx + "Waiting the completed TaskAttempt to be persisted")
 		c.enqueueFrameworkSync(f, "TaskAttemptCompleted")
+		klog.Infof(logPfx + "Waiting the completed TaskAttempt to be persisted")
 	} else {
 		f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptDeletionPending)
 
 		// To ensure the CompletionStatus is persisted before deleting the pod,
 		// we need to wait until next sync to delete the pod, so manually enqueue
 		// a sync.
-		klog.Infof(logPfx + "Waiting the CompletionStatus to be persisted")
 		c.enqueueFrameworkSync(f, "TaskAttemptDeletionPending")
+		klog.Infof(logPfx + "Waiting the CompletionStatus to be persisted")
 	}
 }
 
@@ -1718,6 +1715,7 @@ func (c *FrameworkController) completeFrameworkAttempt(
 					if taskStatus.State != ci.TaskAttemptCompleted {
 						c.completeTaskAttempt(f, taskRoleName, taskIndex, true, nil)
 					}
+					taskStatus.RetryPolicyStatus.RetryDelaySec = nil
 					f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskCompleted)
 				}
 			}
@@ -1737,16 +1735,16 @@ func (c *FrameworkController) completeFrameworkAttempt(
 
 		// To ensure the completed FrameworkAttempt is persisted before exposed,
 		// we need to wait until next sync to expose it, so manually enqueue a sync.
-		klog.Infof(logPfx + "Waiting the completed FrameworkAttempt to be persisted")
 		c.enqueueFrameworkSync(f, "FrameworkAttemptCompleted")
+		klog.Infof(logPfx + "Waiting the completed FrameworkAttempt to be persisted")
 	} else {
 		f.TransitionFrameworkState(ci.FrameworkAttemptDeletionPending)
 
 		// To ensure the CompletionStatus is persisted before deleting the cm,
 		// we need to wait until next sync to delete the cm, so manually enqueue
 		// a sync.
-		klog.Infof(logPfx + "Waiting the CompletionStatus to be persisted")
 		c.enqueueFrameworkSync(f, "FrameworkAttemptDeletionPending")
+		klog.Infof(logPfx + "Waiting the CompletionStatus to be persisted")
 	}
 }
 

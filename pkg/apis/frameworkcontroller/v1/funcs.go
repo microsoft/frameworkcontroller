@@ -542,7 +542,8 @@ func (rp RetryPolicySpec) ShouldRetry(
 	if cs.Code == CompletionCodePodSpecInvalid ||
 		cs.Code == CompletionCodeStopFrameworkRequested ||
 		cs.Code == CompletionCodeFrameworkAttemptCompletion {
-		return RetryDecision{false, true, 0, cs.Diagnostics}
+		return RetryDecision{false, true, 0, fmt.Sprintf(
+			"CompletionCode is %v, %v", cs.Code, cs.Phrase)}
 	}
 
 	// 1. FancyRetryPolicy

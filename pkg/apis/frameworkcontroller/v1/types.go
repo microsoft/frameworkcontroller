@@ -339,8 +339,8 @@ type RetryPolicyStatus struct {
 	// Used to expose the ScheduledRetryTime after which current retry can be
 	// executed.
 	// ScheduledRetryTime = AttemptStatus.CompletionTime + RetryDelaySec
-	// It is available and meaningful if and only if current attempt is in
-	// AttemptCompleted state.
+	// It is not nil only if the retry has been scheduled, i.e. current attempt
+	// is in AttemptCompleted state and is not the last attempt.
 	RetryDelaySec *int64 `json:"retryDelaySec"`
 }
 
