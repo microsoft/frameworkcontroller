@@ -23,9 +23,15 @@
 package v1
 
 import (
+	"fmt"
+	"github.com/microsoft/frameworkcontroller/pkg/common"
 	core "k8s.io/api/core/v1"
 	"os"
 )
+
+func init() {
+	initCompletionCodeInfos()
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // General Constants
@@ -113,105 +119,162 @@ var DefaultKubeConfigFilePath = os.Getenv("HOME") + "/.kube/config"
 ///////////////////////////////////////////////////////////////////////////////////////
 // CompletionCodeInfos
 ///////////////////////////////////////////////////////////////////////////////////////
-type CompletionCodeInfo struct {
-	Phrase CompletionPhrase
-	Type   CompletionType
+// Represent [Min, Max].
+type CompletionCodeRange struct {
+	Min CompletionCode
+	Max CompletionCode
 }
 
-type ContainerStateTerminatedReason string
+var CompletionCodeReservedPositive = CompletionCodeRange{200, 219}
+var CompletionCodeReservedNonPositive = CompletionCodeRange{-999, 0}
 
 const (
-	ReasonOOMKilled ContainerStateTerminatedReason = "OOMKilled"
-)
-
-// Defined according to the CompletionCode Convention.
-// See CompletionStatus.
-const (
-	// NonNegative:
-	// ExitCode of the Framework's Container
-	// [129, 165]: Container Received Fatal Error Signal: ExitCode - 128
-	CompletionCodeContainerSigTermReceived CompletionCode = 143
-	CompletionCodeContainerSigKillReceived CompletionCode = 137
-	CompletionCodeContainerSigIntReceived  CompletionCode = 130
-	// [200, 219]: Container ExitCode Contract
+	// [200, 219]: Predefined Container ExitCode
+	// It is Reserved for the Contract between Container and FrameworkController,
+	// so Container should avoid unintendedly exit within the range.
 	CompletionCodeContainerTransientFailed         CompletionCode = 200
 	CompletionCodeContainerTransientConflictFailed CompletionCode = 201
 	CompletionCodeContainerPermanentFailed         CompletionCode = 210
-	// 0: Succeeded
+
+	// [0, 0]: Succeeded
 	CompletionCodeSucceeded CompletionCode = 0
 
-	// Negative:
-	// ExitCode of the Framework's Predefined Error
-	// -1XX: Framework Predefined Transient Error
+	// [-999, -1]: Predefined Framework Error
+	// -1XX: Transient Error
 	CompletionCodeConfigMapExternalDeleted        CompletionCode = -100
 	CompletionCodePodExternalDeleted              CompletionCode = -101
 	CompletionCodeConfigMapCreationTimeout        CompletionCode = -110
 	CompletionCodePodCreationTimeout              CompletionCode = -111
 	CompletionCodePodFailedWithoutFailedContainer CompletionCode = -120
-	// -2XX: Framework Predefined Permanent Error
+	// -2XX: Permanent Error
 	CompletionCodePodSpecInvalid             CompletionCode = -200
 	CompletionCodeStopFrameworkRequested     CompletionCode = -210
 	CompletionCodeFrameworkAttemptCompletion CompletionCode = -220
-	// -3XX: Framework Predefined Unknown Error
-	CompletionCodeContainerOOMKilled CompletionCode = -300
+	// -3XX: Unknown Error
 )
 
-var CompletionCodeInfos = map[CompletionCode]CompletionCodeInfo{
-	CompletionCodeContainerSigTermReceived: {
-		"ContainerSigTermReceived", CompletionType{CompletionTypeNameFailed,
-			[]CompletionTypeAttribute{CompletionTypeAttributeTransient, CompletionTypeAttributePlatform}}},
-	CompletionCodeContainerSigKillReceived: {
-		"ContainerSigKillReceived", CompletionType{CompletionTypeNameFailed,
-			[]CompletionTypeAttribute{CompletionTypeAttributeTransient, CompletionTypeAttributePlatform}}},
-	CompletionCodeContainerSigIntReceived: {
-		"ContainerSigIntReceived", CompletionType{CompletionTypeNameFailed,
-			[]CompletionTypeAttribute{CompletionTypeAttributeTransient, CompletionTypeAttributePlatform}}},
-	CompletionCodeContainerTransientFailed: {
-		"ContainerTransientFailed", CompletionType{CompletionTypeNameFailed,
-			[]CompletionTypeAttribute{CompletionTypeAttributeTransient, CompletionTypeAttributePlatform}}},
-	CompletionCodeContainerTransientConflictFailed: {
-		"ContainerTransientConflictFailed", CompletionType{CompletionTypeNameFailed,
-			[]CompletionTypeAttribute{CompletionTypeAttributeTransient, CompletionTypeAttributePlatform,
-				CompletionTypeAttributeConflict}}},
-	CompletionCodeContainerPermanentFailed: {
-		"ContainerPermanentFailed", CompletionType{CompletionTypeNameFailed,
-			[]CompletionTypeAttribute{CompletionTypeAttributePermanent, CompletionTypeAttributeUser}}},
-	CompletionCodeSucceeded: {
-		"Succeeded", CompletionType{CompletionTypeNameSucceeded,
-			[]CompletionTypeAttribute{CompletionTypeAttributeUser}}},
-	CompletionCodeConfigMapExternalDeleted: {
-		"ConfigMapExternalDeleted", CompletionType{CompletionTypeNameFailed,
-			[]CompletionTypeAttribute{CompletionTypeAttributeTransient, CompletionTypeAttributePlatform}}},
-	CompletionCodePodExternalDeleted: {
-		// Possibly be due to Pod Eviction.
-		"PodExternalDeleted", CompletionType{CompletionTypeNameFailed,
-			[]CompletionTypeAttribute{CompletionTypeAttributeTransient, CompletionTypeAttributePlatform}}},
-	CompletionCodeConfigMapCreationTimeout: {
-		"ConfigMapCreationTimeout", CompletionType{CompletionTypeNameFailed,
-			[]CompletionTypeAttribute{CompletionTypeAttributeTransient, CompletionTypeAttributePlatform}}},
-	CompletionCodePodCreationTimeout: {
-		"PodCreationTimeout", CompletionType{CompletionTypeNameFailed,
-			[]CompletionTypeAttribute{CompletionTypeAttributeTransient, CompletionTypeAttributePlatform}}},
-	CompletionCodePodFailedWithoutFailedContainer: {
-		"PodFailedWithoutFailedContainer", CompletionType{CompletionTypeNameFailed,
-			[]CompletionTypeAttribute{CompletionTypeAttributeTransient, CompletionTypeAttributePlatform}}},
-	CompletionCodePodSpecInvalid: {
-		"PodSpecInvalid", CompletionType{CompletionTypeNameFailed,
-			[]CompletionTypeAttribute{CompletionTypeAttributePermanent, CompletionTypeAttributeUser}}},
-	CompletionCodeStopFrameworkRequested: {
-		"StopFrameworkRequested", CompletionType{CompletionTypeNameFailed,
-			[]CompletionTypeAttribute{CompletionTypeAttributePermanent, CompletionTypeAttributeUser}}},
-	CompletionCodeFrameworkAttemptCompletion: {
-		"FrameworkAttemptCompletion", CompletionType{CompletionTypeNameFailed,
-			[]CompletionTypeAttribute{CompletionTypeAttributePermanent}}},
-	CompletionCodeContainerOOMKilled: {
-		// May be due to exceed the Container memory limit or the Container workload spike or
-		// OS memory pressure, so it may be Permanent or Transient, User or Platform.
-		"ContainerOOMKilled", CompletionType{CompletionTypeNameFailed,
-			[]CompletionTypeAttribute{}}},
+var CompletionCodeInfoList = []*CompletionCodeInfo{}
+var CompletionCodeInfoMap = map[CompletionCode]*CompletionCodeInfo{}
+
+var CompletionCodeInfoContainerUnrecognizedFailed = &CompletionCodeInfo{
+	Phrase: "ContainerUnrecognizedFailed",
+	Type:   CompletionType{CompletionTypeNameFailed, []CompletionTypeAttribute{}},
 }
 
-var CompletionCodeInfoContainerFailedWithUnknownExitCode = CompletionCodeInfo{
-	"ContainerFailedWithUnknownExitCode", CompletionType{CompletionTypeNameFailed,
-		[]CompletionTypeAttribute{}},
+func initCompletionCodeInfos() {
+	AppendCompletionCodeInfos([]*CompletionCodeInfo{
+		{
+			Code:   CompletionCodeContainerTransientFailed.Ptr(),
+			Phrase: "ContainerTransientFailed",
+			Type: CompletionType{
+				CompletionTypeNameFailed, []CompletionTypeAttribute{
+					CompletionTypeAttributeTransient}},
+			PodPatterns: []*PodPattern{{
+				Containers: []*ContainerPattern{{
+					CodeRange: Int32Range{
+						Min: common.PtrInt32(int32(CompletionCodeContainerTransientFailed)),
+						Max: common.PtrInt32(int32(CompletionCodeContainerTransientFailed)),
+					},
+				}},
+			}},
+		},
+		{
+			Code:   CompletionCodeContainerTransientConflictFailed.Ptr(),
+			Phrase: "ContainerTransientConflictFailed",
+			Type: CompletionType{CompletionTypeNameFailed, []CompletionTypeAttribute{
+				CompletionTypeAttributeTransient, CompletionTypeAttributeConflict}},
+			PodPatterns: []*PodPattern{{
+				Containers: []*ContainerPattern{{
+					CodeRange: Int32Range{
+						Min: common.PtrInt32(int32(CompletionCodeContainerTransientConflictFailed)),
+						Max: common.PtrInt32(int32(CompletionCodeContainerTransientConflictFailed)),
+					},
+				}},
+			}},
+		},
+		{
+			Code:   CompletionCodeContainerPermanentFailed.Ptr(),
+			Phrase: "ContainerPermanentFailed",
+			Type: CompletionType{CompletionTypeNameFailed,
+				[]CompletionTypeAttribute{CompletionTypeAttributePermanent}},
+			PodPatterns: []*PodPattern{{
+				Containers: []*ContainerPattern{{
+					CodeRange: Int32Range{
+						Min: common.PtrInt32(int32(CompletionCodeContainerPermanentFailed)),
+						Max: common.PtrInt32(int32(CompletionCodeContainerPermanentFailed)),
+					},
+				}},
+			}},
+		},
+		{
+			Code:   CompletionCodeSucceeded.Ptr(),
+			Phrase: "Succeeded",
+			Type: CompletionType{CompletionTypeNameSucceeded,
+				[]CompletionTypeAttribute{}},
+		},
+		{
+			Code:   CompletionCodeConfigMapExternalDeleted.Ptr(),
+			Phrase: "ConfigMapExternalDeleted",
+			Type: CompletionType{CompletionTypeNameFailed,
+				[]CompletionTypeAttribute{CompletionTypeAttributeTransient}},
+		},
+		{
+			// Possibly due to Pod Eviction or Preemption.
+			Code:   CompletionCodePodExternalDeleted.Ptr(),
+			Phrase: "PodExternalDeleted",
+			Type: CompletionType{CompletionTypeNameFailed,
+				[]CompletionTypeAttribute{CompletionTypeAttributeTransient}},
+		},
+		{
+			Code:   CompletionCodeConfigMapCreationTimeout.Ptr(),
+			Phrase: "ConfigMapCreationTimeout",
+			Type: CompletionType{CompletionTypeNameFailed,
+				[]CompletionTypeAttribute{CompletionTypeAttributeTransient}},
+		},
+		{
+			Code:   CompletionCodePodCreationTimeout.Ptr(),
+			Phrase: "PodCreationTimeout",
+			Type: CompletionType{CompletionTypeNameFailed,
+				[]CompletionTypeAttribute{CompletionTypeAttributeTransient}},
+		},
+		{
+			Code:   CompletionCodePodFailedWithoutFailedContainer.Ptr(),
+			Phrase: "PodFailedWithoutFailedContainer",
+			Type: CompletionType{CompletionTypeNameFailed,
+				[]CompletionTypeAttribute{CompletionTypeAttributeTransient}},
+		},
+		{
+			Code:   CompletionCodePodSpecInvalid.Ptr(),
+			Phrase: "PodSpecInvalid",
+			Type: CompletionType{CompletionTypeNameFailed,
+				[]CompletionTypeAttribute{CompletionTypeAttributePermanent}},
+		},
+		{
+			Code:   CompletionCodeStopFrameworkRequested.Ptr(),
+			Phrase: "StopFrameworkRequested",
+			Type: CompletionType{CompletionTypeNameFailed,
+				[]CompletionTypeAttribute{CompletionTypeAttributePermanent}},
+		},
+		{
+			Code:   CompletionCodeFrameworkAttemptCompletion.Ptr(),
+			Phrase: "FrameworkAttemptCompletion",
+			Type: CompletionType{CompletionTypeNameFailed,
+				[]CompletionTypeAttribute{CompletionTypeAttributePermanent}},
+		},
+	})
+}
+
+func AppendCompletionCodeInfos(codeInfos []*CompletionCodeInfo) {
+	for _, codeInfo := range codeInfos {
+		if existingCodeInfo, ok := CompletionCodeInfoMap[*codeInfo.Code]; ok {
+			// Unreachable
+			panic(fmt.Errorf(
+				"Failed to append CompletionCodeInfo due to duplicated CompletionCode:"+
+					"\nExisting CompletionCodeInfo:\n%v,\nAppending CompletionCodeInfo:\n%v",
+				common.ToYaml(existingCodeInfo), common.ToYaml(codeInfo)))
+		}
+
+		CompletionCodeInfoList = append(CompletionCodeInfoList, codeInfo)
+		CompletionCodeInfoMap[*codeInfo.Code] = codeInfo
+	}
 }

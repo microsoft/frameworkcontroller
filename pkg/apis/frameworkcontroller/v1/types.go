@@ -345,26 +345,14 @@ type RetryPolicyStatus struct {
 }
 
 type CompletionStatus struct {
-	// CompletionCode Convention:
-	// 1. NonNegative:
-	//    The CompletionCode is the ExitCode of the Framework's Container which
-	//    triggers the completion.
-	// 2. Negative:
-	//    -1XX: Framework Predefined Transient Error
-	//    -2XX: Framework Predefined Permanent Error
-	//    -3XX: Framework Predefined Unknown Error
-	//    The CompletionCode is the ExitCode of the Framework's Predefined Error
-	//    which triggers the completion.
-	Code CompletionCode `json:"code"`
-	// The textual phrase representation of the CompletionCode.
+	// See corresponding fields in CompletionCodeInfo.
+	Code   CompletionCode   `json:"code"`
 	Phrase CompletionPhrase `json:"phrase"`
+	Type   CompletionType   `json:"type"`
 
-	// CompletionType is determined by the CompletionCode and the Predefined
-	// CompletionCodeInfos.
-	// See CompletionCodeInfos.
-	Type CompletionType `json:"type"`
-
-	// The detailed diagnostic information of the completion.
+	// It is the summarized diagnostic information of the completion.
+	// For detailed and structured diagnostic information, check its outer
+	// embedding type.
 	Diagnostics string `json:"diagnostics"`
 }
 
@@ -373,8 +361,8 @@ type CompletionCode int32
 type CompletionPhrase string
 
 type CompletionType struct {
-	Name       CompletionTypeName        `json:"name"`
-	Attributes []CompletionTypeAttribute `json:"attributes"`
+	Name       CompletionTypeName        `json:"name" yaml:"name"`
+	Attributes []CompletionTypeAttribute `json:"attributes" yaml:"attributes"`
 }
 
 type CompletionTypeName string
@@ -394,14 +382,6 @@ const (
 	// CompletionTypeName must be the same in every retry times:
 	// such as failed due to incorrect usage, incorrect configuration, etc.
 	CompletionTypeAttributePermanent CompletionTypeAttribute = "Permanent"
-
-	// The completion must be caused by the Platform,
-	// such as failed due to the instability of FrameworkController, K8S, OS,
-	// machine, network, etc.
-	CompletionTypeAttributePlatform CompletionTypeAttribute = "Platform"
-	// The completion must be caused by the user of the Framework,
-	// such as failed due to user code bugs, user stop request, etc.
-	CompletionTypeAttributeUser CompletionTypeAttribute = "User"
 
 	// The completion must be caused by Resource Conflict (Resource Contention):
 	// such as failed due to Gang Allocation timeout.

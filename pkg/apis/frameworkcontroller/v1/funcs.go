@@ -36,6 +36,48 @@ import (
 ///////////////////////////////////////////////////////////////////////////////////////
 // Utils
 ///////////////////////////////////////////////////////////////////////////////////////
+func (cc CompletionCode) Ptr() *CompletionCode {
+	return &cc
+}
+
+func (ccr CompletionCodeRange) Int32Range() Int32Range {
+	return Int32Range{(*int32)(&ccr.Min), (*int32)(&ccr.Max)}
+}
+
+func (ccr CompletionCodeRange) Contains(cc CompletionCode) bool {
+	return ccr.Int32Range().Contains(int32(cc))
+}
+
+func (ccr CompletionCodeRange) String() string {
+	return ccr.Int32Range().String()
+}
+
+func (ir Int32Range) Contains(v int32) bool {
+	if ir.Min == nil && ir.Max == nil {
+		return true
+	}
+	if ir.Min == nil {
+		return *ir.Max >= v
+	}
+	if ir.Max == nil {
+		return *ir.Min <= v
+	}
+	return *ir.Min <= v && *ir.Max >= v
+}
+
+func (ir Int32Range) String() string {
+	if ir.Min == nil && ir.Max == nil {
+		return fmt.Sprintf("[nil, nil]")
+	}
+	if ir.Min == nil {
+		return fmt.Sprintf("[nil, %v]", *ir.Max)
+	}
+	if ir.Max == nil {
+		return fmt.Sprintf("[%v, nil]", *ir.Min)
+	}
+	return fmt.Sprintf("[%v, %v]", *ir.Min, *ir.Max)
+}
+
 func GetConfigMapName(frameworkName string) string {
 	return strings.Join([]string{frameworkName, "attempt"}, "-")
 }
@@ -498,9 +540,9 @@ func (f *Framework) NewTaskAttemptStatus(
 }
 
 func (cc CompletionCode) NewCompletionStatus(diagnostics string) *CompletionStatus {
-	cci, exists := CompletionCodeInfos[cc]
+	cci, exists := CompletionCodeInfoMap[cc]
 	if !exists {
-		cci = CompletionCodeInfoContainerFailedWithUnknownExitCode
+		cci = CompletionCodeInfoContainerUnrecognizedFailed
 	}
 	return &CompletionStatus{
 		Code:        cc,

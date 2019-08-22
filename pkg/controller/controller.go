@@ -202,8 +202,9 @@ func NewFrameworkController() *FrameworkController {
 
 	cConfig := ci.NewConfig()
 	klog.Infof("With Config: \n%v", common.ToYaml(cConfig))
-	kConfig := ci.BuildKubeConfig(cConfig)
+	ci.AppendCompletionCodeInfos(cConfig.PodFailureSpec)
 
+	kConfig := ci.BuildKubeConfig(cConfig)
 	kClient, fClient := internal.CreateClients(kConfig)
 
 	// Informer resync will periodically replay the event of all objects stored in its cache.
@@ -1315,13 +1316,8 @@ func (c *FrameworkController) syncTaskState(
 							"Pod failed with non-zero container exit code: %v",
 							strings.Join(allContainerDiags, ", "))
 						klog.Infof(logPfx + diag)
-						if strings.Contains(diag, string(ci.ReasonOOMKilled)) {
-							c.completeTaskAttempt(f, taskRoleName, taskIndex, false,
-								ci.CompletionCodeContainerOOMKilled.NewCompletionStatus(diag))
-						} else {
-							c.completeTaskAttempt(f, taskRoleName, taskIndex, false,
-								ci.CompletionCode(*lastContainerExitCode).NewCompletionStatus(diag))
-						}
+						c.completeTaskAttempt(f, taskRoleName, taskIndex, false,
+							ci.CompletionCode(*lastContainerExitCode).NewCompletionStatus(diag))
 					}
 					return nil
 				} else {
