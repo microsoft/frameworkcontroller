@@ -357,8 +357,7 @@ func (f *Framework) NewConfigMap() *core.ConfigMap {
 
 	return cm
 }
-
-func (f *Framework) NewPod(cm *core.ConfigMap, taskRoleName string, taskIndex int32) *core.Pod {
+func (f *Framework) NewPod(config *Config, cm *core.ConfigMap, taskRoleName string, taskIndex int32) *core.Pod {
 	// Deep copy Task.Pod before modify it
 	taskPodJson := common.ToJson(f.TaskRoleSpec(taskRoleName).Task.Pod)
 	taskStatus := f.TaskStatus(taskRoleName, taskIndex)
@@ -384,6 +383,14 @@ func (f *Framework) NewPod(cm *core.ConfigMap, taskRoleName string, taskIndex in
 
 	// Using Json to avoid breaking one Placeholder to multiple lines
 	common.FromJson(placeholderReplacer.Replace(taskPodJson), &podTemplate)
+	// set pod scheduler name kube-batch
+	if *config.EnableKubeBatch {
+		podTemplate.Spec.SchedulerName = KubeBatchSchedulerName
+		// when pod priorityClass is empty set framework priorityClass
+		if podTemplate.Spec.PriorityClassName == "" {
+			podTemplate.Spec.PriorityClassName = f.Spec.PriorityClassName
+		}
+	}
 
 	// Override Task.Pod
 	pod := &core.Pod{
@@ -417,7 +424,10 @@ func (f *Framework) NewPod(cm *core.ConfigMap, taskRoleName string, taskIndex in
 	pod.Annotations[AnnotationKeyFrameworkAttemptInstanceUID] = frameworkAttemptInstanceUIDStr
 	pod.Annotations[AnnotationKeyConfigMapUID] = configMapUIDStr
 	pod.Annotations[AnnotationKeyTaskAttemptID] = taskAttemptIDStr
-
+	// add kube-batch podgroup annotations
+	if *config.EnableKubeBatch {
+		pod.Annotations[AnnotationKeyPodGroup] = f.Name
+	}
 	if pod.Labels == nil {
 		pod.Labels = map[string]string{}
 	}

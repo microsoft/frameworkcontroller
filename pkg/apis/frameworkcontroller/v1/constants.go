@@ -102,6 +102,11 @@ const (
 	PlaceholderTaskIndex          = AnnotationKeyTaskIndex
 	PlaceholderConfigMapName      = AnnotationKeyConfigMapName
 	PlaceholderPodName            = AnnotationKeyPodName
+
+	// kube batch scheduler name
+	KubeBatchSchedulerName = "kube-batch"
+	// kube batch podgroup annotation key
+	AnnotationKeyPodGroup = "scheduling.k8s.io/group-name"
 )
 
 var FrameworkGroupVersionKind = SchemeGroupVersion.WithKind(FrameworkKind)

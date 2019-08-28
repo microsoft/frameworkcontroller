@@ -24,6 +24,7 @@ package controller
 
 import (
 	"fmt"
+	kubebatchclient "github.com/kubernetes-sigs/kube-batch/pkg/client/clientset/versioned"
 	ci "github.com/microsoft/frameworkcontroller/pkg/apis/frameworkcontroller/v1"
 	frameworkClient "github.com/microsoft/frameworkcontroller/pkg/client/clientset/versioned"
 	frameworkInformer "github.com/microsoft/frameworkcontroller/pkg/client/informers/externalversions"
@@ -73,8 +74,9 @@ type FrameworkController struct {
 	// Client write failure does not mean the write does not succeed on remote, the
 	// failure may be due to the success response is just failed to deliver to the
 	// Client.
-	kClient kubeClient.Interface
-	fClient frameworkClient.Interface
+	kClient  kubeClient.Interface
+	fClient  frameworkClient.Interface
+	kbClient kubebatchclient.Interface
 
 	// Informer is used to sync remote objects to local cached objects, and deliver
 	// events of object changes.
@@ -205,7 +207,7 @@ func NewFrameworkController() *FrameworkController {
 	ci.AppendCompletionCodeInfos(cConfig.PodFailureSpec)
 
 	kConfig := ci.BuildKubeConfig(cConfig)
-	kClient, fClient := internal.CreateClients(kConfig)
+	kClient, fClient, kbClient := internal.CreateClients(kConfig)
 
 	// Informer resync will periodically replay the event of all objects stored in its cache.
 	// However, by design, Informer and Controller should not miss any event.
@@ -234,6 +236,7 @@ func NewFrameworkController() *FrameworkController {
 		cConfig:              cConfig,
 		kClient:              kClient,
 		fClient:              fClient,
+		kbClient:             kbClient,
 		cmInformer:           cmInformer,
 		podInformer:          podInformer,
 		fInformer:            fInformer,
@@ -938,11 +941,26 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 				c.completeFrameworkAttempt(f, false,
 					ci.CompletionCodeStopFrameworkRequested.NewCompletionStatus(diag))
 			}
+		}else{
+			if *c.cConfig.EnableKubeBatch {
+				err := c.DeletePodGroup(f)
+				if err != nil {
+					klog.Errorf("delete podgroup error %v", err)
+					klog.Infof("delete podgroup fail")
+				}
+			}
 		}
 
 		err := c.syncTaskRoleStatuses(f, cm)
 
 		if f.Status.State == ci.FrameworkAttemptPreparing {
+			if *c.cConfig.EnableKubeBatch {
+				minAvailableReplicas := getTotalReplicas(f)
+				_, err := c.SyncPodGroup(f, minAvailableReplicas)
+				if err != nil {
+					klog.Errorf("Sync PodGroup %v fail %v", f.Name, err)
+				}
+			}
 			if f.IsAnyTaskRunning() {
 				f.TransitionFrameworkState(ci.FrameworkAttemptRunning)
 			}
@@ -1516,6 +1534,18 @@ func (c *FrameworkController) syncTaskState(
 		taskStatus.State))
 }
 
+// get total framewok task num
+func getTotalReplicas(f *ci.Framework) int32 {
+	if f.Spec.MinMember > 0 {
+		return f.Spec.MinMember
+	}
+	taskNum := int32(0)
+	for _, taskRoleSpec := range f.Spec.TaskRoles {
+		taskNum += taskRoleSpec.TaskNumber
+	}
+	return taskNum
+}
+
 // Get Task's current Pod object, if not found, then clean up existing
 // controlled Pod if any.
 // Returned pod is either managed or nil, if it is the managed pod, it is not
@@ -1612,7 +1642,7 @@ func (c *FrameworkController) deletePod(
 func (c *FrameworkController) createPod(
 	f *ci.Framework, cm *core.ConfigMap,
 	taskRoleName string, taskIndex int32) (*core.Pod, error) {
-	pod := f.NewPod(cm, taskRoleName, taskIndex)
+	pod := f.NewPod(c.cConfig, cm, taskRoleName, taskIndex)
 	errPfx := fmt.Sprintf(
 		"[%v][%v][%v]: Failed to create Pod %v",
 		f.Key(), taskRoleName, taskIndex, pod.Name)

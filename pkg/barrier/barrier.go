@@ -213,7 +213,7 @@ func NewFrameworkBarrier() *FrameworkBarrier {
 	bConfig := newConfig()
 	klog.Infof("With Config: \n%v", common.ToYaml(bConfig))
 	kConfig := buildKubeConfig(bConfig)
-	kClient, fClient := internal.CreateClients(kConfig)
+	kClient, fClient, _ := internal.CreateClients(kConfig)
 
 	return &FrameworkBarrier{
 		kConfig: kConfig,

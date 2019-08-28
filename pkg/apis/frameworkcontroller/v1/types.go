@@ -94,6 +94,12 @@ type FrameworkSpec struct {
 	ExecutionType ExecutionType   `json:"executionType"`
 	RetryPolicy   RetryPolicySpec `json:"retryPolicy"`
 	TaskRoles     []*TaskRoleSpec `json:"taskRoles"`
+	// kube batch gang scheduling minNumber
+	MinMember int32 `json:"minMember,omitempty"`
+	// kube batch queue name
+	Queue string `json:"queue,omitempty"`
+	// framework priorityClass
+	PriorityClassName string `json:"priorityClassName,omitempty"`
 }
 
 type TaskRoleSpec struct {

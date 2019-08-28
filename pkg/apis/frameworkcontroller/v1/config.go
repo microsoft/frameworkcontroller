@@ -112,6 +112,8 @@ type Config struct {
 	//    ExitCode. So, it still needs the cooperation from Container to ensure
 	//    positive CompletionCode is also universally unique and comparable.
 	PodFailureSpec []*CompletionCodeInfo `yaml:"podFailureSpec"`
+	// add bool EnableKubeBatch
+	EnableKubeBatch *bool `yaml:"enableKubeBatch"`
 }
 
 type LogObjectSnapshot struct {
@@ -216,6 +218,9 @@ func NewConfig() *Config {
 	}
 	if c.LogObjectSnapshot.Pod.OnPodDeletion == nil {
 		c.LogObjectSnapshot.Pod.OnPodDeletion = common.PtrBool(true)
+	}
+	if c.EnableKubeBatch == nil {
+		c.EnableKubeBatch = common.PtrBool(true)
 	}
 	for _, codeInfo := range c.PodFailureSpec {
 		if codeInfo.Type.Name == "" {

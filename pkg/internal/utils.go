@@ -24,6 +24,7 @@ package internal
 
 import (
 	"fmt"
+	kubebatchclient "github.com/kubernetes-sigs/kube-batch/pkg/client/clientset/versioned"
 	ci "github.com/microsoft/frameworkcontroller/pkg/apis/frameworkcontroller/v1"
 	frameworkClient "github.com/microsoft/frameworkcontroller/pkg/client/clientset/versioned"
 	"github.com/microsoft/frameworkcontroller/pkg/common"
@@ -41,7 +42,7 @@ import (
 )
 
 func CreateClients(kConfig *rest.Config) (
-	kubeClient.Interface, frameworkClient.Interface) {
+	kubeClient.Interface, frameworkClient.Interface,kubebatchclient.Interface) {
 	kClient, err := kubeClient.NewForConfig(kConfig)
 	if err != nil {
 		panic(fmt.Errorf("Failed to create KubeClient: %v", err))
@@ -51,8 +52,11 @@ func CreateClients(kConfig *rest.Config) (
 	if err != nil {
 		panic(fmt.Errorf("Failed to create FrameworkClient: %v", err))
 	}
-
-	return kClient, fClient
+	kbClient, err := kubebatchclient.NewForConfig(kConfig)
+	if err != nil {
+		panic(fmt.Errorf("Failed to create KubeBatchClient: %v", err))
+	}
+	return kClient, fClient,kbClient
 }
 
 func PutCRD(
