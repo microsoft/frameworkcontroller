@@ -29,6 +29,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"os"
+	"regexp"
 )
 
 type Config struct {
@@ -96,6 +97,26 @@ type Config struct {
 	// 4. The snapshot triggered by deletion may be missed to log during the
 	//    FrameworkController downtime.
 	LogObjectSnapshot LogObjectSnapshot `yaml:"logObjectSnapshot"`
+
+	// Specify how to classify and summarize Pod failures:
+	// 1. Generate universally unique and comparable CompletionCode.
+	// 2. Generate CompletionType to instruct FancyRetryPolicy.
+	// 3. Generate Diagnostics to summarize the Pod failure.
+	// Notes:
+	// 1. It will only be used for Failed Pods.
+	// 2. Before it is used, it will be appended to the predefined internal
+	//    completionCodeInfoList and if multiple CompletionCodes are matched in
+	//    the final completionCodeInfoList, prefer to pick the first one.
+	// 3. If a Pod is matched, only the Pod field which is explicitly specified in
+	//    the corresponding PodPattern will be included in its Diagnostics.
+	//    Otherwise, the whole PodCompletionStatus will be included in its
+	//    Diagnostics.
+	// 4. Non-positive CompletionCode must be universally unique and comparable
+	//    since it can only be generated from FrameworkController, but positive
+	//    CompletionCode may not since it may also be generated from Container
+	//    ExitCode. So, it still needs the cooperation from Container to ensure
+	//    positive CompletionCode is also universally unique and comparable.
+	PodFailureSpec []*CompletionCodeInfo `yaml:"podFailureSpec"`
 }
 
 type LogObjectSnapshot struct {
@@ -111,6 +132,55 @@ type LogFrameworkSnapshot struct {
 
 type LogPodSnapshot struct {
 	OnPodDeletion *bool `yaml:"onPodDeletion"`
+}
+
+type CompletionCodeInfo struct {
+	// Must not duplicate with other codes.
+	// It should not be within [-999, 0] and [200, 219], if it is from Config.
+	// It can universally locate the CompletionCodeInfo, if it is non-positive.
+	Code *CompletionCode `yaml:"code"`
+	// The textual phrase representation of the CompletionCode.
+	// Default to empty.
+	Phrase CompletionPhrase `yaml:"phrase,omitempty"`
+	// The CompletionTypeName must be Failed, if it is from Config.
+	// Default to Failed.
+	Type CompletionType `yaml:"type"`
+	// If the Pod matches ANY pattern in the PodPatterns, it matches the
+	// CompletionCode.
+	// It is required, if it is from Config.
+	// Default to match NONE.
+	PodPatterns []*PodPattern `yaml:"podPatterns,omitempty"`
+}
+
+// Used to match against the corresponding fields in Pod object.
+// ALL its fields are optional and default to match ANY.
+// It is matched if and only if ALL its fields are matched.
+type PodPattern struct {
+	NameRegex    Regex               `yaml:"nameRegex,omitempty"`
+	ReasonRegex  Regex               `yaml:"reasonRegex,omitempty"`
+	MessageRegex Regex               `yaml:"messageRegex,omitempty"`
+	Containers   []*ContainerPattern `yaml:"containers,omitempty"`
+}
+
+type ContainerPattern struct {
+	NameRegex    Regex      `yaml:"nameRegex,omitempty"`
+	ReasonRegex  Regex      `yaml:"reasonRegex,omitempty"`
+	MessageRegex Regex      `yaml:"messageRegex,omitempty"`
+	SignalRange  Int32Range `yaml:"signalRange,omitempty"`
+	// It is the range of Container ExitCode.
+	CodeRange Int32Range `yaml:"codeRange,omitempty"`
+}
+
+// Represent regex pattern string and nil indicates match ANY.
+// See https://github.com/google/re2/wiki/Syntax
+type Regex struct {
+	*regexp.Regexp `yaml:",inline"`
+}
+
+// Represent [Min, Max] and nil indicates unlimited.
+type Int32Range struct {
+	Min *int32 `yaml:"min,omitempty"`
+	Max *int32 `yaml:"max,omitempty"`
 }
 
 func NewConfig() *Config {
@@ -157,6 +227,11 @@ func NewConfig() *Config {
 	if c.LogObjectSnapshot.Pod.OnPodDeletion == nil {
 		c.LogObjectSnapshot.Pod.OnPodDeletion = common.PtrBool(true)
 	}
+	for _, codeInfo := range c.PodFailureSpec {
+		if codeInfo.Type.Name == "" {
+			codeInfo.Type.Name = CompletionTypeNameFailed
+		}
+	}
 
 	// Validation
 	errPrefix := "Config Validation Failed: "
@@ -192,6 +267,53 @@ func NewConfig() *Config {
 			"FrameworkMinRetryDelaySecForTransientConflictFailed %v",
 			*c.FrameworkMaxRetryDelaySecForTransientConflictFailed,
 			*c.FrameworkMinRetryDelaySecForTransientConflictFailed))
+	}
+	codeInfoMap := map[CompletionCode]*CompletionCodeInfo{}
+	for _, codeInfo := range c.PodFailureSpec {
+		if codeInfo.Type.Name != CompletionTypeNameFailed {
+			panic(fmt.Errorf(errPrefix+
+				"PodFailureSpec contains CompletionTypeName which is not %v:\n%v",
+				CompletionTypeNameFailed, common.ToYaml(codeInfo)))
+		}
+		if len(codeInfo.PodPatterns) == 0 {
+			panic(fmt.Errorf(errPrefix+
+				"PodFailureSpec contains empty PodPatterns:\n%v",
+				common.ToYaml(codeInfo)))
+		}
+		for _, podPattern := range codeInfo.PodPatterns {
+			if podPattern == nil {
+				panic(fmt.Errorf(errPrefix+
+					"PodFailureSpec contains nil PodPattern:\n%v",
+					common.ToYaml(codeInfo)))
+			}
+			for _, containerPattern := range podPattern.Containers {
+				if containerPattern == nil {
+					panic(fmt.Errorf(errPrefix+
+						"PodFailureSpec contains nil ContainerPattern:\n%v",
+						common.ToYaml(codeInfo)))
+				}
+			}
+		}
+		if codeInfo.Code == nil {
+			panic(fmt.Errorf(errPrefix+
+				"PodFailureSpec contains nil CompletionCode:\n%v",
+				common.ToYaml(codeInfo)))
+		}
+		if CompletionCodeReservedNonPositive.Contains(*codeInfo.Code) ||
+			CompletionCodeReservedPositive.Contains(*codeInfo.Code) {
+			panic(fmt.Errorf(errPrefix+
+				"PodFailureSpec contains CompletionCode which should not be within "+
+				"%v and %v:\n%v",
+				CompletionCodeReservedNonPositive, CompletionCodeReservedPositive,
+				common.ToYaml(codeInfo)))
+		}
+		if existingCodeInfo, ok := codeInfoMap[*codeInfo.Code]; ok {
+			panic(fmt.Errorf(errPrefix+
+				"PodFailureSpec contains duplicated CompletionCode:"+
+				"\nExisting CompletionCodeInfo:\n%v,\nChecking CompletionCodeInfo:\n%v",
+				common.ToYaml(existingCodeInfo), common.ToYaml(codeInfo)))
+		}
+		codeInfoMap[*codeInfo.Code] = codeInfo
 	}
 
 	return c
