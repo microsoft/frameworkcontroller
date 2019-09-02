@@ -1,8 +1,270 @@
 # Put it directly under frameworkcontroller's current working directory.
 # For the full config setting and usage, see ./pkg/apis/frameworkcontroller/v1/config.go
 
-# This is the default config for frameworkcontroller, so all settings are commented out.
+# This is the default config for frameworkcontroller, so most settings are commented out.
 
 #kubeApiServerAddress: http://10.10.10.10:8080
-#kubeConfigFilePath: ""
+#kubeConfigFilePath: ''
 #workerNumber: 20
+
+podFailureSpec:
+################################################################################
+# [-1199, -1000]: K8S issued failures
+################################################################################
+- code: -1000
+  phrase: PodEvicted
+  type:
+    attributes: [Transient]
+  podPatterns:
+  - reasonRegex: '(?i)^Evicted$'
+    messageRegex: '(?ms).*'
+- code: -1001
+  phrase: PodNodeLost
+  type:
+    attributes: [Transient]
+  podPatterns:
+  - reasonRegex: '(?i)^NodeLost$'
+    messageRegex: '(?ms).*'
+- code: -1002
+  phrase: PodScheduledToInsufficientResourceNode
+  type:
+    attributes: [Transient]
+  podPatterns:
+  - reasonRegex: '(?i)^OutOf\S+$'
+    messageRegex: '(?ms).*'
+- code: -1003
+  phrase: PodPreemptedForCriticalPod
+  type:
+    attributes: [Transient]
+  podPatterns:
+  - reasonRegex: '(?i)^Preempting$'
+    messageRegex: '(?ms).*'
+- code: -1004
+  phrase: PodDeadlineExceeded
+  type:
+    attributes: [Permanent]
+  podPatterns:
+  - reasonRegex: '(?i)^DeadlineExceeded$'
+    messageRegex: '(?ms).*'
+- code: -1005
+  phrase: PodNodeAdmissionForbidden
+  type:
+    attributes: [Permanent]
+  podPatterns:
+  - reasonRegex: '(?i)^Forbidden$'
+    messageRegex: '(?ms).*'
+- code: -1006
+  phrase: PodNodeAdmissionUnexpectedError
+  type:
+    attributes: [Transient]
+  podPatterns:
+  - reasonRegex: '(?i)^UnexpectedAdmissionError$'
+    messageRegex: '(?ms).*'
+  - reasonRegex: '(?i)^UnknownReason$'
+    messageRegex: '(?ms).*'
+  - reasonRegex: '(?i)^InvalidNodeInfo$'
+    messageRegex: '(?ms).*'
+  - reasonRegex: '(?i)^UnexpectedPredicateFailureType$'
+    messageRegex: '(?ms).*'
+
+################################################################################
+# [-1399, -1200]: Docker issued failures
+################################################################################
+- code: -1200
+  phrase: ContainerDockerOOMKilled
+  type:
+    attributes: [Permanent]
+  podPatterns:
+  - containers:
+    - reasonRegex: '(?i)^OOMKilled$'
+      codeRange: {min: 1}
+      nameRegex: '(?ms).*'
+      messageRegex: '(?ms).*'
+- code: -1201
+  phrase: ContainerDockerRunFlagInvalid
+  type:
+    attributes: [Permanent]
+  podPatterns:
+  - containers:
+    - reasonRegex: '(?i)^ContainerCannotRun$'
+      codeRange: {min: 125, max: 125}
+      nameRegex: '(?ms).*'
+      messageRegex: '(?ms).*'
+- code: -1202
+  phrase: ContainerDockerRunPermissionDenied
+  type:
+    attributes: [Permanent]
+  podPatterns:
+  - containers:
+    - reasonRegex: '(?i)^ContainerCannotRun$'
+      codeRange: {min: 126, max: 126}
+      nameRegex: '(?ms).*'
+      messageRegex: '(?ms).*'
+- code: -1203
+  phrase: ContainerDockerRunCmdNotFound
+  type:
+    attributes: [Permanent]
+  podPatterns:
+  - containers:
+    - reasonRegex: '(?i)^ContainerCannotRun$'
+      codeRange: {min: 127, max: 127}
+      nameRegex: '(?ms).*'
+      messageRegex: '(?ms).*'
+  - containers:
+    - reasonRegex: '(?i)^ContainerCannotRun$'
+      codeRange: {min: 128, max: 128}
+      nameRegex: '(?ms).*'
+      messageRegex: '(?msi).*(not found|cannot find|no such).*'
+- code: -1204
+  phrase: ContainerDockerRunUnknownError
+  podPatterns:
+  - containers:
+    - reasonRegex: '(?i)^ContainerCannotRun$'
+      codeRange: {min: 128, max: 128}
+      nameRegex: '(?ms).*'
+      messageRegex: '(?ms).*'
+
+################################################################################
+# [1, 255]: User Container issued failures
+################################################################################
+# [129, 192]: Involuntary failures caused by OS Signal
+- code: 130
+  phrase: ContainerSigIntReceived
+  type:
+    attributes: [Transient]
+  podPatterns:
+  - containers:
+    - codeRange: {min: 130, max: 130}
+      nameRegex: '(?ms).*'
+      messageRegex: '(?ms).*'
+- code: 131
+  phrase: ContainerSigQuitReceived
+  type:
+    attributes: [Transient]
+  podPatterns:
+  - containers:
+    - codeRange: {min: 131, max: 131}
+      nameRegex: '(?ms).*'
+      messageRegex: '(?ms).*'
+- code: 132
+  phrase: ContainerSigIllReceived
+  type:
+    attributes: [Permanent]
+  podPatterns:
+  - containers:
+    - codeRange: {min: 132, max: 132}
+      nameRegex: '(?ms).*'
+      messageRegex: '(?ms).*'
+- code: 134
+  phrase: ContainerSigAbrtReceived
+  podPatterns:
+  - containers:
+    - codeRange: {min: 134, max: 134}
+      nameRegex: '(?ms).*'
+      messageRegex: '(?ms).*'
+- code: 135
+  phrase: ContainerSigBusReceived
+  type:
+    attributes: [Permanent]
+  podPatterns:
+  - containers:
+    - codeRange: {min: 135, max: 135}
+      nameRegex: '(?ms).*'
+      messageRegex: '(?ms).*'
+- code: 136
+  phrase: ContainerSigFpeReceived
+  type:
+    attributes: [Permanent]
+  podPatterns:
+  - containers:
+    - codeRange: {min: 136, max: 136}
+      nameRegex: '(?ms).*'
+      messageRegex: '(?ms).*'
+- code: 137
+  phrase: ContainerSigKillReceived
+  type:
+    attributes: [Transient]
+  podPatterns:
+  - containers:
+    - codeRange: {min: 137, max: 137}
+      nameRegex: '(?ms).*'
+      messageRegex: '(?ms).*'
+- code: 139
+  phrase: ContainerSigSegvReceived
+  type:
+    attributes: [Permanent]
+  podPatterns:
+  - containers:
+    - codeRange: {min: 139, max: 139}
+      nameRegex: '(?ms).*'
+      messageRegex: '(?ms).*'
+- code: 141
+  phrase: ContainerSigPipeReceived
+  type:
+    attributes: [Permanent]
+  podPatterns:
+  - containers:
+    - codeRange: {min: 141, max: 141}
+      nameRegex: '(?ms).*'
+      messageRegex: '(?ms).*'
+- code: 143
+  phrase: ContainerSigTermReceived
+  type:
+    attributes: [Transient]
+  podPatterns:
+  - containers:
+    - codeRange: {min: 143, max: 143}
+      nameRegex: '(?ms).*'
+      messageRegex: '(?ms).*'
+
+# [1, 255] - [129, 192]: Voluntary failures caused by Container itself
+# [200, 219]: Reserved Codes
+# [1, 255] - [129, 192] - [200, 219]: Custom Codes
+# Example: Directly forwarding Container code and just adding type info.
+#- code: 220
+#  phrase: Container220Failed
+#  type:
+#    attributes: [Permanent]
+#  podPatterns:
+#  - containers:
+#    - codeRange: {min: 220, max: 220}
+#      nameRegex: '(?ms).*'
+#      messageRegex: '(?ms).*'
+
+# Example: Classification only based on Container termination message.
+#- code: 221
+#  phrase: ContainerTensorflowOOMKilled
+#  type:
+#    attributes: [Permanent]
+#  podPatterns:
+#  - containers:
+#    - messageRegex: '(?msi)tensorflow.*ResourceExhaustedError.*OOM.*'
+#      codeRange: {min: 1}
+#      nameRegex: '(?ms).*'
+#- code: 222
+#  phrase: ContainerMPISegvFault
+#  type:
+#    attributes: [Permanent]
+#  podPatterns:
+#  - containers:
+#    - messageRegex: '(?msi)Signal code: Address not mapped.*'
+#      codeRange: {min: 1}
+#      nameRegex: '(?ms).*'
+#- code: 223
+#  phrase: ContainerCudaUncorrectableECCError
+#  type:
+#    attributes: [Transient]
+#  podPatterns:
+#  - containers:
+#    - messageRegex: '(?msi)CUDA_ERROR_ECC_UNCORRECTABLE.*'
+#      codeRange: {min: 1}
+#      nameRegex: '(?ms).*'
+
+# Example: Redirect all unknown failures to a single comparable code.
+#- code: 255
+#  phrase: ContainerUnknownFailed
+#  podPatterns:
+#  - containers:
+#    - codeRange: {min: 1}
+#      nameRegex: '(?ms).*'
+#      messageRegex: '(?ms).*'

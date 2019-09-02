@@ -110,6 +110,14 @@ func GetPodSnapshotLogTail(pod *core.Pod) string {
 	return getObjectSnapshotLogTail(pod)
 }
 
+func GetAllContainerStatuses(pod *core.Pod) []core.ContainerStatus {
+	// All Container names in a Pod must be different, so we can still identify
+	// a Container even after the InitContainers is merged with the AppContainers.
+	return append(append([]core.ContainerStatus{},
+		pod.Status.InitContainerStatuses...),
+		pod.Status.ContainerStatuses...)
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////
 // Interfaces
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -223,10 +231,6 @@ func (ts *TaskStatus) IsCompleting() bool {
 		ts.State == TaskAttemptDeleting
 }
 
-func (ct CompletionType) IsSucceeded() bool {
-	return ct.Name == CompletionTypeNameSucceeded
-}
-
 func (f *Framework) IsSucceeded() bool {
 	return f.IsCompleted() && f.CompletionType().IsSucceeded()
 }
@@ -235,25 +239,12 @@ func (ts *TaskStatus) IsSucceeded() bool {
 	return ts.IsCompleted() && ts.CompletionType().IsSucceeded()
 }
 
-func (ct CompletionType) IsFailed() bool {
-	return ct.Name == CompletionTypeNameFailed
-}
-
 func (f *Framework) IsFailed() bool {
 	return f.IsCompleted() && f.CompletionType().IsFailed()
 }
 
 func (ts *TaskStatus) IsFailed() bool {
 	return ts.IsCompleted() && ts.CompletionType().IsFailed()
-}
-
-func (ct CompletionType) ContainsAttribute(attribute CompletionTypeAttribute) bool {
-	for i := range ct.Attributes {
-		if ct.Attributes[i] == attribute {
-			return true
-		}
-	}
-	return false
 }
 
 func (trs *TaskRoleStatus) GetTaskStatuses(selector TaskStatusSelector) []*TaskStatus {
@@ -495,25 +486,6 @@ func (f *Framework) NewTaskAttemptStatus(
 		PodHostIP:        nil,
 		CompletionStatus: nil,
 	}
-}
-
-func (cc CompletionCode) NewCompletionStatus(diagnostics string) *CompletionStatus {
-	cci, exists := CompletionCodeInfos[cc]
-	if !exists {
-		cci = CompletionCodeInfoContainerFailedWithUnknownExitCode
-	}
-	return &CompletionStatus{
-		Code:        cc,
-		Phrase:      cci.Phrase,
-		Type:        cci.Type,
-		Diagnostics: diagnostics,
-	}
-}
-
-func (cs *CompletionStatus) String() string {
-	return fmt.Sprintf(
-		"[Code: %v, Phrase: %v, Type: %v, Diagnostics: %v]",
-		cs.Code, cs.Phrase, cs.Type, cs.Diagnostics)
 }
 
 type RetryDecision struct {

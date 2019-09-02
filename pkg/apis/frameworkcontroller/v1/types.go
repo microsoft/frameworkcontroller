@@ -183,20 +183,20 @@ type RetryPolicySpec struct {
 // Usage:
 // 1. If the ExecutionType is ExecutionStop, immediately complete the FrameworkAttempt,
 //    regardless of any uncompleted Task, and the CompletionStatus is failed which
-//    is not generated from any Task.
+//    is not inherited from any Task.
 // 2. If MinFailedTaskCount != -1 and MinFailedTaskCount <= failed Task count of
 //    current TaskRole, immediately complete the FrameworkAttempt, regardless of
-//    any uncompleted Task, and the CompletionStatus is failed which is generated
+//    any uncompleted Task, and the CompletionStatus is failed which is inherited
 //    from the Task which triggers the completion.
 // 3. If MinSucceededTaskCount != -1 and MinSucceededTaskCount <= succeeded Task
 //    count of current TaskRole, immediately complete the FrameworkAttempt, regardless
 //    of any uncompleted Task, and the CompletionStatus is succeeded which is
-//    generated from the Task which triggers the completion.
+//    inherited from the Task which triggers the completion.
 // 4. If multiple above 1. and 2. conditions of all TaskRoles are satisfied at the
 //    same time, the behavior can be any one of these satisfied conditions.
 // 5. If none of above 1. and 2. conditions of all TaskRoles are satisfied until all
 //    Tasks of the Framework are completed, immediately complete the FrameworkAttempt
-//    and the CompletionStatus is succeeded which is not generated from any Task.
+//    and the CompletionStatus is succeeded which is not inherited from any Task.
 //
 // Notes:
 // 1. When the FrameworkAttempt is completed, the FrameworkState is transitioned to
@@ -269,9 +269,9 @@ type FrameworkAttemptStatus struct {
 	// It will never be changed during the whole lifetime of a specific Framework.
 	ConfigMapName string `json:"configMapName"`
 	// ConfigMapUID can also universally locate the FrameworkAttemptInstance.
-	ConfigMapUID     *types.UID        `json:"configMapUID"`
-	CompletionStatus *CompletionStatus `json:"completionStatus"`
-	TaskRoleStatuses []*TaskRoleStatus `json:"taskRoleStatuses"`
+	ConfigMapUID     *types.UID                        `json:"configMapUID"`
+	CompletionStatus *FrameworkAttemptCompletionStatus `json:"completionStatus"`
+	TaskRoleStatuses []*TaskRoleStatus                 `json:"taskRoleStatuses"`
 }
 
 type TaskRoleStatus struct {
@@ -315,10 +315,10 @@ type TaskAttemptStatus struct {
 	// It will never be changed during the whole lifetime of a specific Task.
 	PodName string `json:"podName"`
 	// PodUID can also universally locate the TaskAttemptInstance.
-	PodUID           *types.UID        `json:"podUID"`
-	PodIP            *string           `json:"podIP"`
-	PodHostIP        *string           `json:"podHostIP"`
-	CompletionStatus *CompletionStatus `json:"completionStatus"`
+	PodUID           *types.UID                   `json:"podUID"`
+	PodIP            *string                      `json:"podIP"`
+	PodHostIP        *string                      `json:"podHostIP"`
+	CompletionStatus *TaskAttemptCompletionStatus `json:"completionStatus"`
 }
 
 type RetryPolicyStatus struct {
@@ -344,28 +344,57 @@ type RetryPolicyStatus struct {
 	RetryDelaySec *int64 `json:"retryDelaySec"`
 }
 
+// It is generated from Predefined CompletionCodes or PodPattern matching.
+// For a Pod, if no PodPattern is matched and failed Container exists, the
+// CompletionCode is the same as the last failed Container ExitCode.
+// See PodFailureSpec.
 type CompletionStatus struct {
-	// CompletionCode Convention:
-	// 1. NonNegative:
-	//    The CompletionCode is the ExitCode of the Framework's Container which
-	//    triggers the completion.
-	// 2. Negative:
-	//    -1XX: Framework Predefined Transient Error
-	//    -2XX: Framework Predefined Permanent Error
-	//    -3XX: Framework Predefined Unknown Error
-	//    The CompletionCode is the ExitCode of the Framework's Predefined Error
-	//    which triggers the completion.
-	Code CompletionCode `json:"code"`
-	// The textual phrase representation of the CompletionCode.
+	// See corresponding fields in CompletionCodeInfo.
+	Code   CompletionCode   `json:"code"`
 	Phrase CompletionPhrase `json:"phrase"`
+	Type   CompletionType   `json:"type"`
 
-	// CompletionType is determined by the CompletionCode and the Predefined
-	// CompletionCodeInfos.
-	// See CompletionCodeInfos.
-	Type CompletionType `json:"type"`
-
-	// The detailed diagnostic information of the completion.
+	// It is the summarized diagnostic information of the completion.
+	// Such as if the CompletionCodeInfo is generated from the PodPattern matching,
+	// the Diagnostics will include the matched Pod field which is explicitly
+	// specified in the corresponding PodPattern.
+	// For detailed and structured diagnostic information, check its outer embedding
+	// type.
 	Diagnostics string `json:"diagnostics"`
+}
+
+type PodCompletionStatus struct {
+	Reason     string                       `json:"reason,omitempty"`
+	Message    string                       `json:"message,omitempty"`
+	Containers []*ContainerCompletionStatus `json:"containers,omitempty"`
+}
+
+type ContainerCompletionStatus struct {
+	Name    string `json:"name"`
+	Reason  string `json:"reason,omitempty"`
+	Message string `json:"message,omitempty"`
+	Signal  int32  `json:"signal,omitempty"`
+	Code    int32  `json:"code"`
+}
+
+type TaskAttemptCompletionStatus struct {
+	// Summary
+	*CompletionStatus `json:",inline"`
+	// Detail
+	Pod *PodCompletionStatus `json:"pod,omitempty"`
+}
+
+type CompletionPolicyTriggerStatus struct {
+	Message      string `json:"message"`
+	TaskRoleName string `json:"taskRoleName"`
+	TaskIndex    int32  `json:"taskIndex"`
+}
+
+type FrameworkAttemptCompletionStatus struct {
+	// Summary
+	*CompletionStatus `json:",inline"`
+	// Detail
+	Trigger *CompletionPolicyTriggerStatus `json:"trigger,omitempty"`
 }
 
 type CompletionCode int32
@@ -373,8 +402,8 @@ type CompletionCode int32
 type CompletionPhrase string
 
 type CompletionType struct {
-	Name       CompletionTypeName        `json:"name"`
-	Attributes []CompletionTypeAttribute `json:"attributes"`
+	Name       CompletionTypeName        `json:"name" yaml:"name"`
+	Attributes []CompletionTypeAttribute `json:"attributes" yaml:"attributes"`
 }
 
 type CompletionTypeName string
@@ -394,14 +423,6 @@ const (
 	// CompletionTypeName must be the same in every retry times:
 	// such as failed due to incorrect usage, incorrect configuration, etc.
 	CompletionTypeAttributePermanent CompletionTypeAttribute = "Permanent"
-
-	// The completion must be caused by the Platform,
-	// such as failed due to the instability of FrameworkController, K8S, OS,
-	// machine, network, etc.
-	CompletionTypeAttributePlatform CompletionTypeAttribute = "Platform"
-	// The completion must be caused by the user of the Framework,
-	// such as failed due to user code bugs, user stop request, etc.
-	CompletionTypeAttributeUser CompletionTypeAttribute = "User"
 
 	// The completion must be caused by Resource Conflict (Resource Contention):
 	// such as failed due to Gang Allocation timeout.

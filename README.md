@@ -47,11 +47,15 @@ A Framework represents an application with a set of Tasks:
 ### Controller Feature
 1. Highly generalized as it is built for all kinds of applications
 2. Light-weight as it is only responsible for Pod orchestration
-3. Tolerate Pod/ConfigMap unexpected deletion, Node/Network/FrameworkController/Kubernetes failure
-4. Well-defined Framework consistency, state machine and failure model
-5. Idiomatic with Kubernetes official controllers, such as [Pod Spec](https://kubernetes.io/docs/concepts/workloads/pods/pod-overview/#pod-templates)
-6. Compatible with other Kubernetes features, such as Kubernetes [Service](https://kubernetes.io/docs/concepts/services-networking/service), [Gpu Scheduling](https://kubernetes.io/docs/tasks/manage-gpus/scheduling-gpus), [Volume](https://kubernetes.io/docs/concepts/storage/volumes/), [Logging](https://kubernetes.io/docs/concepts/cluster-administration/logging)
-7. Aligned with Kubernetes [Controller Design Guidelines](https://github.com/kubernetes/community/blob/master/contributors/devel/controllers.md) and [API Conventions](https://github.com/kubernetes/community/blob/master/contributors/devel/api-conventions.md)
+3. Well-defined Framework consistency, state machine and failure model
+4. Tolerate Pod/ConfigMap unexpected deletion, Node/Network/FrameworkController/Kubernetes failure
+5. Support to specify how to [classify and summarize Pod failures](doc/user-manual.md#PodFailureClassification)
+6. Support to expose [Framework and Pod history snapshots](doc/user-manual.md#FrameworkPodHistory) to external systems
+7. Easy to leverage [FrameworkBarrier](doc/user-manual.md#FrameworkBarrier) to achieve light-weight Gang Execution and Service Discovery
+8. Easy to leverage [HivedScheduler](doc/user-manual.md#HivedScheduler) to achieve GPU Multi-Tenant, Topology-Aware, Priority and Gang Scheduling
+9. Compatible with other Kubernetes features, such as Kubernetes [Service](https://kubernetes.io/docs/concepts/services-networking/service), [Gpu Scheduling](https://kubernetes.io/docs/tasks/manage-gpus/scheduling-gpus), [Volume](https://kubernetes.io/docs/concepts/storage/volumes/), [Logging](https://kubernetes.io/docs/concepts/cluster-administration/logging)
+10. Idiomatic with Kubernetes official controllers, such as [Pod Spec](https://kubernetes.io/docs/concepts/workloads/pods/pod-overview/#pod-templates)
+11. Aligned with Kubernetes [Controller Design Guidelines](https://github.com/kubernetes/community/blob/master/contributors/devel/controllers.md) and [API Conventions](https://github.com/kubernetes/community/blob/master/contributors/devel/api-conventions.md)
 
 ## Prerequisite
 1. A Kubernetes cluster, v1.14.2 or above, on-cloud or on-premise.
@@ -78,7 +82,7 @@ A specialized wrapper can be built on top of FrameworkController to optimize for
 ### Recommended Kubernetes Scheduler
 FrameworkController can directly leverage many [Kubernetes Schedulers](https://kubernetes.io/docs/tasks/administer-cluster/configure-multiple-schedulers) and among them we recommend these best fits:
 * [Kubernetes Default Scheduler](https://kubernetes.io/docs/concepts/scheduling/kube-scheduler/#kube-scheduler): A General-Purpose Kubernetes Scheduler
-* [HivedScheduler](https://github.com/microsoft/pai/tree/master/subprojects/hivedscheduler): A Kubernetes Scheduler Extender optimized for GPUs ([Example](example/framework/scenario/tensorflow/gpu/tensorflowdistributedtrainingwithhivedscheduledgpu.yaml))
+* [HivedScheduler](doc/user-manual.md#HivedScheduler): A Kubernetes Scheduler Extender optimized for GPUs
 
 ### Similar Offering On Other Cluster Manager
 * [YARN FrameworkLauncher](https://github.com/Microsoft/pai/blob/master/subprojects/frameworklauncher/yarn): Similar offering natively supports [Apache YARN](http://hadoop.apache.org)

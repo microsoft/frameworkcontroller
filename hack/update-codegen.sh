@@ -37,4 +37,4 @@ cd ${PROJECT_DIR}
   github.com/microsoft/frameworkcontroller/pkg/apis \
   frameworkcontroller:v1
 
-echo Succeeded to generate k8s CRD client code
+echo Succeeded to update generated code

@@ -24,8 +24,8 @@ spec:
           containers:
           - name: ubuntu
             image: ubuntu:trusty
-            # See CompletionCode Convention in
-            # ./pkg/apis/frameworkcontroller/v1/constants.go
+            # See Predefined CompletionCode in
+            # ./pkg/apis/frameworkcontroller/v1/completion.go
             command: [
             "sh", "-c",
             "sleep 10 &&

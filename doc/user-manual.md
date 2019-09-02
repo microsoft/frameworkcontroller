@@ -3,10 +3,15 @@
 ## <a name="Index">Index</a>
    - [Framework Interop](#FrameworkInterop)
    - [Container EnvironmentVariable](#ContainerEnvironmentVariable)
-   - [CompletionCode Convention](#CompletionCodeConvention)
+   - [Pod Failure Classification](#PodFailureClassification)
+   - [Predefined CompletionCode](#PredefinedCompletionCode)
+   - [CompletionStatus](#CompletionStatus)
    - [RetryPolicy](#RetryPolicy)
    - [FrameworkAttemptCompletionPolicy](#FrameworkAttemptCompletionPolicy)
+   - [Framework and Pod History](#FrameworkPodHistory)
    - [Controller Extension](#ControllerExtension)
+     - [FrameworkBarrier](#FrameworkBarrier)
+     - [HivedScheduler](#HivedScheduler)
    - [Best Practice](#BestPractice)
 
 ## <a name="FrameworkInterop">Framework Interop</a>
@@ -111,7 +116,7 @@ Type: application/json or application/yaml
 Delete the specified Framework.
 
 Notes:
-* If you need to ensure at most one instance of a specific Framework (identified by the FrameworkName) is running at any point in time, you should always use and only use the [Foreground Deletion](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#foreground-cascading-deletion) in the provided body, see [Framework Notes](../pkg/apis/frameworkcontroller/v1/types.go). However, `kubectl delete` does not support to specify the Foreground Deletion at least for [Kubernetes v1.10](https://github.com/kubernetes/kubernetes/issues/66110#issuecomment-413761559), so you may have to use other [Supported Client](#SupportedClient).
+* If you need to ensure at most one instance of a specific Framework (identified by the FrameworkName) is running at any point in time, you should always use and only use the [Foreground Deletion](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#foreground-cascading-deletion) in the provided body, see [Framework Notes](../pkg/apis/frameworkcontroller/v1/types.go). However, `kubectl delete` does not support to specify the Foreground Deletion at least for [Kubernetes v1.14.2](https://github.com/kubernetes/kubernetes/issues/66110#issuecomment-413761559), so you may have to use other [Supported Client](#SupportedClient).
 
 **Response**
 
@@ -194,8 +199,18 @@ Watch the change events of all Frameworks (in the specified FrameworkNamespace).
 ## <a name="ContainerEnvironmentVariable">Container EnvironmentVariable</a>
 [Container EnvironmentVariable](../pkg/apis/frameworkcontroller/v1/constants.go)
 
-## <a name="CompletionCodeConvention">CompletionCode Convention</a>
-[CompletionCode Convention](../pkg/apis/frameworkcontroller/v1/constants.go)
+## <a name="PodFailureClassification">Pod Failure Classification</a>
+You can specify how to classify and summarize Pod failures by [PodFailureSpec](../pkg/apis/frameworkcontroller/v1/config.go).
+
+## <a name="PredefinedCompletionCode">Predefined CompletionCode</a>
+You can leverage the [Predefined CompletionCode](../pkg/apis/frameworkcontroller/v1/completion.go) to instruct your [RetryPolicy](#RetryPolicy) and identify a certain predefined CompletionCode, regardless of different [PodFailureSpec](../pkg/apis/frameworkcontroller/v1/config.go) may be configured in different clusters.
+
+## <a name="CompletionStatus">CompletionStatus</a>
+[CompletionStatus](../pkg/apis/frameworkcontroller/v1/types.go): It is generated from [Predefined CompletionCode](#PredefinedCompletionCode) or [PodPattern matching](#PodFailureClassification). For a Pod, if no PodPattern is matched and failed Container exists, the CompletionCode is the same as the last failed Container ExitCode.
+
+[TaskAttemptCompletionStatus](../pkg/apis/frameworkcontroller/v1/types.go): Besides the [CompletionStatus](../pkg/apis/frameworkcontroller/v1/types.go), it also provides more detailed and structured diagnostic information about the completion of a TaskAttempt.
+
+[FrameworkAttemptCompletionStatus](../pkg/apis/frameworkcontroller/v1/types.go): Besides the [CompletionStatus](../pkg/apis/frameworkcontroller/v1/types.go), it also provides more detailed and structured diagnostic information about the completion of a FrameworkAttempt.
 
 ## <a name="RetryPolicy">RetryPolicy</a>
 ### <a name="RetryPolicy_Spec">Spec</a>
@@ -210,7 +225,7 @@ Notes:
 
    *You still need to specify them explicitly, as we have not supported the Framework Spec Defaulting yet.*
 
-2. For the definition of each CompletionType, such as Transient Failed, see [CompletionCode Convention](#CompletionCodeConvention).
+2. For the definition of each [CompletionType](../pkg/apis/frameworkcontroller/v1/types.go), such as Transient Failed, see [CompletionStatus](#CompletionStatus).
 
 <table>
   <tbody>
@@ -350,10 +365,17 @@ Notes:
   </tbody>
 </table>
 
+## <a name="FrameworkPodHistory">Framework and Pod History</a>
+By leveraging [LogObjectSnapshot](../pkg/apis/frameworkcontroller/v1/config.go), external systems, such as [Fluentd](https://www.fluentd.org) and [ElasticSearch](https://www.elastic.co/products/elasticsearch), can collect and process Framework and Pod history snapshots even if it was retried or deleted, such as persistence, metrics conversion, visualization, alerting, acting, analysis, etc.
+
 ## <a name="ControllerExtension">Controller Extension</a>
 ### <a name="FrameworkBarrier">FrameworkBarrier</a>
 1. [Usage](../pkg/barrier/barrier.go)
 2. Example: [FrameworkBarrier Example](../example/framework/extension/frameworkbarrier.yaml), [TensorFlow Example](../example/framework/scenario/tensorflow), [etc](../example/framework/scenario).
+
+### <a name="HivedScheduler">HivedScheduler</a>
+1. [Usage](https://github.com/microsoft/pai/tree/master/subprojects/hivedscheduler)
+2. Example: [TensorFlow Example](../example/framework/scenario/tensorflow/gpu/tensorflowdistributedtrainingwithhivedscheduledgpu.yaml), [etc](https://github.com/microsoft/pai/blob/master/subprojects/GOPATH/src/github.com/microsoft/hivedscheduler/example/request/design/request.yaml).
 
 ## <a name="BestPractice">Best Practice</a>
 [Best Practice](../pkg/apis/frameworkcontroller/v1/types.go)
