@@ -12,16 +12,15 @@ import (
 	"k8s.io/klog"
 )
 // todo frameworkController add podgroupInformer and save to cache
-func (c *FrameworkController) SyncPodGroup(f *v1.Framework, minAvailableReplicas int32) (*v1alpha1.PodGroup, error) {
+func (fc *FrameworkController) SyncPodGroup(f *v1.Framework, minAvailableReplicas int32) (*v1alpha1.PodGroup, error) {
 
-	kubeBatchClientInterface := c.kbClient
+	kubeBatchClientInterface := fc.kbClient
 	// Check whether podGroup exists or not
 	podGroupName := GenPodGroupName(f.Name)
 	podGroup, err := kubeBatchClientInterface.SchedulingV1alpha1().PodGroups(f.Namespace).Get(podGroupName, metav1.GetOptions{})
 	if err == nil {
 		return podGroup, nil
 	}
-
 	// create podGroup with
 	minAvailable := intstr.FromInt(int(minAvailableReplicas))
 	priorityClassName := f.Spec.PriorityClassName
@@ -31,6 +30,9 @@ func (c *FrameworkController) SyncPodGroup(f *v1.Framework, minAvailableReplicas
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      podGroupName,
 			Namespace: f.Namespace,
+			OwnerReferences: []metav1.OwnerReference{
+				*GenOwnerReference(f),
+			},
 		},
 		Spec: v1alpha1.PodGroupSpec{
 			MinMember:         minAvailable.IntVal,
@@ -40,8 +42,8 @@ func (c *FrameworkController) SyncPodGroup(f *v1.Framework, minAvailableReplicas
 	}
 	return kubeBatchClientInterface.SchedulingV1alpha1().PodGroups(f.Namespace).Create(createPodGroup)
 }
-func (jc *FrameworkController) DeletePodGroup(object runtime.Object) error {
-	kubeBatchClientInterface := jc.kbClient
+func (fc *FrameworkController) DeletePodGroup(object runtime.Object) error {
+	kubeBatchClientInterface := fc.kbClient
 
 	accessor, err := meta.Accessor(object)
 	if err != nil {
@@ -70,4 +72,18 @@ func (jc *FrameworkController) DeletePodGroup(object runtime.Object) error {
 // Gen PodGroupName for kube-batch, which is used for crd podGroup and annotation in pod
 func GenPodGroupName(jobName string) string {
 	return jobName
+}
+
+func GenOwnerReference(obj metav1.Object) *metav1.OwnerReference {
+	boolPtr := func(b bool) *bool { return &b }
+	controllerRef := &metav1.OwnerReference{
+		APIVersion:         v1.FrameworkGroupVersionKind.GroupVersion().String(),
+		Kind:               v1.FrameworkGroupVersionKind.Kind,
+		Name:               obj.GetName(),
+		UID:                obj.GetUID(),
+		BlockOwnerDeletion: boolPtr(true),
+		Controller:         boolPtr(true),
+	}
+
+	return controllerRef
 }
