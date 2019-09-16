@@ -9,3 +9,4 @@ We provide various Framework examples that can be submitted by various clients:
 ## Next
 1. [Framework Interop](../../doc/user-manual.md#FrameworkInterop)
 2. [Framework Usage](../../pkg/apis/frameworkcontroller/v1/types.go)
+3. [User Manual](../../doc/user-manual.md)
