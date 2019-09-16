@@ -11,7 +11,7 @@ Notes:
  [Config Usage](../../pkg/apis/frameworkcontroller/v1/config.go) and [Config Example](../../example/config/default/frameworkcontroller.yaml).
 
 ## <a name="RunByKubernetesStatefulSet">Run By Kubernetes StatefulSet</a>
-- This approach is better for production, since StatefulSet by itself provides [self-healing](https://kubernetes.io/docs/concepts/workloads/pods/pod/#durability-of-pods-or-lack-thereof) and can ensure [at most one instance](https://github.com/kubernetes/community/blob/master/contributors/design-proposals/storage/pod-safety.md) of FrameworkController is running at any point in time.
+- This approach is better for production, since StatefulSet by itself provides [self-healing](https://kubernetes.io/docs/concepts/workloads/pods/pod/#durability-of-pods-or-lack-thereof) and can ensure [at most one instance](https://github.com/kubernetes/community/blob/ee8998b156031f6b363daade51ca2d12521f4ac0/contributors/design-proposals/storage/pod-safety.md) of FrameworkController is running at any point in time.
 - Using official image to demonstrate this example.
 
 **Prerequisite**

@@ -252,26 +252,26 @@ func MatchCompletionCodeInfos(pod *core.Pod) PodMatchResult {
 func matchPodPattern(pod *core.Pod, podPattern *PodPattern) *MatchedPod {
 	matchedPod := &MatchedPod{}
 
-	if ms := podPattern.NameRegex.FindString(pod.Name); ms != nil {
-		if !podPattern.NameRegex.IsZero() {
+	if !podPattern.NameRegex.IsZero() {
+		if ms := podPattern.NameRegex.FindString(pod.Name); ms != nil {
 			matchedPod.Name = ms
+		} else {
+			return nil
 		}
-	} else {
-		return nil
 	}
-	if ms := podPattern.ReasonRegex.FindString(pod.Status.Reason); ms != nil {
-		if !podPattern.ReasonRegex.IsZero() {
+	if !podPattern.ReasonRegex.IsZero() {
+		if ms := podPattern.ReasonRegex.FindString(pod.Status.Reason); ms != nil {
 			matchedPod.Reason = *ms
+		} else {
+			return nil
 		}
-	} else {
-		return nil
 	}
-	if ms := podPattern.MessageRegex.FindString(pod.Status.Message); ms != nil {
-		if !podPattern.MessageRegex.IsZero() {
+	if !podPattern.MessageRegex.IsZero() {
+		if ms := podPattern.MessageRegex.FindString(pod.Status.Message); ms != nil {
 			matchedPod.Message = *ms
+		} else {
+			return nil
 		}
-	} else {
-		return nil
 	}
 
 	if len(podPattern.Containers) > 0 {
@@ -310,41 +310,53 @@ func matchContainerPattern(
 	term := container.State.Terminated
 	matchedContainer := &MatchedContainer{}
 
-	if ms := containerPattern.NameRegex.FindString(container.Name); ms != nil {
-		if !containerPattern.NameRegex.IsZero() {
+	if !containerPattern.NameRegex.IsZero() {
+		if ms := containerPattern.NameRegex.FindString(container.Name); ms != nil {
 			matchedContainer.Name = ms
+		} else {
+			return nil
 		}
-	} else {
-		return nil
-	}
-	if ms := containerPattern.ReasonRegex.FindString(term.Reason); ms != nil {
-		if !containerPattern.ReasonRegex.IsZero() {
-			matchedContainer.Reason = *ms
-		}
-	} else {
-		return nil
-	}
-	if ms := containerPattern.MessageRegex.FindString(term.Message); ms != nil {
-		if !containerPattern.MessageRegex.IsZero() {
-			matchedContainer.Message = *ms
-		}
-	} else {
-		return nil
 	}
 
-	if containerPattern.SignalRange.Contains(term.Signal) {
-		if !containerPattern.SignalRange.IsZero() {
-			matchedContainer.Signal = term.Signal
+	if !containerPattern.ReasonRegex.IsZero() {
+		if term == nil {
+			return nil
 		}
-	} else {
-		return nil
+		if ms := containerPattern.ReasonRegex.FindString(term.Reason); ms != nil {
+			matchedContainer.Reason = *ms
+		} else {
+			return nil
+		}
 	}
-	if containerPattern.CodeRange.Contains(term.ExitCode) {
-		if !containerPattern.CodeRange.IsZero() {
-			matchedContainer.Code = &term.ExitCode
+	if !containerPattern.MessageRegex.IsZero() {
+		if term == nil {
+			return nil
 		}
-	} else {
-		return nil
+		if ms := containerPattern.MessageRegex.FindString(term.Message); ms != nil {
+			matchedContainer.Message = *ms
+		} else {
+			return nil
+		}
+	}
+	if !containerPattern.SignalRange.IsZero() {
+		if term == nil {
+			return nil
+		}
+		if containerPattern.SignalRange.Contains(term.Signal) {
+			matchedContainer.Signal = term.Signal
+		} else {
+			return nil
+		}
+	}
+	if !containerPattern.CodeRange.IsZero() {
+		if term == nil {
+			return nil
+		}
+		if containerPattern.CodeRange.Contains(term.ExitCode) {
+			matchedContainer.Code = &term.ExitCode
+		} else {
+			return nil
+		}
 	}
 
 	return matchedContainer
@@ -530,16 +542,17 @@ func ExtractPodCompletionStatus(pod *core.Pod) *PodCompletionStatus {
 	}
 
 	for _, container := range GetAllContainerStatuses(pod) {
+		ccs := &ContainerCompletionStatus{
+			Name: container.Name,
+		}
 		term := container.State.Terminated
-		pcs.Containers = append(pcs.Containers,
-			&ContainerCompletionStatus{
-				Name:    container.Name,
-				Reason:  term.Reason,
-				Message: term.Message,
-				Signal:  term.Signal,
-				Code:    term.ExitCode,
-			},
-		)
+		if term != nil {
+			ccs.Reason = term.Reason
+			ccs.Message = term.Message
+			ccs.Signal = term.Signal
+			ccs.Code = term.ExitCode
+		}
+		pcs.Containers = append(pcs.Containers, ccs)
 	}
 
 	return pcs

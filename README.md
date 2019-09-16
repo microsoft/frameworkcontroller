@@ -52,10 +52,10 @@ A Framework represents an application with a set of Tasks:
 5. Support to specify how to [classify and summarize Pod failures](doc/user-manual.md#PodFailureClassification)
 6. Support to expose [Framework and Pod history snapshots](doc/user-manual.md#FrameworkPodHistory) to external systems
 7. Easy to leverage [FrameworkBarrier](doc/user-manual.md#FrameworkBarrier) to achieve light-weight Gang Execution and Service Discovery
-8. Easy to leverage [HivedScheduler](doc/user-manual.md#HivedScheduler) to achieve GPU Multi-Tenant, Topology-Aware, Priority and Gang Scheduling
+8. Easy to leverage [HivedScheduler](doc/user-manual.md#HivedScheduler) to achieve GPU Topology-Aware, Multi-Tenant, Priority and Gang Scheduling
 9. Compatible with other Kubernetes features, such as Kubernetes [Service](https://kubernetes.io/docs/concepts/services-networking/service), [Gpu Scheduling](https://kubernetes.io/docs/tasks/manage-gpus/scheduling-gpus), [Volume](https://kubernetes.io/docs/concepts/storage/volumes/), [Logging](https://kubernetes.io/docs/concepts/cluster-administration/logging)
 10. Idiomatic with Kubernetes official controllers, such as [Pod Spec](https://kubernetes.io/docs/concepts/workloads/pods/pod-overview/#pod-templates)
-11. Aligned with Kubernetes [Controller Design Guidelines](https://github.com/kubernetes/community/blob/master/contributors/devel/controllers.md) and [API Conventions](https://github.com/kubernetes/community/blob/master/contributors/devel/api-conventions.md)
+11. Aligned with Kubernetes [Controller Design Guidelines](https://github.com/kubernetes/community/blob/f0dd87ad477e1e91c53866902adf7832c32ce543/contributors/devel/sig-api-machinery/controllers.md) and [API Conventions](https://github.com/kubernetes/community/blob/a2cdce51a0bbbc214f0e8813e0a877176ad3b6c9/contributors/devel/sig-architecture/api-conventions.md)
 
 ## Prerequisite
 1. A Kubernetes cluster, v1.14.2 or above, on-cloud or on-premise.

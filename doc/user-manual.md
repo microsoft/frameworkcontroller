@@ -202,6 +202,8 @@ Watch the change events of all Frameworks (in the specified FrameworkNamespace).
 ## <a name="PodFailureClassification">Pod Failure Classification</a>
 You can specify how to classify and summarize Pod failures by [PodFailureSpec](../pkg/apis/frameworkcontroller/v1/config.go).
 
+You can also directly leverage the [Default PodFailureSpec](../example/config/default/frameworkcontroller.yaml).
+
 ## <a name="PredefinedCompletionCode">Predefined CompletionCode</a>
 You can leverage the [Predefined CompletionCode](../pkg/apis/frameworkcontroller/v1/completion.go) to instruct your [RetryPolicy](#RetryPolicy) and identify a certain predefined CompletionCode, regardless of different [PodFailureSpec](../pkg/apis/frameworkcontroller/v1/config.go) may be configured in different clusters.
 

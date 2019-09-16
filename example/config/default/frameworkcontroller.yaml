@@ -81,9 +81,7 @@ podFailureSpec:
       nameRegex: '(?ms).*'
       messageRegex: '(?ms).*'
 - code: -1201
-  phrase: ContainerDockerRunFlagInvalid
-  type:
-    attributes: [Permanent]
+  phrase: ContainerDockerCreationError
   podPatterns:
   - containers:
     - reasonRegex: '(?i)^ContainerCannotRun$'
@@ -91,7 +89,7 @@ podFailureSpec:
       nameRegex: '(?ms).*'
       messageRegex: '(?ms).*'
 - code: -1202
-  phrase: ContainerDockerRunPermissionDenied
+  phrase: ContainerDockerStartCmdPermissionDenied
   type:
     attributes: [Permanent]
   podPatterns:
@@ -101,7 +99,7 @@ podFailureSpec:
       nameRegex: '(?ms).*'
       messageRegex: '(?ms).*'
 - code: -1203
-  phrase: ContainerDockerRunCmdNotFound
+  phrase: ContainerDockerStartCmdNotFound
   type:
     attributes: [Permanent]
   podPatterns:
@@ -116,7 +114,7 @@ podFailureSpec:
       nameRegex: '(?ms).*'
       messageRegex: '(?msi).*(not found|cannot find|no such).*'
 - code: -1204
-  phrase: ContainerDockerRunUnknownError
+  phrase: ContainerDockerStartUnknownError
   podPatterns:
   - containers:
     - reasonRegex: '(?i)^ContainerCannotRun$'
