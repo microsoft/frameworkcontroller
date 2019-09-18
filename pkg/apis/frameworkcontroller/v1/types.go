@@ -47,8 +47,7 @@ type FrameworkList struct {
 // 4. With consistent identity {FrameworkName}-{TaskRoleName}-{TaskIndex} as PodName
 // 5. With fine grained RetryPolicy for each Task and the whole Framework
 // 6. With fine grained FrameworkAttemptCompletionPolicy for each TaskRole
-// 7. Guarantees at most one instance of a specific Task is running at any point in time
-// 8. Guarantees at most one instance of a specific Framework is running at any point in time
+// 7. With PodGracefulDeletionTimeoutSec for each Task to tune Consistency vs Availability
 //
 // Notes:
 // 1. Status field should only be modified by FrameworkController, and
@@ -57,26 +56,6 @@ type FrameworkList struct {
 //    Leverage CRD status subresource to isolate Status field modification with other fields.
 //    This can help to avoid unintended modification, such as users may unintendedly modify
 //    the status when updating the spec.
-// 2. To ensure at most one instance of a specific Task is running at any point in time:
-//    1. Do not delete the managed Pod with 0 gracePeriodSeconds.
-//       For example, the default Pod deletion is acceptable.
-//    2. Do not delete the Node which runs the managed Pod.
-//       For example, drain before delete the Node is acceptable.
-//    The instance can be universally located by its TaskAttemptInstanceUID or PodUID.
-//    See RetryPolicySpec and TaskAttemptStatus.
-// 3. To ensure at most one instance of a specific Framework is running at any point in time:
-//    1. Ensure ensure at most one instance of a specific Task is running at any point in time.
-//    2. Do not delete the managed ConfigMap with Background propagationPolicy.
-//       For example, the default ConfigMap deletion is acceptable.
-//    3. Must delete the Framework with Foreground propagationPolicy.
-//       For example, the default Framework deletion may not be acceptable, since the default
-//       propagationPolicy for Framework object may be Background.
-//    The instance can be universally located by its FrameworkAttemptInstanceUID or ConfigMapUID.
-//    See RetryPolicySpec and FrameworkAttemptStatus.
-// 4. To ensure there is no orphan object previously managed by FrameworkController:
-//    1. Do not delete the Framework or the managed ConfigMap with Orphan propagationPolicy.
-//       For example, the default Framework and ConfigMap deletion is acceptable.
-//    2. Do not change the OwnerReferences of the managed ConfigMap and Pods.
 //////////////////////////////////////////////////////////////////////////////////////////////////
 type Framework struct {
 	meta.TypeMeta   `json:",inline"`
@@ -107,8 +86,30 @@ type TaskRoleSpec struct {
 }
 
 type TaskSpec struct {
-	RetryPolicy RetryPolicySpec      `json:"retryPolicy"`
-	Pod         core.PodTemplateSpec `json:"pod"`
+	RetryPolicy RetryPolicySpec `json:"retryPolicy"`
+
+	// If the Task's current associated Pod object is being deleted, i.e. graceful
+	// deletion, but the graceful deletion cannot finish within this timeout, then
+	// the Pod will be deleted forcefully by FrameworkController.
+	// Default to nil.
+	//
+	// If this timeout is not nil, the Pod may be deleted forcefully by FrameworkController.
+	// The force deletion does not wait for confirmation that the Pod has been terminated
+	// totally, and then the Task will be immediately transitioned to TaskAttemptCompleted.
+	// As a consequence, the Task will be immediately completed or retried with another
+	// new Pod, however the old Pod may be still running.
+	// So, in this setting, the Task behaves like ReplicaSet, and choose it if the Task
+	// favors availability over consistency, such as stateless Task.
+	// However, to still best effort execute graceful deletion, this timeout should be
+	// longer than the Pod TerminationGracePeriodSeconds.
+	//
+	// If this timeout is nil, the Pod will always be deleted gracefully, i.e. never
+	// be deleted forcefully by FrameworkController. This helps to guarantee at most
+	// one instance of a specific Task is running at any point in time.
+	// So, in this setting, the Task behaves like StatefulSet, and choose it if the Task
+	// favors consistency over availability, such as stateful Task.
+	PodGracefulDeletionTimeoutSec *int64               `json:"podGracefulDeletionTimeoutSec"`
+	Pod                           core.PodTemplateSpec `json:"pod"`
 }
 
 type ExecutionType string
@@ -163,10 +164,9 @@ const (
 //    So, an attempt identified by its attempt id may be associated with multiple
 //    attempt instances over time, i.e. multiple instances may be run for the
 //    attempt over time, however, at most one instance is exposed into ApiServer
-//    over time and at most one instance is running at any point in time.
-//    So, the actual retried attempt instances maybe exceed the RetryPolicySpec
-//    in rare cases, however, the RetryPolicyStatus will never exceed the
-//    RetryPolicySpec.
+//    over time.
+//    So, the actual retried attempt instances may exceed the RetryPolicySpec in
+//    rare cases, however, the RetryPolicyStatus will never exceed the RetryPolicySpec.
 // 2. Resort to other spec to control other kind of RetryPolicy:
 //    1. Container RetryPolicy is the RestartPolicy in Pod Spec.
 //       See https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#restart-policy

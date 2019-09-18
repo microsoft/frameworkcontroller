@@ -514,75 +514,66 @@ func (c *FrameworkController) syncFramework(key string) (returnedErr error) {
 				"Failed: Framework cannot be got from local cache: %v", err)
 		}
 	} else {
-		if localF.DeletionTimestamp != nil {
-			// Skip syncFramework to avoid fighting with GarbageCollectionController,
-			// because GarbageCollectionController may be deleting the dependent object.
-			klog.Infof(logPfx+
-				"Skipped: Framework is deleting: Will be deleted at %v",
-				localF.DeletionTimestamp)
-			return nil
+		f := localF.DeepCopy()
+		// From now on, f is a writable copy of the original local cached one, and
+		// it may be different from the original one.
+
+		expected := c.getExpectedFrameworkStatusInfo(f.Key())
+		if expected == nil {
+			if f.Status != nil {
+				// Recover f related things, since it is the first time we see it and
+				// its Status is not nil.
+				// No need to recover previous enqueued items, because the Informer has
+				// already delivered the Add events for all recovered Frameworks which
+				// caused all Frameworks will be enqueued to sync.
+				// No need to recover previous scheduled to enqueue items, because the
+				// schedule will be recovered during sync.
+			}
+
+			// f.Status must be the same as the remote one, since it is the first
+			// time we see it.
+			c.updateExpectedFrameworkStatusInfo(f.Key(), f.Status, true)
 		} else {
-			f := localF.DeepCopy()
-			// From now on, f is a writable copy of the original local cached one, and
-			// it may be different from the original one.
+			// f.Status may be outdated, so override it with the expected one, to
+			// ensure the Framework.Status is Monotonically Exposed.
+			f.Status = expected.status
 
-			expected := c.getExpectedFrameworkStatusInfo(f.Key())
-			if expected == nil {
-				if f.Status != nil {
-					// Recover f related things, since it is the first time we see it and
-					// its Status is not nil.
-					// No need to recover previous enqueued items, because the Informer has
-					// already delivered the Add events for all recovered Frameworks which
-					// caused all Frameworks will be enqueued to sync.
-					// No need to recover previous scheduled to enqueue items, because the
-					// schedule will be recovered during sync.
-				}
-
-				// f.Status must be the same as the remote one, since it is the first
-				// time we see it.
-				c.updateExpectedFrameworkStatusInfo(f.Key(), f.Status, true)
-			} else {
-				// f.Status may be outdated, so override it with the expected one, to
-				// ensure the Framework.Status is Monotonically Exposed.
-				f.Status = expected.status
-
-				// Ensure the expected Framework.Status is the same as the remote one
-				// before sync.
-				if !expected.remoteSynced {
-					updateErr := c.updateRemoteFrameworkStatus(f)
-					if updateErr != nil {
-						return updateErr
-					}
-					c.updateExpectedFrameworkStatusInfo(f.Key(), f.Status, true)
-				}
-			}
-
-			// At this point, f.Status is the same as the expected and remote
-			// Framework.Status, so it is ready to sync against f.Spec and other
-			// related objects.
-			errs := []error{}
-			remoteF := f.DeepCopy()
-
-			syncErr := c.syncFrameworkStatus(f)
-			errs = append(errs, syncErr)
-
-			if !reflect.DeepEqual(remoteF.Status, f.Status) {
-				// Always update the expected and remote Framework.Status even if sync
-				// error, since f.Status should never be corrupted due to any Platform
-				// Transient Error, so no need to rollback to the one before sync, and
-				// no need to DeepCopy between f.Status and the expected one.
+			// Ensure the expected Framework.Status is the same as the remote one
+			// before sync.
+			if !expected.remoteSynced {
 				updateErr := c.updateRemoteFrameworkStatus(f)
-				errs = append(errs, updateErr)
-
-				c.updateExpectedFrameworkStatusInfo(f.Key(), f.Status, updateErr == nil)
-			} else {
-				klog.Infof(logPfx +
-					"Skip to update the expected and remote Framework.Status since " +
-					"they are unchanged")
+				if updateErr != nil {
+					return updateErr
+				}
+				c.updateExpectedFrameworkStatusInfo(f.Key(), f.Status, true)
 			}
-
-			return errorAgg.NewAggregate(errs)
 		}
+
+		// At this point, f.Status is the same as the expected and remote
+		// Framework.Status, so it is ready to sync against f.Spec and other
+		// related objects.
+		errs := []error{}
+		remoteF := f.DeepCopy()
+
+		syncErr := c.syncFrameworkStatus(f)
+		errs = append(errs, syncErr)
+
+		if !reflect.DeepEqual(remoteF.Status, f.Status) {
+			// Always update the expected and remote Framework.Status even if sync
+			// error, since f.Status should never be corrupted due to any Platform
+			// Transient Error, so no need to rollback to the one before sync, and
+			// no need to DeepCopy between f.Status and the expected one.
+			updateErr := c.updateRemoteFrameworkStatus(f)
+			errs = append(errs, updateErr)
+
+			c.updateExpectedFrameworkStatusInfo(f.Key(), f.Status, updateErr == nil)
+		} else {
+			klog.Infof(logPfx +
+				"Skip to update the expected and remote Framework.Status since " +
+				"they are unchanged")
+		}
+
+		return errorAgg.NewAggregate(errs)
 	}
 }
 
@@ -645,6 +636,19 @@ func (c *FrameworkController) enqueueTaskRetryDelayTimeoutCheck(
 		failIfTimeout, "TaskRetryDelayTimeoutCheck")
 }
 
+func (c *FrameworkController) enqueuePodGracefulDeletionTimeoutCheck(
+	f *ci.Framework, taskRoleName string, taskIndex int32,
+	failIfTimeout bool, pod *core.Pod) bool {
+	taskSpec := f.TaskRoleSpec(taskRoleName).Task
+	if pod.DeletionTimestamp == nil {
+		return false
+	}
+
+	return c.enqueueFrameworkTimeoutCheck(
+		f, *internal.GetPodDeletionStartTime(pod), taskSpec.PodGracefulDeletionTimeoutSec,
+		failIfTimeout, "PodGracefulDeletionTimeoutCheck")
+}
+
 func (c *FrameworkController) enqueueFrameworkTimeoutCheck(
 	f *ci.Framework, startTime meta.Time, timeoutSec *int64,
 	failIfTimeout bool, logSfx string) bool {
@@ -693,7 +697,8 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 
 	if f.Status.State == ci.FrameworkCompleted {
 		if c.enqueueFrameworkCompletedRetainTimeoutCheck(f, true) {
-			klog.Infof(logPfx + "Skipped: Framework is already completed")
+			klog.Infof(logPfx + "Skipped: Framework is already completed, " +
+				"and waiting to be deleted after FrameworkCompletedRetainSec")
 			return nil
 		}
 
@@ -737,7 +742,7 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 
 					diag = fmt.Sprintf(
 						"ConfigMap does not appear in the local cache within timeout %v, "+
-							"so consider it was deleted and force delete it",
+							"so consider it was deleted and explicitly delete it",
 						common.SecToDuration(c.cConfig.ObjectLocalCacheCreationTimeoutSec))
 					code = ci.CompletionCodeConfigMapCreationTimeout
 					klog.Warningf(logPfx + diag)
@@ -887,6 +892,12 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 	// FrameworkAttemptDeleting}
 
 	if f.Status.State == ci.FrameworkAttemptCreationPending {
+		if f.DeletionTimestamp != nil {
+			klog.Infof(logPfx + "Skip to createFrameworkAttempt: " +
+				"Framework is deleting")
+			return nil
+		}
+
 		if f.Spec.ExecutionType == ci.ExecutionStop {
 			diag := fmt.Sprintf("User has requested to stop the Framework")
 			klog.Infof(logPfx + diag)
@@ -965,22 +976,22 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 }
 
 func (c *FrameworkController) deleteFramework(
-	f *ci.Framework, force bool) error {
+	f *ci.Framework, confirm bool) error {
 	errPfx := fmt.Sprintf(
-		"[%v]: Failed to delete Framework %v: force: %v: ",
-		f.Key(), f.UID, force)
+		"[%v]: Failed to delete Framework %v: confirm: %v: ",
+		f.Key(), f.UID, confirm)
 
-	// Do not set zero GracePeriodSeconds to do force deletion in any case, since
-	// it will also immediately delete Pod in PodUnknown state, while the Pod may
-	// be still running.
 	deleteErr := c.fClient.FrameworkcontrollerV1().Frameworks(f.Namespace).Delete(
-		f.Name, &meta.DeleteOptions{Preconditions: &meta.Preconditions{UID: &f.UID}})
+		f.Name, &meta.DeleteOptions{
+			Preconditions:     &meta.Preconditions{UID: &f.UID},
+			PropagationPolicy: common.PtrDeletionPropagation(meta.DeletePropagationForeground),
+		})
 	if deleteErr != nil {
 		if !apiErrors.IsNotFound(deleteErr) {
 			return fmt.Errorf(errPfx+"%v", deleteErr)
 		}
 	} else {
-		if force {
+		if confirm {
 			// Confirm it is deleted instead of still deleting.
 			remoteF, getErr := c.fClient.FrameworkcontrollerV1().Frameworks(f.Namespace).Get(
 				f.Name, meta.GetOptions{})
@@ -1000,8 +1011,8 @@ func (c *FrameworkController) deleteFramework(
 	}
 
 	klog.Infof(
-		"[%v]: Succeeded to delete Framework %v: force: %v",
-		f.Key(), f.UID, force)
+		"[%v]: Succeeded to delete Framework %v: confirm: %v",
+		f.Key(), f.UID, confirm)
 	return nil
 }
 
@@ -1012,10 +1023,11 @@ func (c *FrameworkController) deleteFramework(
 // Clean up instead of recovery is because the ConfigMapUID is always the ground
 // truth.
 func (c *FrameworkController) getOrCleanupConfigMap(
-	f *ci.Framework, force bool) (cm *core.ConfigMap, err error) {
+	f *ci.Framework, confirm bool) (cm *core.ConfigMap, err error) {
+	logPfx := fmt.Sprintf("[%v]: getOrCleanupConfigMap: ", f.Key())
 	cmName := f.ConfigMapName()
 
-	if force {
+	if confirm {
 		cm, err = c.kClient.CoreV1().ConfigMaps(f.Namespace).Get(cmName,
 			meta.GetOptions{})
 	} else {
@@ -1026,9 +1038,9 @@ func (c *FrameworkController) getOrCleanupConfigMap(
 		if apiErrors.IsNotFound(err) {
 			return nil, nil
 		} else {
-			return nil, fmt.Errorf(
-				"[%v]: Failed to get ConfigMap %v: force: %v: %v",
-				f.Key(), cmName, force, err)
+			return nil, fmt.Errorf(logPfx+
+				"Failed to get ConfigMap %v: confirm: %v: %v",
+				cmName, confirm, err)
 		}
 	}
 
@@ -1039,11 +1051,18 @@ func (c *FrameworkController) getOrCleanupConfigMap(
 			// is failed to persist due to FrameworkController restart or create fails
 			// but succeeds on remote, so clean up the ConfigMap to avoid unmanaged cm
 			// leak.
-			return nil, c.deleteConfigMap(f, cm.UID, force)
+			klog.Warningf(logPfx+
+				"Found unmanaged but controlled ConfigMap, so explicitly delete it: %v, %v",
+				cm.Name, cm.UID)
+			return nil, c.deleteConfigMap(f, cm.UID, confirm)
 		} else {
 			// Do not own and manage the life cycle of not controlled object, so still
 			// consider the get and controlled object clean up is success, and postpone
 			// the potential naming conflict when creating the controlled object.
+			klog.Warningf(logPfx+
+				"Found unmanaged and uncontrolled ConfigMap, and it may be naming conflict "+
+				"with the controlled ConfigMap to be created: %v, %v",
+				cm.Name, cm.UID)
 			return nil, nil
 		}
 	} else {
@@ -1055,15 +1074,12 @@ func (c *FrameworkController) getOrCleanupConfigMap(
 // Using UID to ensure we delete the right object.
 // The cmUID should be controlled by f.
 func (c *FrameworkController) deleteConfigMap(
-	f *ci.Framework, cmUID types.UID, force bool) error {
+	f *ci.Framework, cmUID types.UID, confirm bool) error {
 	cmName := f.ConfigMapName()
 	errPfx := fmt.Sprintf(
-		"[%v]: Failed to delete ConfigMap %v, %v: force: %v: ",
-		f.Key(), cmName, cmUID, force)
+		"[%v]: Failed to delete ConfigMap %v, %v: confirm: %v: ",
+		f.Key(), cmName, cmUID, confirm)
 
-	// Do not set zero GracePeriodSeconds to do force deletion in any case, since
-	// it will also immediately delete Pod in PodUnknown state, while the Pod may
-	// be still running.
 	deleteErr := c.kClient.CoreV1().ConfigMaps(f.Namespace).Delete(cmName,
 		&meta.DeleteOptions{Preconditions: &meta.Preconditions{UID: &cmUID}})
 	if deleteErr != nil {
@@ -1071,7 +1087,7 @@ func (c *FrameworkController) deleteConfigMap(
 			return fmt.Errorf(errPfx+"%v", deleteErr)
 		}
 	} else {
-		if force {
+		if confirm {
 			// Confirm it is deleted instead of still deleting.
 			cm, getErr := c.kClient.CoreV1().ConfigMaps(f.Namespace).Get(cmName,
 				meta.GetOptions{})
@@ -1091,8 +1107,8 @@ func (c *FrameworkController) deleteConfigMap(
 	}
 
 	klog.Infof(
-		"[%v]: Succeeded to delete ConfigMap %v, %v: force: %v",
-		f.Key(), cmName, cmUID, force)
+		"[%v]: Succeeded to delete ConfigMap %v, %v: confirm: %v",
+		f.Key(), cmName, cmUID, confirm)
 	return nil
 }
 
@@ -1195,13 +1211,13 @@ func (c *FrameworkController) syncTaskState(
 
 				diag := fmt.Sprintf(
 					"Pod does not appear in the local cache within timeout %v, "+
-						"so consider it was deleted and force delete it",
+						"so consider it was deleted and explicitly delete it",
 					common.SecToDuration(c.cConfig.ObjectLocalCacheCreationTimeoutSec))
 				klog.Warningf(logPfx + diag)
 
 				// Ensure pod is deleted in remote to avoid managed pod leak after
 				// TaskAttemptCompleted.
-				err := c.deletePod(f, taskRoleName, taskIndex, *taskStatus.PodUID(), true)
+				err := c.deletePod(f, taskRoleName, taskIndex, *taskStatus.PodUID(), true, false)
 				if err != nil {
 					return err
 				}
@@ -1230,7 +1246,7 @@ func (c *FrameworkController) syncTaskState(
 				if taskStatus.State == ci.TaskAttemptDeletionPending {
 					// The CompletionStatus has been persisted, so it is safe to delete the
 					// pod now.
-					err := c.deletePod(f, taskRoleName, taskIndex, *taskStatus.PodUID(), false)
+					err := c.deletePod(f, taskRoleName, taskIndex, *taskStatus.PodUID(), false, false)
 					if err != nil {
 						return err
 					}
@@ -1315,8 +1331,7 @@ func (c *FrameworkController) syncTaskState(
 				}
 
 				f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptDeleting)
-				klog.Infof(logPfx + "Waiting Pod to be deleted")
-				return nil
+				return c.handlePodGracefulDeletion(f, taskRoleName, taskIndex, pod)
 			}
 		}
 	}
@@ -1517,6 +1532,32 @@ func (c *FrameworkController) syncTaskState(
 		taskStatus.State))
 }
 
+// The pod should be controlled by f's cm.
+func (c *FrameworkController) handlePodGracefulDeletion(
+	f *ci.Framework, taskRoleName string, taskIndex int32, pod *core.Pod) error {
+	logPfx := fmt.Sprintf("[%v][%v][%v]: handlePodGracefulDeletion: ",
+		f.Key(), taskRoleName, taskIndex)
+
+	taskSpec := f.TaskRoleSpec(taskRoleName).Task
+
+	if pod.DeletionTimestamp == nil {
+		return nil
+	}
+	if taskSpec.PodGracefulDeletionTimeoutSec == nil {
+		klog.Infof(logPfx + "Waiting Pod to be deleted")
+		return nil
+	}
+	if c.enqueuePodGracefulDeletionTimeoutCheck(f, taskRoleName, taskIndex, true, pod) {
+		klog.Infof(logPfx + "Waiting Pod to be deleted or timeout")
+		return nil
+	}
+
+	klog.Warningf(logPfx+
+		"Pod cannot be deleted within timeout %v, so force delete it",
+		common.SecToDuration(taskSpec.PodGracefulDeletionTimeoutSec))
+	return c.deletePod(f, taskRoleName, taskIndex, pod.UID, true, true)
+}
+
 // Get Task's current Pod object, if not found, then clean up existing
 // controlled Pod if any.
 // Returned pod is either managed or nil, if it is the managed pod, it is not
@@ -1524,11 +1565,13 @@ func (c *FrameworkController) syncTaskState(
 // Clean up instead of recovery is because the PodUID is always the ground truth.
 func (c *FrameworkController) getOrCleanupPod(
 	f *ci.Framework, cm *core.ConfigMap,
-	taskRoleName string, taskIndex int32, force bool) (pod *core.Pod, err error) {
+	taskRoleName string, taskIndex int32, confirm bool) (pod *core.Pod, err error) {
+	logPfx := fmt.Sprintf("[%v][%v][%v]: getOrCleanupPod: ",
+		f.Key(), taskRoleName, taskIndex)
 	taskStatus := f.TaskStatus(taskRoleName, taskIndex)
 	podName := taskStatus.PodName()
 
-	if force {
+	if confirm {
 		pod, err = c.kClient.CoreV1().Pods(f.Namespace).Get(podName,
 			meta.GetOptions{})
 	} else {
@@ -1539,9 +1582,9 @@ func (c *FrameworkController) getOrCleanupPod(
 		if apiErrors.IsNotFound(err) {
 			return nil, nil
 		} else {
-			return nil, fmt.Errorf(
-				"[%v][%v][%v]: Failed to get Pod %v: force: %v: %v",
-				f.Key(), taskRoleName, taskIndex, podName, force, err)
+			return nil, fmt.Errorf(logPfx+
+				"Failed to get Pod %v: confirm: %v: %v",
+				podName, confirm, err)
 		}
 	}
 
@@ -1551,11 +1594,22 @@ func (c *FrameworkController) getOrCleanupPod(
 			// The managed Pod becomes unmanaged if and only if Framework.Status
 			// is failed to persist due to FrameworkController restart or create fails
 			// but succeeds on remote, so clean up the Pod to avoid unmanaged pod leak.
-			return nil, c.deletePod(f, taskRoleName, taskIndex, pod.UID, force)
+			klog.Warningf(logPfx+
+				"Found unmanaged but controlled Pod, so explicitly delete it: %v, %v",
+				pod.Name, pod.UID)
+			if pod.DeletionTimestamp == nil {
+				return nil, c.deletePod(f, taskRoleName, taskIndex, pod.UID, confirm, false)
+			} else {
+				return nil, c.handlePodGracefulDeletion(f, taskRoleName, taskIndex, pod)
+			}
 		} else {
 			// Do not own and manage the life cycle of not controlled object, so still
 			// consider the get and controlled object clean up is success, and postpone
 			// the potential naming conflict when creating the controlled object.
+			klog.Warningf(logPfx+
+				"Found unmanaged and uncontrolled Pod, and it may be naming conflict "+
+				"with the controlled Pod to be created: %v, %v",
+				pod.Name, pod.UID)
 			return nil, nil
 		}
 	} else {
@@ -1565,27 +1619,27 @@ func (c *FrameworkController) getOrCleanupPod(
 }
 
 // Using UID to ensure we delete the right object.
-// The podUID should be controlled by cm.
+// The podUID should be controlled by f's cm.
 func (c *FrameworkController) deletePod(
 	f *ci.Framework, taskRoleName string, taskIndex int32,
-	podUID types.UID, force bool) error {
+	podUID types.UID, confirm bool, force bool) error {
 	taskStatus := f.TaskStatus(taskRoleName, taskIndex)
 	podName := taskStatus.PodName()
 	errPfx := fmt.Sprintf(
-		"[%v][%v][%v]: Failed to delete Pod %v, %v: force: %v: ",
-		f.Key(), taskRoleName, taskIndex, podName, podUID, force)
+		"[%v][%v][%v]: Failed to delete Pod %v, %v: confirm: %v, force: %v: ",
+		f.Key(), taskRoleName, taskIndex, podName, podUID, confirm, force)
 
-	// Do not set zero GracePeriodSeconds to do force deletion in any case, since
-	// it will also immediately delete Pod in PodUnknown state, while the Pod may
-	// be still running.
-	deleteErr := c.kClient.CoreV1().Pods(f.Namespace).Delete(podName,
-		&meta.DeleteOptions{Preconditions: &meta.Preconditions{UID: &podUID}})
+	deleteOptions := &meta.DeleteOptions{Preconditions: &meta.Preconditions{UID: &podUID}}
+	if force {
+		deleteOptions.GracePeriodSeconds = common.PtrInt64(0)
+	}
+	deleteErr := c.kClient.CoreV1().Pods(f.Namespace).Delete(podName, deleteOptions)
 	if deleteErr != nil {
 		if !apiErrors.IsNotFound(deleteErr) {
 			return fmt.Errorf(errPfx+"%v", deleteErr)
 		}
 	} else {
-		if force {
+		if confirm {
 			// Confirm it is deleted instead of still deleting.
 			pod, getErr := c.kClient.CoreV1().Pods(f.Namespace).Get(podName,
 				meta.GetOptions{})
@@ -1605,8 +1659,8 @@ func (c *FrameworkController) deletePod(
 	}
 
 	klog.Infof(
-		"[%v][%v][%v]: Succeeded to delete Pod %v, %v: force: %v",
-		f.Key(), taskRoleName, taskIndex, podName, podUID, force)
+		"[%v][%v][%v]: Succeeded to delete Pod %v, %v: confirm: %v, force: %v",
+		f.Key(), taskRoleName, taskIndex, podName, podUID, confirm, force)
 	return nil
 }
 

@@ -868,6 +868,11 @@ func (in *TaskRoleStatus) DeepCopy() *TaskRoleStatus {
 func (in *TaskSpec) DeepCopyInto(out *TaskSpec) {
 	*out = *in
 	out.RetryPolicy = in.RetryPolicy
+	if in.PodGracefulDeletionTimeoutSec != nil {
+		in, out := &in.PodGracefulDeletionTimeoutSec, &out.PodGracefulDeletionTimeoutSec
+		*out = new(int64)
+		**out = **in
+	}
 	in.Pod.DeepCopyInto(&out.Pod)
 	return
 }

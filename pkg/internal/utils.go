@@ -38,6 +38,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
 	"reflect"
+	"time"
 )
 
 func CreateClients(kConfig *rest.Config) (
@@ -219,4 +220,18 @@ func ToPod(obj interface{}) *core.Pod {
 	}
 
 	return pod
+}
+
+func GetPodDeletionStartTime(pod *core.Pod) *meta.Time {
+	if pod.DeletionTimestamp == nil {
+		return nil
+	}
+
+	var gracePeriod time.Duration
+	if pod.DeletionGracePeriodSeconds == nil {
+		gracePeriod = time.Duration(0)
+	} else {
+		gracePeriod = common.SecToDuration(pod.DeletionGracePeriodSeconds)
+	}
+	return common.PtrTime(meta.NewTime(pod.DeletionTimestamp.Add(-gracePeriod)))
 }
