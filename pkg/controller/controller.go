@@ -637,7 +637,7 @@ func (c *FrameworkController) enqueueTaskRetryDelayTimeoutCheck(
 }
 
 func (c *FrameworkController) enqueuePodGracefulDeletionTimeoutCheck(
-	f *ci.Framework, taskRoleName string, taskIndex int32,
+	f *ci.Framework, taskRoleName string,
 	failIfTimeout bool, pod *core.Pod) bool {
 	taskSpec := f.TaskRoleSpec(taskRoleName).Task
 	if pod.DeletionTimestamp == nil {
@@ -1547,7 +1547,7 @@ func (c *FrameworkController) handlePodGracefulDeletion(
 		klog.Infof(logPfx + "Waiting Pod to be deleted")
 		return nil
 	}
-	if c.enqueuePodGracefulDeletionTimeoutCheck(f, taskRoleName, taskIndex, true, pod) {
+	if c.enqueuePodGracefulDeletionTimeoutCheck(f, taskRoleName, true, pod) {
 		klog.Infof(logPfx + "Waiting Pod to be deleted or timeout")
 		return nil
 	}
@@ -1623,8 +1623,7 @@ func (c *FrameworkController) getOrCleanupPod(
 func (c *FrameworkController) deletePod(
 	f *ci.Framework, taskRoleName string, taskIndex int32,
 	podUID types.UID, confirm bool, force bool) error {
-	taskStatus := f.TaskStatus(taskRoleName, taskIndex)
-	podName := taskStatus.PodName()
+	podName := f.TaskStatus(taskRoleName, taskIndex).PodName()
 	errPfx := fmt.Sprintf(
 		"[%v][%v][%v]: Failed to delete Pod %v, %v: confirm: %v, force: %v: ",
 		f.Key(), taskRoleName, taskIndex, podName, podUID, confirm, force)
