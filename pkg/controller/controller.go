@@ -1554,6 +1554,8 @@ func (c *FrameworkController) handlePodGracefulDeletion(
 	klog.Warningf(logPfx+
 		"Pod cannot be deleted within timeout %v, so force delete it",
 		common.SecToDuration(taskSpec.PodGracefulDeletionTimeoutSec))
+	// Always confirm the force deletion to expose the failure that even force
+	// deletion cannot delete the Pod, such as the Pod Finalizers is not empty.
 	return c.deletePod(f, taskRoleName, taskIndex, pod.UID, true, true)
 }
 
