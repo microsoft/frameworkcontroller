@@ -271,6 +271,7 @@ func (b *FrameworkBarrier) Run() {
 			if isPermanentErr {
 				exit(ci.CompletionCodeContainerPermanentFailed)
 			} else {
+				// May also timeout, but still treat as Unknown Error
 				exit(ci.CompletionCode(1))
 			}
 		}
