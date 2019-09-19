@@ -1596,11 +1596,13 @@ func (c *FrameworkController) getOrCleanupPod(
 			klog.Warningf(logPfx+
 				"Found unmanaged but controlled Pod, so explicitly delete it: %v, %v",
 				pod.Name, pod.UID)
-			if pod.DeletionTimestamp == nil {
-				return nil, c.deletePod(f, taskRoleName, taskIndex, pod.UID, confirm, false)
-			} else {
-				return nil, c.handlePodGracefulDeletion(f, taskRoleName, taskIndex, pod)
+			if pod.DeletionTimestamp != nil {
+				err = c.handlePodGracefulDeletion(f, taskRoleName, taskIndex, pod)
+				if err != nil {
+					return nil, err
+				}
 			}
+			return nil, c.deletePod(f, taskRoleName, taskIndex, pod.UID, confirm, false)
 		} else {
 			// Do not own and manage the life cycle of not controlled object, so still
 			// consider the get and controlled object clean up is success, and postpone
