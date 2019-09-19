@@ -1537,7 +1537,6 @@ func (c *FrameworkController) handlePodGracefulDeletion(
 	f *ci.Framework, taskRoleName string, taskIndex int32, pod *core.Pod) error {
 	logPfx := fmt.Sprintf("[%v][%v][%v]: handlePodGracefulDeletion: ",
 		f.Key(), taskRoleName, taskIndex)
-
 	taskSpec := f.TaskRoleSpec(taskRoleName).Task
 
 	if pod.DeletionTimestamp == nil {
