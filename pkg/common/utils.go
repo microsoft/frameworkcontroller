@@ -87,6 +87,14 @@ func PtrUIDStr(s string) *types.UID {
 	return PtrUID(types.UID(s))
 }
 
+func PtrDeletionPropagation(o meta.DeletionPropagation) *meta.DeletionPropagation {
+	return &o
+}
+
+func PtrTime(o meta.Time) *meta.Time {
+	return &o
+}
+
 func PtrNow() *meta.Time {
 	now := meta.Now()
 	return &now

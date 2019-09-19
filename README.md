@@ -41,13 +41,12 @@ A Framework represents an application with a set of Tasks:
 4. With consistent identity {FrameworkName}-{TaskRoleName}-{TaskIndex} as PodName
 5. With fine grained [RetryPolicy](doc/user-manual.md#RetryPolicy) for each Task and the whole Framework
 6. With fine grained [FrameworkAttemptCompletionPolicy](doc/user-manual.md#FrameworkAttemptCompletionPolicy) for each TaskRole
-7. Guarantees at most one instance of a specific Task is running at any point in time
-8. Guarantees at most one instance of a specific Framework is running at any point in time
+7. With PodGracefulDeletionTimeoutSec for each Task to [tune Consistency vs Availability](doc/user-manual.md#FrameworkConsistencyAvailability)
 
 ### Controller Feature
 1. Highly generalized as it is built for all kinds of applications
 2. Light-weight as it is only responsible for Pod orchestration
-3. Well-defined Framework consistency, state machine and failure model
+3. Well-defined Framework [Consistency vs Availability](doc/user-manual.md#FrameworkConsistencyAvailability), [State Machine](doc/user-manual.md#FrameworkTaskStateMachine) and [Failure Model](doc/user-manual.md#CompletionStatus)
 4. Tolerate Pod/ConfigMap unexpected deletion, Node/Network/FrameworkController/Kubernetes failure
 5. Support to specify how to [classify and summarize Pod failures](doc/user-manual.md#PodFailureClassification)
 6. Support to expose [Framework and Pod history snapshots](doc/user-manual.md#FrameworkPodHistory) to external systems

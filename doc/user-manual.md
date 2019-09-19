@@ -9,6 +9,8 @@
    - [RetryPolicy](#RetryPolicy)
    - [FrameworkAttemptCompletionPolicy](#FrameworkAttemptCompletionPolicy)
    - [Framework and Pod History](#FrameworkPodHistory)
+   - [Framework and Task State Machine](#FrameworkTaskStateMachine)
+   - [Framework Consistency vs Availability](#FrameworkConsistencyAvailability)
    - [Controller Extension](#ControllerExtension)
      - [FrameworkBarrier](#FrameworkBarrier)
      - [HivedScheduler](#HivedScheduler)
@@ -116,7 +118,8 @@ Type: application/json or application/yaml
 Delete the specified Framework.
 
 Notes:
-* If you need to ensure at most one instance of a specific Framework (identified by the FrameworkName) is running at any point in time, you should always use and only use the [Foreground Deletion](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#foreground-cascading-deletion) in the provided body, see [Framework Notes](../pkg/apis/frameworkcontroller/v1/types.go). However, `kubectl delete` does not support to specify the Foreground Deletion at least for [Kubernetes v1.14.2](https://github.com/kubernetes/kubernetes/issues/66110#issuecomment-413761559), so you may have to use other [Supported Client](#SupportedClient).
+* If you need to achieve all the [Framework ConsistencyGuarantees](#ConsistencyGuarantees) or achieve higher [Framework Availability](#FrameworkAvailability) by leveraging the [PodGracefulDeletionTimeoutSec](../pkg/apis/frameworkcontroller/v1/types.go), you should always use and only use the [Foreground Deletion](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#foreground-cascading-deletion) in the provided body.
+* However, `kubectl delete` does not support to specify the Foreground Deletion at least for [Kubernetes v1.14.2](https://github.com/kubernetes/kubernetes/issues/66110#issuecomment-413761559), so you may have to use other [Supported Client](#SupportedClient).
 
 **Response**
 
@@ -369,6 +372,87 @@ Notes:
 
 ## <a name="FrameworkPodHistory">Framework and Pod History</a>
 By leveraging [LogObjectSnapshot](../pkg/apis/frameworkcontroller/v1/config.go), external systems, such as [Fluentd](https://www.fluentd.org) and [ElasticSearch](https://www.elastic.co/products/elasticsearch), can collect and process Framework and Pod history snapshots even if it was retried or deleted, such as persistence, metrics conversion, visualization, alerting, acting, analysis, etc.
+
+## <a name="FrameworkTaskStateMachine">Framework and Task State Machine</a>
+### <a name="FrameworkStateMachine">Framework State Machine</a>
+[FrameworkState](../pkg/apis/frameworkcontroller/v1/types.go)
+
+### <a name="TaskStateMachine">Task State Machine</a>
+[TaskState](../pkg/apis/frameworkcontroller/v1/types.go)
+
+## <a name="FrameworkConsistencyAvailability">Framework Consistency vs Availability</a>
+### <a name="FrameworkConsistency">Framework Consistency</a>
+#### <a name="ConsistencyGuarantees">ConsistencyGuarantees</a>
+For a specific Task identified by {FrameworkName}-{TaskRoleName}-{TaskIndex}:
+
+- **ConsistencyGuarantee1**:
+
+  At most one instance of the Task is running at any point in time.
+
+- **ConsistencyGuarantee2**:
+
+  No instance of the Task is running if it is TaskAttemptCompleted, TaskCompleted or the whole Framework is deleted.
+
+For a specific Framework identified by {FrameworkName}:
+
+- **ConsistencyGuarantee3**:
+
+  At most one instance of the Framework is running at any point in time.
+
+- **ConsistencyGuarantee4**:
+
+  No instance of the Framework is running if it is FrameworkAttemptCompleted, FrameworkCompleted or the whole Framework is deleted.
+
+#### <a name="ConsistencyGuaranteesHowTo">How to achieve ConsistencyGuarantees</a>
+
+The default behavior is to achieve all the [ConsistencyGuarantees](#ConsistencyGuarantees), if you do not explicitly violate below guidelines:
+
+1. Achieve **ConsistencyGuarantee1**:
+
+    Do not [force delete the managed Pod](https://kubernetes.io/docs/concepts/workloads/pods/pod/#force-deletion-of-pods):
+
+   1. Do not set [PodGracefulDeletionTimeoutSec](../pkg/apis/frameworkcontroller/v1/types.go) to be not nil.
+
+      For example, the default PodGracefulDeletionTimeoutSec is acceptable.
+
+   2. Do not delete the managed Pod with [0 GracePeriodSeconds](https://kubernetes.io/docs/concepts/workloads/pods/pod/#force-deletion-of-pods).
+
+      For example, the default Pod deletion is acceptable.
+
+   3. Do not delete the Node which runs the managed Pod.
+
+      For example, [drain the Node](https://kubernetes.io/docs/tasks/administer-cluster/safely-drain-node) before delete it is acceptable.
+
+   *The Task instance can be universally located by its [TaskAttemptInstanceUID](../pkg/apis/frameworkcontroller/v1/types.go) or [PodUID](../pkg/apis/frameworkcontroller/v1/types.go).*
+
+   *To avoid the Pod is stuck in deleting forever, such as if its Node is down forever, leverage the same approach as [Delete StatefulSet Pod only after the Pod termination has been confirmed](https://kubernetes.io/docs/tasks/run-application/force-delete-stateful-set-pod/#delete-pods) manually or by your [Cloud Controller Manager](https://kubernetes.io/docs/tasks/administer-cluster/running-cloud-controller/#running-cloud-controller-manager).*
+
+2. Achieve **ConsistencyGuarantee2**, **ConsistencyGuarantee3** and **ConsistencyGuarantee4**:
+   1. Achieve **ConsistencyGuarantee1**.
+
+   2. Must delete the managed ConfigMap with [Foreground PropagationPolicy](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#foreground-cascading-deletion).
+
+      For example, the default ConfigMap deletion is acceptable.
+
+   3. Must delete the Framework with [Foreground PropagationPolicy](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#foreground-cascading-deletion).
+
+      For example, the default Framework deletion may not be acceptable, since the default PropagationPolicy for Framework object may be Background.
+
+   4. Do not change the [OwnerReferences](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#owners-and-dependents) of the managed ConfigMap and Pods.
+
+   *The Framework instance can be universally located by its [FrameworkAttemptInstanceUID](../pkg/apis/frameworkcontroller/v1/types.go) or [ConfigMapUID](../pkg/apis/frameworkcontroller/v1/types.go).*
+
+### <a name="FrameworkAvailability">Framework Availability</a>
+According to the [CAP theorem](https://en.wikipedia.org/wiki/CAP_theorem), in the presence of a network partition, you cannot achieve both consistency and availability at the same time in any distributed system. So you have to make a trade-off between the [Framework Consistency](#FrameworkConsistency) and the [Framework Availability](#FrameworkAvailability).
+
+You can tune the trade-off, such as to achieve higher [Framework Availability](#FrameworkAvailability) by sacrificing the [Framework Consistency](#FrameworkConsistency):
+1. Set a small [Pod TolerationSeconds for TaintBasedEvictions](https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/#taint-based-evictions)
+2. Set a small [PodGracefulDeletionTimeoutSec](../pkg/apis/frameworkcontroller/v1/types.go)
+3. Violate other guidelines mentioned in [How to achieve ConsistencyGuarantees](#ConsistencyGuaranteesHowTo), such as manually force delete a problematic Pod.
+
+See more in:
+1. [PodGracefulDeletionTimeoutSec](../pkg/apis/frameworkcontroller/v1/types.go)
+2. [Pod Safety and Consistency Guarantees](https://github.com/kubernetes/community/blob/ee8998b156031f6b363daade51ca2d12521f4ac0/contributors/design-proposals/storage/pod-safety.md)
 
 ## <a name="ControllerExtension">Controller Extension</a>
 ### <a name="FrameworkBarrier">FrameworkBarrier</a>
