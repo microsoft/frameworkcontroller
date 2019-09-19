@@ -118,7 +118,7 @@ Type: application/json or application/yaml
 Delete the specified Framework.
 
 Notes:
-* If you need to achieve all the [Framework Consistency](#FrameworkConsistency) or achieve higher [Framework Availability](#FrameworkAvailability) by leveraging the [PodGracefulDeletionTimeoutSec](../pkg/apis/frameworkcontroller/v1/types.go), you should always use and only use the [Foreground Deletion](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#foreground-cascading-deletion) in the provided body.
+* If you need to achieve all the [Framework ConsistencyGuarantees](#ConsistencyGuarantees) or achieve higher [Framework Availability](#FrameworkAvailability) by leveraging the [PodGracefulDeletionTimeoutSec](../pkg/apis/frameworkcontroller/v1/types.go), you should always use and only use the [Foreground Deletion](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#foreground-cascading-deletion) in the provided body.
 * However, `kubectl delete` does not support to specify the Foreground Deletion at least for [Kubernetes v1.14.2](https://github.com/kubernetes/kubernetes/issues/66110#issuecomment-413761559), so you may have to use other [Supported Client](#SupportedClient).
 
 **Response**
@@ -405,7 +405,7 @@ For a specific Framework identified by {FrameworkName}:
 
 #### <a name="ConsistencyGuaranteesHowTo">How to achieve ConsistencyGuarantees</a>
 
-The default behavior is to achieve all ConsistencyGuarantees, if you do not explicitly violate below guidelines:
+The default behavior is to achieve all the [ConsistencyGuarantees](#ConsistencyGuarantees), if you do not explicitly violate below guidelines:
 
 1. Achieve **ConsistencyGuarantee1**:
 
