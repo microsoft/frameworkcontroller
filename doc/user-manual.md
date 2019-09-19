@@ -382,30 +382,32 @@ By leveraging [LogObjectSnapshot](../pkg/apis/frameworkcontroller/v1/config.go),
 
 ## <a name="FrameworkConsistencyAvailability">Framework Consistency vs Availability</a>
 ### <a name="FrameworkConsistency">Framework Consistency</a>
-#### <a name="ConsistencyProperties">ConsistencyProperties</a>
+#### <a name="ConsistencyGuarantees">ConsistencyGuarantees</a>
 For a specific Task identified by {FrameworkName}-{TaskRoleName}-{TaskIndex}:
 
-- **ConsistencyProperty1**:
+- **ConsistencyGuarantee1**:
 
-  Guarantees at most one instance of the Task is running at any point in time.
+  At most one instance of the Task is running at any point in time.
 
-- **ConsistencyProperty2**:
+- **ConsistencyGuarantee2**:
 
-  Guarantees no instance of the Task is running if it is TaskAttemptCompleted, TaskCompleted or the whole Framework is deleted.
+  No instance of the Task is running if it is TaskAttemptCompleted, TaskCompleted or the whole Framework is deleted.
 
 For a specific Framework identified by {FrameworkName}:
 
-- **ConsistencyProperty3**:
+- **ConsistencyGuarantee3**:
 
-  Guarantees at most one instance of the Framework is running at any point in time.
+  At most one instance of the Framework is running at any point in time.
 
-- **ConsistencyProperty4**:
+- **ConsistencyGuarantee4**:
 
-  Guarantees no instance of the Framework is running if it is FrameworkAttemptCompleted, FrameworkCompleted or the whole Framework is deleted.
+  No instance of the Framework is running if it is FrameworkAttemptCompleted, FrameworkCompleted or the whole Framework is deleted.
 
-#### <a name="ConsistencyPropertiesHowTo">How to achieve ConsistencyProperties</a>
+#### <a name="ConsistencyGuaranteesHowTo">How to achieve ConsistencyGuarantees</a>
 
-1. Achieve **ConsistencyProperty1**:
+The default behavior is to achieve all ConsistencyGuarantees, if you do not explicitly violate below guidelines:
+
+1. Achieve **ConsistencyGuarantee1**:
 
     Do not [force delete the managed Pod](https://kubernetes.io/docs/concepts/workloads/pods/pod/#force-deletion-of-pods):
 
@@ -425,8 +427,8 @@ For a specific Framework identified by {FrameworkName}:
 
    *To avoid the Pod is stuck in deleting forever, such as if its Node is down forever, leverage the same approach as [Delete StatefulSet Pod only after the Pod termination has been confirmed](https://kubernetes.io/docs/tasks/run-application/force-delete-stateful-set-pod/#delete-pods) manually or by your [Cloud Controller Manager](https://kubernetes.io/docs/tasks/administer-cluster/running-cloud-controller/#running-cloud-controller-manager).*
 
-2. Achieve **ConsistencyProperty2**, **ConsistencyProperty3** and **ConsistencyProperty4**:
-   1. Achieve **ConsistencyProperty1**.
+2. Achieve **ConsistencyGuarantee2**, **ConsistencyGuarantee3** and **ConsistencyGuarantee4**:
+   1. Achieve **ConsistencyGuarantee1**.
 
    2. Must delete the managed ConfigMap with [Foreground PropagationPolicy](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#foreground-cascading-deletion).
 
@@ -444,9 +446,9 @@ For a specific Framework identified by {FrameworkName}:
 According to the [CAP theorem](https://en.wikipedia.org/wiki/CAP_theorem), in the presence of a network partition, you cannot achieve both consistency and availability at the same time in any distributed system. So you have to make a trade-off between the [Framework Consistency](#FrameworkConsistency) and the [Framework Availability](#FrameworkAvailability).
 
 You can tune the trade-off, such as to achieve higher [Framework Availability](#FrameworkAvailability) by sacrificing the [Framework Consistency](#FrameworkConsistency):
-1. Set small [TolerationSeconds](https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/#taint-based-evictions)
-2. Set small [PodGracefulDeletionTimeoutSec](../pkg/apis/frameworkcontroller/v1/types.go)
-3. Violate other things mentioned in [How to achieve ConsistencyProperties](#ConsistencyPropertiesHowTo), such as manually force delete a problematic Pod.
+1. Set a small [Pod TolerationSeconds for TaintBasedEvictions](https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/#taint-based-evictions)
+2. Set a small [PodGracefulDeletionTimeoutSec](../pkg/apis/frameworkcontroller/v1/types.go)
+3. Violate other guidelines mentioned in [How to achieve ConsistencyGuarantees](#ConsistencyGuaranteesHowTo), such as manually force delete a problematic Pod.
 
 See more in:
 1. [PodGracefulDeletionTimeoutSec](../pkg/apis/frameworkcontroller/v1/types.go)

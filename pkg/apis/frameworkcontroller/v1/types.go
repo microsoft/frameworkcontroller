@@ -100,8 +100,9 @@ type TaskSpec struct {
 	// new Pod, however the old Pod may be still running.
 	// So, in this setting, the Task behaves like ReplicaSet, and choose it if the Task
 	// favors availability over consistency, such as stateless Task.
-	// However, to still best effort execute graceful deletion, this timeout should be
-	// longer than the Pod TerminationGracePeriodSeconds.
+	// However, to still best effort execute graceful deletion with the toleration for
+	// transient deletion failures, this timeout should be at least longer than the Pod
+	// TerminationGracePeriodSeconds + minimal TolerationSeconds for TaintBasedEvictions.
 	//
 	// If this timeout is nil, the Pod will always be deleted gracefully, i.e. never
 	// be deleted forcefully by FrameworkController. This helps to guarantee at most
