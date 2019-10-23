@@ -8,6 +8,7 @@
    - [CompletionStatus](#CompletionStatus)
    - [RetryPolicy](#RetryPolicy)
    - [FrameworkAttemptCompletionPolicy](#FrameworkAttemptCompletionPolicy)
+   - [Large Scale Framework](#LargeScaleFramework)
    - [Framework and Pod History](#FrameworkPodHistory)
    - [Framework and Task State Machine](#FrameworkTaskStateMachine)
    - [Framework Consistency vs Availability](#FrameworkConsistencyAvailability)
@@ -203,7 +204,7 @@ Watch the change events of all Frameworks (in the specified FrameworkNamespace).
 [Container EnvironmentVariable](../pkg/apis/frameworkcontroller/v1/constants.go)
 
 ## <a name="PodFailureClassification">Pod Failure Classification</a>
-You can specify how to classify and summarize Pod failures by [PodFailureSpec](../pkg/apis/frameworkcontroller/v1/config.go).
+You can specify how to classify and summarize Pod failures by the [PodFailureSpec](../pkg/apis/frameworkcontroller/v1/config.go).
 
 You can also directly leverage the [Default PodFailureSpec](../example/config/default/frameworkcontroller.yaml).
 
@@ -370,8 +371,11 @@ Notes:
   </tbody>
 </table>
 
+## <a name="LargeScaleFramework">Large Scale Framework</a>
+To safely run large scale Framework, i.e. the total task number in a single Framework is greater than 300, you just need to enable the [LargeFrameworkCompression](../pkg/apis/frameworkcontroller/v1/config.go). However, you may also need to decompress the Framework by yourself.
+
 ## <a name="FrameworkPodHistory">Framework and Pod History</a>
-By leveraging [LogObjectSnapshot](../pkg/apis/frameworkcontroller/v1/config.go), external systems, such as [Fluentd](https://www.fluentd.org) and [ElasticSearch](https://www.elastic.co/products/elasticsearch), can collect and process Framework and Pod history snapshots even if it was retried or deleted, such as persistence, metrics conversion, visualization, alerting, acting, analysis, etc.
+By leveraging the [LogObjectSnapshot](../pkg/apis/frameworkcontroller/v1/config.go), external systems, such as [Fluentd](https://www.fluentd.org) and [ElasticSearch](https://www.elastic.co/products/elasticsearch), can collect and process Framework and Pod history snapshots even if it was retried or deleted, such as persistence, metrics conversion, visualization, alerting, acting, analysis, etc.
 
 ## <a name="FrameworkTaskStateMachine">Framework and Task State Machine</a>
 ### <a name="FrameworkStateMachine">Framework State Machine</a>
