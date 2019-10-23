@@ -162,6 +162,11 @@ func (in *Config) DeepCopyInto(out *Config) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.LargeFrameworkCompression != nil {
+		in, out := &in.LargeFrameworkCompression, &out.LargeFrameworkCompression
+		*out = new(bool)
+		**out = **in
+	}
 	if in.CRDEstablishedCheckIntervalSec != nil {
 		in, out := &in.CRDEstablishedCheckIntervalSec, &out.CRDEstablishedCheckIntervalSec
 		*out = new(int64)
@@ -349,6 +354,11 @@ func (in *FrameworkAttemptStatus) DeepCopyInto(out *FrameworkAttemptStatus) {
 				(*in).DeepCopyInto(*out)
 			}
 		}
+	}
+	if in.TaskRoleStatusesCompressed != nil {
+		in, out := &in.TaskRoleStatusesCompressed, &out.TaskRoleStatusesCompressed
+		*out = make([]byte, len(*in))
+		copy(*out, *in)
 	}
 	return
 }
