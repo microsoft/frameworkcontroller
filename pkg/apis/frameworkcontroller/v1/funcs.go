@@ -432,15 +432,16 @@ func (f *Framework) NewFrameworkStatus() *FrameworkStatus {
 func (f *Framework) NewFrameworkAttemptStatus(
 	frameworkAttemptID int32) FrameworkAttemptStatus {
 	return FrameworkAttemptStatus{
-		ID:               frameworkAttemptID,
-		StartTime:        meta.Now(),
-		RunTime:          nil,
-		CompletionTime:   nil,
-		InstanceUID:      nil,
-		ConfigMapName:    GetConfigMapName(f.Name),
-		ConfigMapUID:     nil,
-		CompletionStatus: nil,
-		TaskRoleStatuses: f.NewTaskRoleStatuses(),
+		ID:                         frameworkAttemptID,
+		StartTime:                  meta.Now(),
+		RunTime:                    nil,
+		CompletionTime:             nil,
+		InstanceUID:                nil,
+		ConfigMapName:              GetConfigMapName(f.Name),
+		ConfigMapUID:               nil,
+		CompletionStatus:           nil,
+		TaskRoleStatuses:           f.NewTaskRoleStatuses(),
+		TaskRoleStatusesCompressed: nil,
 	}
 }
 
@@ -614,4 +615,56 @@ func (f *Framework) TransitionTaskState(
 	klog.Infof(
 		"[%v][%v][%v]: Transitioned Task from [%v] to [%v]",
 		f.Key(), taskRoleName, taskIndex, srcState, dstState)
+}
+
+func (f *Framework) Compress() error {
+	if f.Status == nil {
+		return nil
+	}
+
+	if f.TaskRoleStatuses() != nil {
+		f.Status.AttemptStatus.TaskRoleStatusesCompressed = nil
+
+		jsonTaskRoleStatus := common.ToJson(f.TaskRoleStatuses())
+		if len(jsonTaskRoleStatus) >= LargeFrameworkCompressionMinBytes {
+			compressedTaskRoleStatus, err := common.Compress(jsonTaskRoleStatus)
+			if err != nil {
+				return err
+			}
+
+			f.Status.AttemptStatus.TaskRoleStatusesCompressed = compressedTaskRoleStatus
+			f.Status.AttemptStatus.TaskRoleStatuses = nil
+			return nil
+		}
+	}
+
+	return nil
+}
+
+func (f *Framework) Decompress() error {
+	if f.Status == nil {
+		return nil
+	}
+
+	if f.TaskRoleStatuses() != nil {
+		f.Status.AttemptStatus.TaskRoleStatusesCompressed = nil
+		return nil
+	}
+
+	compressedTaskRoleStatus := f.Status.AttemptStatus.TaskRoleStatusesCompressed
+	if compressedTaskRoleStatus != nil {
+		jsonTaskRoleStatus, err := common.Decompress(compressedTaskRoleStatus)
+		if err != nil {
+			return err
+		}
+
+		rawTaskRoleStatus := []*TaskRoleStatus{}
+		common.FromJson(jsonTaskRoleStatus, &rawTaskRoleStatus)
+
+		f.Status.AttemptStatus.TaskRoleStatuses = rawTaskRoleStatus
+		f.Status.AttemptStatus.TaskRoleStatusesCompressed = nil
+		return nil
+	}
+
+	return nil
 }

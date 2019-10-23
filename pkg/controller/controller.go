@@ -541,32 +541,39 @@ func (c *FrameworkController) syncFramework(key string) (returnedErr error) {
 			// Ensure the expected Framework.Status is the same as the remote one
 			// before sync.
 			if !expected.remoteSynced {
+				c.compressFramework(f)
 				updateErr := c.updateRemoteFrameworkStatus(f)
+				c.updateExpectedFrameworkStatusInfo(f.Key(), f.Status, updateErr == nil)
+
 				if updateErr != nil {
 					return updateErr
 				}
-				c.updateExpectedFrameworkStatusInfo(f.Key(), f.Status, true)
 			}
 		}
 
 		// At this point, f.Status is the same as the expected and remote
 		// Framework.Status, so it is ready to sync against f.Spec and other
 		// related objects.
-		errs := []error{}
-		remoteF := f.DeepCopy()
+		decompressErr := c.decompressFramework(f)
+		if decompressErr != nil {
+			return decompressErr
+		}
+		remoteRawF := f.DeepCopy()
 
+		errs := []error{}
 		syncErr := c.syncFrameworkStatus(f)
 		errs = append(errs, syncErr)
 
-		if !reflect.DeepEqual(remoteF.Status, f.Status) {
+		if !reflect.DeepEqual(remoteRawF.Status, f.Status) {
 			// Always update the expected and remote Framework.Status even if sync
 			// error, since f.Status should never be corrupted due to any Platform
 			// Transient Error, so no need to rollback to the one before sync, and
 			// no need to DeepCopy between f.Status and the expected one.
+			c.compressFramework(f)
 			updateErr := c.updateRemoteFrameworkStatus(f)
-			errs = append(errs, updateErr)
-
 			c.updateExpectedFrameworkStatusInfo(f.Key(), f.Status, updateErr == nil)
+
+			errs = append(errs, updateErr)
 		} else {
 			klog.Infof(logPfx +
 				"Skip to update the expected and remote Framework.Status since " +
@@ -1803,6 +1810,34 @@ func (c *FrameworkController) completeFrameworkAttempt(
 		// a sync.
 		c.enqueueFrameworkSync(f, "FrameworkAttemptDeletionPending")
 		klog.Infof(logPfx + "Waiting the CompletionStatus to be persisted")
+	}
+}
+
+// Best effort to compress and no need to requeue if failed, since the
+// updateRemoteFrameworkStatus may still succeed if compress failed.
+func (c *FrameworkController) compressFramework(f *ci.Framework) {
+	if *c.cConfig.LargeFrameworkCompression {
+		logPfx := fmt.Sprintf("[%v]: compressFramework: ", f.Key())
+		klog.Infof(logPfx + "Started")
+		defer func() { klog.Infof(logPfx + "Completed") }()
+
+		err := f.Compress()
+		if err != nil {
+			klog.Warningf(logPfx+"Failed: %v", err)
+		}
+	}
+}
+
+func (c *FrameworkController) decompressFramework(f *ci.Framework) error {
+	logPfx := fmt.Sprintf("[%v]: decompressFramework: ", f.Key())
+	klog.Infof(logPfx + "Started")
+	defer func() { klog.Infof(logPfx + "Completed") }()
+
+	err := f.Decompress()
+	if err != nil {
+		return fmt.Errorf(logPfx+"Failed: %v", err)
+	} else {
+		return nil
 	}
 }
 

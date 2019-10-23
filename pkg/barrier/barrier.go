@@ -239,8 +239,16 @@ func (b *FrameworkBarrier) Run() {
 				Get(b.bConfig.FrameworkName, meta.GetOptions{})
 
 			if err == nil {
-				isPassed = isBarrierPassed(f)
-				return isPassed, nil
+				err = f.Decompress()
+				if err == nil {
+					isPassed = isBarrierPassed(f)
+					return isPassed, nil
+				} else {
+					klog.Warningf("Failed to decompress Framework object: %v", err)
+					// Unknown Error: Poll Until Timeout
+					isPermanentErr = false
+					return false, nil
+				}
 			} else {
 				klog.Warningf("Failed to get Framework object from ApiServer: %v", err)
 				if apiErrors.IsNotFound(err) {
@@ -256,22 +264,23 @@ func (b *FrameworkBarrier) Run() {
 		})
 
 	if isPassed {
-		klog.Infof("BarrierPassed: " +
+		klog.Infof("BarrierSucceeded: " +
 			"All Tasks are ready with not nil PodIP.")
 		dumpFramework(f)
 		generateInjector(f)
 		exit(ci.CompletionCodeSucceeded)
 	} else {
 		if err == nil {
-			klog.Errorf("BarrierNotPassed: " +
+			klog.Errorf("BarrierTransientConflictFailed: " +
 				"Timeout to wait all Tasks are ready with not nil PodIP.")
 			exit(ci.CompletionCodeContainerTransientConflictFailed)
 		} else {
-			klog.Errorf("Failed to get Framework object from ApiServer: %v", err)
 			if isPermanentErr {
+				klog.Errorf("BarrierPermanentFailed: %v", err)
 				exit(ci.CompletionCodeContainerPermanentFailed)
 			} else {
 				// May also timeout, but still treat as Unknown Error
+				klog.Errorf("BarrierUnknownFailed: %v", err)
 				exit(ci.CompletionCode(1))
 			}
 		}

@@ -42,9 +42,10 @@ const (
 	PodKind            = "Pod"
 	ObjectUIDFieldPath = "metadata.uid"
 
-	ConfigFilePath         = "./frameworkcontroller.yaml"
-	UnlimitedValue         = -1
-	ExtendedUnlimitedValue = -2
+	ConfigFilePath                    = "./frameworkcontroller.yaml"
+	UnlimitedValue                    = -1
+	ExtendedUnlimitedValue            = -2
+	LargeFrameworkCompressionMinBytes = 10 * 1024
 
 	// For all managed objects
 	// Predefined Annotations
