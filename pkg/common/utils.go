@@ -23,6 +23,8 @@
 package common
 
 import (
+	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -200,5 +202,40 @@ func FromJson(jsonStr string, objAddr interface{}) {
 	err := json.Unmarshal([]byte(jsonStr), objAddr)
 	if err != nil {
 		panic(fmt.Errorf("Failed to unmarshal JSON %#v to Object: %v", jsonStr, err))
+	}
+}
+
+func Compress(rawStr string) ([]byte, error) {
+	compressedBuffer := &bytes.Buffer{}
+	compressor := gzip.NewWriter(compressedBuffer)
+	if _, err := compressor.Write([]byte(rawStr)); err != nil {
+		return nil, fmt.Errorf(
+			"Failed to compress %#v when writing: %v",
+			rawStr, err)
+	} else {
+		if err := compressor.Close(); err != nil {
+			return nil, fmt.Errorf(
+				"Failed to compress %#v when closing: %v",
+				rawStr, err)
+		} else {
+			return compressedBuffer.Bytes(), nil
+		}
+	}
+}
+
+func Decompress(compressedBytes []byte) (string, error) {
+	compressedReader := bytes.NewReader(compressedBytes)
+	if decompressor, err := gzip.NewReader(compressedReader); err != nil {
+		return "", fmt.Errorf(
+			"Failed to decompress %#v when initializing: %v",
+			compressedBytes, err)
+	} else {
+		if rawBytes, err := ioutil.ReadAll(decompressor); err != nil {
+			return "", fmt.Errorf(
+				"Failed to decompress %#v when reading: %v",
+				compressedBytes, err)
+		} else {
+			return string(rawBytes), nil
+		}
 	}
 }

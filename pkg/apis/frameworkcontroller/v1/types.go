@@ -270,9 +270,10 @@ type FrameworkAttemptStatus struct {
 	// It will never be changed during the whole lifetime of a specific Framework.
 	ConfigMapName string `json:"configMapName"`
 	// ConfigMapUID can also universally locate the FrameworkAttemptInstance.
-	ConfigMapUID     *types.UID                        `json:"configMapUID"`
-	CompletionStatus *FrameworkAttemptCompletionStatus `json:"completionStatus"`
-	TaskRoleStatuses []*TaskRoleStatus                 `json:"taskRoleStatuses"`
+	ConfigMapUID               *types.UID                        `json:"configMapUID"`
+	CompletionStatus           *FrameworkAttemptCompletionStatus `json:"completionStatus"`
+	TaskRoleStatuses           []*TaskRoleStatus                 `json:"taskRoleStatuses"`
+	TaskRoleStatusesCompressed []byte                            `json:"taskRoleStatusesCompressed,omitempty"`
 }
 
 type TaskRoleStatus struct {

@@ -59,6 +59,27 @@ type Config struct {
 	// Number of concurrent workers to process each different Frameworks
 	WorkerNumber *int32 `yaml:"workerNumber"`
 
+	// Specify whether to compress some fields in the Framework object if they are too large.
+	//
+	// Currently, due to the etcd limitation, the max size of any object on ApiServer is 1.5 MB:
+	// https://github.com/etcd-io/etcd/blob/master/Documentation/dev-guide/limit.md#request-size-limit
+	// So, without this compression, FrameworkController can only support small scale Framework in the
+	// worst case, i.e. the total task number in a single Framework is not greater than 300.
+	//
+	// With this compression, FrameworkController can generally support large scale Framework, i.e.
+	// the total task number in a single Framework is not greater than 10000.
+	// However, this requires all clients who read the Framework object directly, need to decompress
+	// the compressed fields by themselves.
+	//
+	// How to decompress?
+	// 1. The field name of a compressed field, has a suffix "Compressed" compared with the field
+	//    name of its corresponding raw field, such as TaskRoleStatusesCompressed is the compressed
+	//    field of TaskRoleStatuses.
+	// 2. If the raw field is not null, just use the raw field, otherwise fallback to the compressed
+	//    field, by base64 decoding, gzip decompression and json unmarshal.
+	// 3. Currently, only field TaskRoleStatuses will be compressed if it is too large.
+	LargeFrameworkCompression *bool `yaml:"largeFrameworkCompression"`
+
 	// Check interval and timeout to expect the created CRD to be in Established condition.
 	CRDEstablishedCheckIntervalSec *int64 `yaml:"crdEstablishedCheckIntervalSec"`
 	CRDEstablishedCheckTimeoutSec  *int64 `yaml:"crdEstablishedCheckTimeoutSec"`
@@ -195,6 +216,9 @@ func NewConfig() *Config {
 	}
 	if c.WorkerNumber == nil {
 		c.WorkerNumber = common.PtrInt32(10)
+	}
+	if c.LargeFrameworkCompression == nil {
+		c.LargeFrameworkCompression = common.PtrBool(false)
 	}
 	if c.CRDEstablishedCheckIntervalSec == nil {
 		c.CRDEstablishedCheckIntervalSec = common.PtrInt64(1)

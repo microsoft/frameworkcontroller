@@ -5,7 +5,15 @@
 
 #kubeApiServerAddress: http://10.10.10.10:8080
 #kubeConfigFilePath: ''
+
 #workerNumber: 20
+
+#largeFrameworkCompression: true
+
+#frameworkCompletedRetainSec: 2592000
+
+#frameworkMinRetryDelaySecForTransientConflictFailed: 60
+#frameworkMaxRetryDelaySecForTransientConflictFailed: 900
 
 podFailureSpec:
 ################################################################################
