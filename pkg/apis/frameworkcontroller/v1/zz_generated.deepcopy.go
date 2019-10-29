@@ -801,6 +801,11 @@ func (in *TaskAttemptStatus) DeepCopyInto(out *TaskAttemptStatus) {
 		*out = new(types.UID)
 		**out = **in
 	}
+	if in.PodNodeName != nil {
+		in, out := &in.PodNodeName, &out.PodNodeName
+		*out = new(string)
+		**out = **in
+	}
 	if in.PodIP != nil {
 		in, out := &in.PodIP, &out.PodIP
 		*out = new(string)
