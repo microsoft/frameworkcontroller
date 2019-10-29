@@ -483,6 +483,7 @@ func (f *Framework) NewTaskAttemptStatus(
 		InstanceUID:      nil,
 		PodName:          GetPodName(f.Name, taskRoleName, taskIndex),
 		PodUID:           nil,
+		PodNodeName:      nil,
 		PodIP:            nil,
 		PodHostIP:        nil,
 		CompletionStatus: nil,

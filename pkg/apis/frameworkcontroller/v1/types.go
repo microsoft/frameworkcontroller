@@ -318,6 +318,7 @@ type TaskAttemptStatus struct {
 	PodName string `json:"podName"`
 	// PodUID can also universally locate the TaskAttemptInstance.
 	PodUID           *types.UID                   `json:"podUID"`
+	PodNodeName      *string                      `json:"podNodeName"`
 	PodIP            *string                      `json:"podIP"`
 	PodHostIP        *string                      `json:"podHostIP"`
 	CompletionStatus *TaskAttemptCompletionStatus `json:"completionStatus"`
