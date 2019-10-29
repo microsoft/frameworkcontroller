@@ -1292,6 +1292,7 @@ func (c *FrameworkController) syncTaskState(
 
 				// Below Pod fields may be available even when PodPending, such as the Pod
 				// has been bound to a Node, but one or more Containers has not been started.
+				taskStatus.AttemptStatus.PodNodeName = &pod.Spec.NodeName
 				taskStatus.AttemptStatus.PodIP = &pod.Status.PodIP
 				taskStatus.AttemptStatus.PodHostIP = &pod.Status.HostIP
 
