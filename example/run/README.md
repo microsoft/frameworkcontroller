@@ -104,7 +104,7 @@ Then build the FrameworkController binary distribution:
 export PROJECT_DIR=${GOPATH}/src/github.com/microsoft/frameworkcontroller
 rm -rf ${PROJECT_DIR}
 mkdir -p ${PROJECT_DIR}
-git clone https://github.com/Microsoft/frameworkcontroller.git ${PROJECT_DIR}
+git clone https://github.com/microsoft/frameworkcontroller.git ${PROJECT_DIR}
 cd ${PROJECT_DIR}
 ./build/frameworkcontroller/go-build.sh
 ```
