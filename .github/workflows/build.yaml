@@ -1,0 +1,24 @@
+name: build
+
+on:
+  push:
+    branches:
+    - master
+  pull_request:
+    branches:
+    - master
+
+jobs:
+  frameworkcontroller:
+    name: frameworkcontroller
+    runs-on: ubuntu-16.04
+    steps:
+    - uses: actions/checkout@v1
+    - run: build/frameworkcontroller/docker-build.sh
+
+  frameworkbarrier:
+    name: frameworkbarrier
+    runs-on: ubuntu-16.04
+    steps:
+    - uses: actions/checkout@v1
+    - run: build/frameworkbarrier/docker-build.sh
