@@ -450,9 +450,10 @@ The default behavior is to achieve all the [ConsistencyGuarantees](#ConsistencyG
 According to the [CAP theorem](https://en.wikipedia.org/wiki/CAP_theorem), in the presence of a network partition, you cannot achieve both consistency and availability at the same time in any distributed system. So you have to make a trade-off between the [Framework Consistency](#FrameworkConsistency) and the [Framework Availability](#FrameworkAvailability).
 
 You can tune the trade-off, such as to achieve higher [Framework Availability](#FrameworkAvailability) by sacrificing the [Framework Consistency](#FrameworkConsistency):
-1. Set a small [Pod TolerationSeconds for TaintBasedEvictions](https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/#taint-based-evictions)
-2. Set a small [PodGracefulDeletionTimeoutSec](../pkg/apis/frameworkcontroller/v1/types.go)
-3. Violate other guidelines mentioned in [How to achieve ConsistencyGuarantees](#ConsistencyGuaranteesHowTo), such as manually force delete a problematic Pod.
+1. Decrease [Pod TolerationSeconds for TaintBasedEvictions](https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/#taint-based-evictions)
+2. Increase [Node Eviction Rate](https://kubernetes.io/docs/concepts/architecture/nodes/#node-controller)
+3. Set a small [PodGracefulDeletionTimeoutSec](../pkg/apis/frameworkcontroller/v1/types.go)
+4. Violate other guidelines mentioned in [How to achieve ConsistencyGuarantees](#ConsistencyGuaranteesHowTo), such as manually force delete a problematic Pod.
 
 See more in:
 1. [PodGracefulDeletionTimeoutSec](../pkg/apis/frameworkcontroller/v1/types.go)
