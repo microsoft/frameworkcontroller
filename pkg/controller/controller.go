@@ -484,8 +484,8 @@ func (c *FrameworkController) syncFramework(key string) (returnedErr error) {
 	defer func() {
 		if returnedErr != nil {
 			// returnedErr is already prefixed with logPfx
-			klog.Warningf(returnedErr.Error())
-			klog.Warningf(logPfx +
+			klog.Warning(returnedErr.Error())
+			klog.Warning(logPfx +
 				"Failed to due to Platform Transient Error. " +
 				"Will enqueue it again after rate limited delay")
 		}
@@ -715,9 +715,9 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 			// Ensure the FrameworkSnapshot is exposed before the deletion.
 			logSfx = ci.GetFrameworkSnapshotLogTail(f)
 		}
-		klog.Infof(logPfx+"Framework will be deleted due to "+
-			"FrameworkCompletedRetainSec %v is expired"+logSfx,
-			common.SecToDuration(c.cConfig.FrameworkCompletedRetainSec))
+		klog.Info(logPfx + fmt.Sprintf("Framework will be deleted due to "+
+			"FrameworkCompletedRetainSec %v is expired",
+			common.SecToDuration(c.cConfig.FrameworkCompletedRetainSec)) + logSfx)
 		return c.deleteFramework(f, true)
 	}
 
@@ -739,7 +739,7 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 				if f.Spec.ExecutionType == ci.ExecutionStop {
 					diag = fmt.Sprintf("User has requested to stop the Framework")
 					code = ci.CompletionCodeStopFrameworkRequested
-					klog.Infof(logPfx + diag)
+					klog.Info(logPfx + diag)
 				} else {
 					if c.enqueueFrameworkAttemptCreationTimeoutCheck(f, true) {
 						klog.Infof(logPfx +
@@ -752,7 +752,7 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 							"so consider it was deleted and explicitly delete it",
 						common.SecToDuration(c.cConfig.ObjectLocalCacheCreationTimeoutSec))
 					code = ci.CompletionCodeConfigMapCreationTimeout
-					klog.Warningf(logPfx + diag)
+					klog.Warning(logPfx + diag)
 				}
 
 				// Ensure cm is deleted in remote to avoid managed cm leak after
@@ -770,7 +770,7 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 			if f.Status.State != ci.FrameworkAttemptCreationPending {
 				if f.Status.AttemptStatus.CompletionStatus == nil {
 					diag := fmt.Sprintf("ConfigMap was deleted by others")
-					klog.Warningf(logPfx + diag)
+					klog.Warning(logPfx + diag)
 					c.completeFrameworkAttempt(f, true,
 						ci.CompletionCodeConfigMapExternalDeleted.
 							NewFrameworkAttemptCompletionStatus(diag, nil))
@@ -812,7 +812,7 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 			} else {
 				if f.Status.AttemptStatus.CompletionStatus == nil {
 					diag := fmt.Sprintf("ConfigMap is being deleted by others")
-					klog.Warningf(logPfx + diag)
+					klog.Warning(logPfx + diag)
 					f.Status.AttemptStatus.CompletionStatus =
 						ci.CompletionCodeConfigMapExternalDeleted.
 							NewFrameworkAttemptCompletionStatus(diag, nil)
@@ -881,7 +881,7 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 				// also expose it as one history snapshot.
 				logSfx = ci.GetFrameworkSnapshotLogTail(f)
 			}
-			klog.Infof(logPfx + "Framework will be retried" + logSfx)
+			klog.Info(logPfx + "Framework will be retried" + logSfx)
 
 			f.Status.RetryPolicyStatus.TotalRetriedCount++
 			if retryDecision.IsAccountable {
@@ -907,7 +907,7 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 
 		if f.Spec.ExecutionType == ci.ExecutionStop {
 			diag := fmt.Sprintf("User has requested to stop the Framework")
-			klog.Infof(logPfx + diag)
+			klog.Info(logPfx + diag)
 
 			// Ensure cm is deleted in remote to avoid managed cm leak after
 			// FrameworkAttemptCompleted.
@@ -955,7 +955,7 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 		if !f.IsCompleting() {
 			if f.Spec.ExecutionType == ci.ExecutionStop {
 				diag := fmt.Sprintf("User has requested to stop the Framework")
-				klog.Infof(logPfx + diag)
+				klog.Info(logPfx + diag)
 				c.completeFrameworkAttempt(f, false,
 					ci.CompletionCodeStopFrameworkRequested.
 						NewFrameworkAttemptCompletionStatus(diag, nil))
@@ -1220,7 +1220,7 @@ func (c *FrameworkController) syncTaskState(
 					"Pod does not appear in the local cache within timeout %v, "+
 						"so consider it was deleted and explicitly delete it",
 					common.SecToDuration(c.cConfig.ObjectLocalCacheCreationTimeoutSec))
-				klog.Warningf(logPfx + diag)
+				klog.Warning(logPfx + diag)
 
 				// Ensure pod is deleted in remote to avoid managed pod leak after
 				// TaskAttemptCompleted.
@@ -1238,7 +1238,7 @@ func (c *FrameworkController) syncTaskState(
 			if taskStatus.State != ci.TaskAttemptCreationPending {
 				if taskStatus.AttemptStatus.CompletionStatus == nil {
 					diag := fmt.Sprintf("Pod was deleted by others")
-					klog.Warningf(logPfx + diag)
+					klog.Warning(logPfx + diag)
 					c.completeTaskAttempt(f, taskRoleName, taskIndex, true,
 						ci.CompletionCodePodExternalDeleted.
 							NewTaskAttemptCompletionStatus(diag, nil))
@@ -1304,7 +1304,7 @@ func (c *FrameworkController) syncTaskState(
 					return nil
 				} else if pod.Status.Phase == core.PodSucceeded {
 					diag := fmt.Sprintf("Pod succeeded")
-					klog.Infof(logPfx + diag)
+					klog.Info(logPfx + diag)
 					c.completeTaskAttempt(f, taskRoleName, taskIndex, false,
 						ci.CompletionCodeSucceeded.NewTaskAttemptCompletionStatus(
 							diag, ci.ExtractPodCompletionStatus(pod)))
@@ -1312,7 +1312,7 @@ func (c *FrameworkController) syncTaskState(
 				} else if pod.Status.Phase == core.PodFailed {
 					result := ci.MatchCompletionCodeInfos(pod)
 					diag := fmt.Sprintf("Pod failed: %v", result.Diagnostics)
-					klog.Infof(logPfx + diag)
+					klog.Info(logPfx + diag)
 					c.completeTaskAttempt(f, taskRoleName, taskIndex, false,
 						&ci.TaskAttemptCompletionStatus{
 							CompletionStatus: &ci.CompletionStatus{
@@ -1332,7 +1332,7 @@ func (c *FrameworkController) syncTaskState(
 			} else {
 				if taskStatus.AttemptStatus.CompletionStatus == nil {
 					diag := fmt.Sprintf("Pod is being deleted by others")
-					klog.Warningf(logPfx + diag)
+					klog.Warning(logPfx + diag)
 					taskStatus.AttemptStatus.CompletionStatus =
 						ci.CompletionCodePodExternalDeleted.
 							NewTaskAttemptCompletionStatus(diag, nil)
@@ -1387,7 +1387,7 @@ func (c *FrameworkController) syncTaskState(
 				// expose it as one history snapshot.
 				logSfx = ci.GetFrameworkSnapshotLogTail(f)
 			}
-			klog.Infof(logPfx + "Task will be retried" + logSfx)
+			klog.Info(logPfx + "Task will be retried" + logSfx)
 
 			taskStatus.RetryPolicyStatus.TotalRetriedCount++
 			if retryDecision.IsAccountable {
@@ -1416,7 +1416,7 @@ func (c *FrameworkController) syncTaskState(
 			if apiErrors.IsInvalid(apiErr) {
 				// Should be Framework Error instead of Platform Transient Error.
 				diag := fmt.Sprintf("%v", apiErr)
-				klog.Infof(logPfx + diag)
+				klog.Info(logPfx + diag)
 
 				// Ensure pod is deleted in remote to avoid managed pod leak after
 				// TaskAttemptCompleted.
@@ -1471,7 +1471,7 @@ func (c *FrameworkController) syncTaskState(
 				msg := fmt.Sprintf(
 					"FailedTaskCount %v has reached MinFailedTaskCount %v in the TaskRole",
 					failedTaskCount, minFailedTaskCount)
-				klog.Infof(logPfx + msg)
+				klog.Info(logPfx + msg)
 				c.completeFrameworkAttempt(f, false,
 					&ci.FrameworkAttemptCompletionStatus{
 						CompletionStatus: taskStatus.AttemptStatus.CompletionStatus.CompletionStatus,
@@ -1492,7 +1492,7 @@ func (c *FrameworkController) syncTaskState(
 				msg := fmt.Sprintf(
 					"SucceededTaskCount %v has reached MinSucceededTaskCount %v in the TaskRole",
 					succeededTaskCount, minSucceededTaskCount)
-				klog.Infof(logPfx + msg)
+				klog.Info(logPfx + msg)
 				c.completeFrameworkAttempt(f, false,
 					ci.CompletionCodeSucceeded.NewFrameworkAttemptCompletionStatus(
 						taskStatus.AttemptStatus.CompletionStatus.Diagnostics,
@@ -1515,7 +1515,7 @@ func (c *FrameworkController) syncTaskState(
 					"FrameworkAttemptCompletionPolicy have ever been triggered: "+
 					"TotalTaskCount: %v, FailedTaskCount: %v",
 				totalTaskCount, failedTaskCount)
-			klog.Infof(logPfx + msg)
+			klog.Info(logPfx + msg)
 			c.completeFrameworkAttempt(f, false,
 				ci.CompletionCodeSucceeded.NewFrameworkAttemptCompletionStatus(
 					taskStatus.AttemptStatus.CompletionStatus.Diagnostics,
