@@ -45,7 +45,7 @@ const (
 	ConfigFilePath                    = "./frameworkcontroller.yaml"
 	UnlimitedValue                    = -1
 	ExtendedUnlimitedValue            = -2
-	LargeFrameworkCompressionMinBytes = 100 * 1024
+	LargeFrameworkCompressionMinBytes = 700 * 1024
 
 	// For all managed objects
 	// Predefined Annotations
