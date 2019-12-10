@@ -209,12 +209,6 @@ func NewFrameworkController() *FrameworkController {
 	// Informer resync will periodically replay the event of all objects stored in its cache.
 	// However, by design, Informer and Controller should not miss any event.
 	// So, we should disable resync to avoid hiding missing event bugs inside Controller.
-	//
-	// TODO: Add AttemptCreating state after SharedInformer supports IncludeUninitialized.
-	// So that we can move the object initialization time out of the
-	// ObjectLocalCacheCreationTimeoutSec, to reduce the expectation timeout false alarm
-	// rate when Pod is specified with Initializers.
-	// See https://github.com/kubernetes/kubernetes/pull/51247
 	cmListerInformer := kubeInformer.NewSharedInformerFactory(kClient, 0).Core().V1().ConfigMaps()
 	podListerInformer := kubeInformer.NewSharedInformerFactory(kClient, 0).Core().V1().Pods()
 	fListerInformer := frameworkInformer.NewSharedInformerFactory(fClient, 0).Frameworkcontroller().V1().Frameworks()
