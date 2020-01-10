@@ -5,7 +5,7 @@
 [![Docker Pulls](https://img.shields.io/docker/pulls/frameworkcontroller/frameworkcontroller.svg)](https://hub.docker.com/u/frameworkcontroller)
 [![License](https://img.shields.io/github/license/microsoft/frameworkcontroller.svg)](https://github.com/microsoft/frameworkcontroller/blob/master/LICENSE)
 
-As one standalone component, Microsoft OpenPAI FrameworkController is built to orchestrate all kinds of applications on [Kubernetes](https://kubernetes.io) by a single controller.
+As one standalone component of [Microsoft OpenPAI](https://github.com/microsoft/pai), FrameworkController is built to orchestrate all kinds of applications on [Kubernetes](https://kubernetes.io) by a single controller.
 
 These kinds of applications include but not limited to:
 - __Stateless and Stateful Service__ (Nginx, TensorFlow Serving, HBase, Kafka, etc)

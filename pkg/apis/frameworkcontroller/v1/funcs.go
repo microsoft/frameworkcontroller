@@ -36,12 +36,23 @@ import (
 ///////////////////////////////////////////////////////////////////////////////////////
 // Utils
 ///////////////////////////////////////////////////////////////////////////////////////
+func SplitFrameworkKey(frameworkKey string) (frameworkNamespace, frameworkName string) {
+	parts := strings.Split(frameworkKey, "/")
+	if len(parts) != 2 {
+		panic(fmt.Errorf("Failed to SplitFrameworkKey %v", frameworkKey))
+	}
+	return parts[0], parts[1]
+}
+
 func GetConfigMapName(frameworkName string) string {
 	return strings.Join([]string{frameworkName, "attempt"}, "-")
 }
 
 func SplitConfigMapName(configMapName string) (frameworkName string) {
 	parts := strings.Split(configMapName, "-")
+	if len(parts) != 2 {
+		panic(fmt.Errorf("Failed to SplitConfigMapName %v", configMapName))
+	}
 	return parts[0]
 }
 
@@ -51,6 +62,9 @@ func GetPodName(frameworkName string, taskRoleName string, taskIndex int32) stri
 
 func SplitPodName(podName string) (frameworkName string, taskRoleName string, taskIndex int32) {
 	parts := strings.Split(podName, "-")
+	if len(parts) != 3 {
+		panic(fmt.Errorf("Failed to SplitPodName %v", podName))
+	}
 	i, err := strconv.ParseInt(parts[2], 10, 32)
 	if err != nil {
 		panic(fmt.Errorf("Failed to SplitPodName %v: %v", podName, err))
@@ -65,6 +79,11 @@ func GetFrameworkAttemptInstanceUID(frameworkAttemptID int32, configMapUID *type
 func SplitFrameworkAttemptInstanceUID(frameworkAttemptInstanceUID *types.UID) (
 	frameworkAttemptID int32, configMapUID *types.UID) {
 	parts := strings.Split(string(*frameworkAttemptInstanceUID), "_")
+	if len(parts) != 2 {
+		panic(fmt.Errorf(
+			"Failed to SplitFrameworkAttemptInstanceUID %v",
+			*frameworkAttemptInstanceUID))
+	}
 	i, err := strconv.ParseInt(parts[0], 10, 32)
 	if err != nil {
 		panic(fmt.Errorf(
@@ -81,6 +100,11 @@ func GetTaskAttemptInstanceUID(taskAttemptID int32, podUID *types.UID) *types.UI
 func SplitTaskAttemptInstanceUID(taskAttemptInstanceUID *types.UID) (
 	taskAttemptID int32, podUID *types.UID) {
 	parts := strings.Split(string(*taskAttemptInstanceUID), "_")
+	if len(parts) != 2 {
+		panic(fmt.Errorf(
+			"Failed to SplitTaskAttemptInstanceUID %v",
+			*taskAttemptInstanceUID))
+	}
 	i, err := strconv.ParseInt(parts[0], 10, 32)
 	if err != nil {
 		panic(fmt.Errorf(
