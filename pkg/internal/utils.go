@@ -139,83 +139,69 @@ func isCRDEstablished(crd *apiExtensions.CustomResourceDefinition) bool {
 	return false
 }
 
-func GetKey(obj interface{}) (string, error) {
-	return cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
-}
-
-func SplitKey(key string) (namespace, name string, err error) {
-	return cache.SplitMetaNamespaceKey(key)
-}
-
-// obj could be *core.Framework or cache.DeletedFinalStateUnknown.
+// obj should come from Framework SharedIndexInformer, otherwise may panic.
 func ToFramework(obj interface{}) *ci.Framework {
 	f, ok := obj.(*ci.Framework)
 
 	if !ok {
 		deletedFinalStateUnknown, ok := obj.(cache.DeletedFinalStateUnknown)
 		if !ok {
-			klog.Errorf(
+			panic(fmt.Errorf(
 				"Failed to convert obj to Framework or DeletedFinalStateUnknown: %#v",
-				obj)
-			return nil
+				obj))
 		}
 
 		f, ok = deletedFinalStateUnknown.Obj.(*ci.Framework)
 		if !ok {
-			klog.Errorf(
+			panic(fmt.Errorf(
 				"Failed to convert DeletedFinalStateUnknown.Obj to Framework: %#v",
-				deletedFinalStateUnknown)
-			return nil
+				deletedFinalStateUnknown))
 		}
 	}
 
 	return f
 }
 
-// obj could be *core.ConfigMap or cache.DeletedFinalStateUnknown.
+// obj should come from ConfigMap SharedIndexInformer, otherwise may panic.
 func ToConfigMap(obj interface{}) *core.ConfigMap {
 	cm, ok := obj.(*core.ConfigMap)
 
 	if !ok {
 		deletedFinalStateUnknown, ok := obj.(cache.DeletedFinalStateUnknown)
 		if !ok {
-			klog.Errorf(
+			panic(fmt.Errorf(
 				"Failed to convert obj to ConfigMap or DeletedFinalStateUnknown: %#v",
-				obj)
-			return nil
+				obj))
 		}
 
 		cm, ok = deletedFinalStateUnknown.Obj.(*core.ConfigMap)
 		if !ok {
-			klog.Errorf(
+			panic(fmt.Errorf(
 				"Failed to convert DeletedFinalStateUnknown.Obj to ConfigMap: %#v",
-				deletedFinalStateUnknown)
-			return nil
+				deletedFinalStateUnknown))
 		}
 	}
 
 	return cm
 }
 
-// obj could be *core.Pod or cache.DeletedFinalStateUnknown.
+// obj should come from Pod SharedIndexInformer, otherwise may panic.
 func ToPod(obj interface{}) *core.Pod {
 	pod, ok := obj.(*core.Pod)
 
 	if !ok {
 		deletedFinalStateUnknown, ok := obj.(cache.DeletedFinalStateUnknown)
 		if !ok {
-			klog.Errorf(
+			panic(fmt.Errorf(
 				"Failed to convert obj to Pod or DeletedFinalStateUnknown: %#v",
-				obj)
-			return nil
+				obj))
 		}
 
 		pod, ok = deletedFinalStateUnknown.Obj.(*core.Pod)
 		if !ok {
-			klog.Errorf(
+			panic(fmt.Errorf(
 				"Failed to convert DeletedFinalStateUnknown.Obj to Pod: %#v",
-				deletedFinalStateUnknown)
-			return nil
+				deletedFinalStateUnknown))
 		}
 	}
 

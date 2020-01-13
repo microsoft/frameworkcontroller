@@ -75,12 +75,16 @@ type FrameworkController struct {
 	kClient kubeClient.Interface
 	fClient frameworkClient.Interface
 
-	// Informer is used to sync remote objects to local cached objects, and deliver
-	// events of object changes.
+	// Informer is used to sync remote objects to local cached objects, and then
+	// deliver corresponding events of the object changes.
 	//
-	// The event delivery is level driven, not edge driven.
-	// For example, the Informer may not deliver any event if a create is immediately
-	// followed by a delete.
+	// The event delivery for an object is level driven instead of edge driven,
+	// and the object is identified by its name instead of its UID.
+	// For example:
+	// 1. Informer may not deliver any event if a create is immediately followed
+	//    by a delete.
+	// 2. Informer may deliver an Update event with UID changed if a delete is
+	//    immediately followed by a create.
 	cmInformer  cache.SharedIndexInformer
 	podInformer cache.SharedIndexInformer
 	fInformer   cache.SharedIndexInformer
@@ -191,6 +195,9 @@ type ExpectedFrameworkStatusInfo struct {
 	// See FrameworkStatus.
 	status *ci.FrameworkStatus
 
+	// The Framework.UID of the expected Framework.Status.
+	uid types.UID
+
 	// Whether the expected Framework.Status is the same as the remote one.
 	// It helps to ensure the expected Framework.Status is persisted before sync.
 	remoteSynced bool
@@ -238,104 +245,107 @@ func NewFrameworkController() *FrameworkController {
 	}
 
 	fInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			c.enqueueFrameworkObj(obj, "Framework Added", nil)
-		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
-			// FrameworkController only cares about Framework.Spec update
-			oldF := oldObj.(*ci.Framework)
-			newF := newObj.(*ci.Framework)
-			if !reflect.DeepEqual(oldF.Spec, newF.Spec) {
-				c.enqueueFrameworkObj(newObj, "Framework.Spec Updated", nil)
-			}
-		},
-		DeleteFunc: func(obj interface{}) {
-			c.enqueueFrameworkObj(obj, "Framework Deleted", func() string {
-				if *c.cConfig.LogObjectSnapshot.Framework.OnFrameworkDeletion {
-					if f := internal.ToFramework(obj); f != nil {
-						return ci.GetFrameworkSnapshotLogTail(f)
-					}
-				}
-				return ""
-			})
-		},
+		AddFunc:    c.addFrameworkObj,
+		UpdateFunc: c.updateFrameworkObj,
+		DeleteFunc: c.deleteFrameworkObj,
 	})
 
 	cmInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			c.enqueueFrameworkConfigMapObj(obj, "Framework ConfigMap Added", nil)
-		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
-			c.enqueueFrameworkConfigMapObj(newObj, "Framework ConfigMap Updated", nil)
-		},
-		DeleteFunc: func(obj interface{}) {
-			c.enqueueFrameworkConfigMapObj(obj, "Framework ConfigMap Deleted", nil)
-		},
+		AddFunc:    c.addConfigMapObj,
+		UpdateFunc: c.updateConfigMapObj,
+		DeleteFunc: c.deleteConfigMapObj,
 	})
 
 	podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			c.enqueueFrameworkPodObj(obj, "Framework Pod Added", nil)
-		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
-			c.enqueueFrameworkPodObj(newObj, "Framework Pod Updated", nil)
-		},
-		DeleteFunc: func(obj interface{}) {
-			c.enqueueFrameworkPodObj(obj, "Framework Pod Deleted", func() string {
-				if *c.cConfig.LogObjectSnapshot.Pod.OnPodDeletion {
-					if pod := internal.ToPod(obj); pod != nil {
-						return ci.GetPodSnapshotLogTail(pod)
-					}
-				}
-				return ""
-			})
-		},
+		AddFunc:    c.addPodObj,
+		UpdateFunc: c.updatePodObj,
+		DeleteFunc: c.deletePodObj,
 	})
 
 	return c
 }
 
-// obj could be *ci.Framework or cache.DeletedFinalStateUnknown.
-func (c *FrameworkController) enqueueFrameworkObj(
-	obj interface{}, logSfx string, logTailFunc func() string) {
-	key, err := internal.GetKey(obj)
-	if err != nil {
-		klog.Errorf("Failed to get key for obj %#v, skip to enqueue: %v", obj, err)
+func (c *FrameworkController) addFrameworkObj(obj interface{}) {
+	f := internal.ToFramework(obj)
+	c.enqueueFrameworkObj(f, "Framework Added "+string(f.UID))
+}
+
+func (c *FrameworkController) updateFrameworkObj(oldObj, newObj interface{}) {
+	oldF := internal.ToFramework(oldObj)
+	newF := internal.ToFramework(newObj)
+	// Informer may deliver an Update event with UID changed if a delete is
+	// immediately followed by a create, so manually decompose it.
+	if oldF.UID != newF.UID {
+		c.deleteFrameworkObj(oldObj)
+		c.addFrameworkObj(newObj)
 		return
 	}
 
-	_, _, err = internal.SplitKey(key)
-	if err != nil {
-		klog.Errorf("Got invalid key %v for obj %#v, skip to enqueue: %v", key, obj, err)
+	// Only care about Framework.Spec update.
+	if !reflect.DeepEqual(oldF.Spec, newF.Spec) {
+		c.enqueueFrameworkObj(newF, "Framework.Spec Updated")
+	}
+}
+
+func (c *FrameworkController) deleteFrameworkObj(obj interface{}) {
+	f := internal.ToFramework(obj)
+	logSfx := ""
+	if *c.cConfig.LogObjectSnapshot.Framework.OnFrameworkDeletion {
+		logSfx = ci.GetFrameworkSnapshotLogTail(f)
+	}
+	c.enqueueFrameworkObj(f, "Framework Deleted "+string(f.UID)+logSfx)
+}
+
+func (c *FrameworkController) addConfigMapObj(obj interface{}) {
+	cm := internal.ToConfigMap(obj)
+	c.enqueueConfigMapObj(cm, "Framework ConfigMap Added "+string(cm.UID))
+}
+
+func (c *FrameworkController) updateConfigMapObj(oldObj, newObj interface{}) {
+	oldCM := internal.ToConfigMap(oldObj)
+	newCM := internal.ToConfigMap(newObj)
+	// Informer may deliver an Update event with UID changed if a delete is
+	// immediately followed by a create, so manually decompose it.
+	if oldCM.UID != newCM.UID {
+		c.deleteConfigMapObj(oldObj)
+		c.addConfigMapObj(newObj)
 		return
 	}
 
-	c.fQueue.Add(key)
-
-	if logTailFunc != nil {
-		logSfx += logTailFunc()
-	}
-	klog.Infof("[%v]: enqueueFrameworkObj: %v", key, logSfx)
+	c.enqueueConfigMapObj(newCM, "Framework ConfigMap Updated")
 }
 
-// obj could be *core.ConfigMap or cache.DeletedFinalStateUnknown.
-func (c *FrameworkController) enqueueFrameworkConfigMapObj(
-	obj interface{}, logSfx string, logTailFunc func() string) {
-	if cm := internal.ToConfigMap(obj); cm != nil {
-		if f := c.getConfigMapOwner(cm); f != nil {
-			c.enqueueFrameworkObj(f, logSfx+": "+cm.Name, logTailFunc)
-		}
-	}
+func (c *FrameworkController) deleteConfigMapObj(obj interface{}) {
+	cm := internal.ToConfigMap(obj)
+	c.enqueueConfigMapObj(cm, "Framework ConfigMap Deleted "+string(cm.UID))
 }
 
-// obj could be *core.Pod or cache.DeletedFinalStateUnknown.
-func (c *FrameworkController) enqueueFrameworkPodObj(
-	obj interface{}, logSfx string, logTailFunc func() string) {
-	if pod := internal.ToPod(obj); pod != nil {
-		if cm := c.getPodOwner(pod); cm != nil {
-			c.enqueueFrameworkConfigMapObj(cm, logSfx+": "+pod.Name, logTailFunc)
-		}
+func (c *FrameworkController) addPodObj(obj interface{}) {
+	pod := internal.ToPod(obj)
+	c.enqueuePodObj(pod, "Framework Pod Added "+string(pod.UID))
+}
+
+func (c *FrameworkController) updatePodObj(oldObj, newObj interface{}) {
+	oldPod := internal.ToPod(oldObj)
+	newPod := internal.ToPod(newObj)
+	// Informer may deliver an Update event with UID changed if a delete is
+	// immediately followed by a create, so manually decompose it.
+	if oldPod.UID != newPod.UID {
+		c.deletePodObj(oldObj)
+		c.addPodObj(newObj)
+		return
 	}
+
+	c.enqueuePodObj(newPod, "Framework Pod Updated")
+}
+
+func (c *FrameworkController) deletePodObj(obj interface{}) {
+	pod := internal.ToPod(obj)
+	logSfx := ""
+	if *c.cConfig.LogObjectSnapshot.Pod.OnPodDeletion {
+		logSfx = ci.GetPodSnapshotLogTail(pod)
+	}
+	c.enqueuePodObj(pod, "Framework Pod Deleted "+string(pod.UID)+logSfx)
 }
 
 func (c *FrameworkController) getConfigMapOwner(cm *core.ConfigMap) *ci.Framework {
@@ -351,9 +361,10 @@ func (c *FrameworkController) getConfigMapOwner(cm *core.ConfigMap) *ci.Framewor
 	f, err := c.fLister.Frameworks(cm.Namespace).Get(cmOwner.Name)
 	if err != nil {
 		if !apiErrors.IsNotFound(err) {
-			klog.Errorf(
+			// Unreachable
+			panic(fmt.Errorf(
 				"[%v]: ConfigMapOwner %#v cannot be got from local cache: %v",
-				cm.Namespace+"/"+cm.Name, *cmOwner, err)
+				cm.Namespace+"/"+cm.Name, *cmOwner, err))
 		}
 		return nil
 	}
@@ -380,9 +391,10 @@ func (c *FrameworkController) getPodOwner(pod *core.Pod) *core.ConfigMap {
 	cm, err := c.cmLister.ConfigMaps(pod.Namespace).Get(podOwner.Name)
 	if err != nil {
 		if !apiErrors.IsNotFound(err) {
-			klog.Errorf(
+			// Unreachable
+			panic(fmt.Errorf(
 				"[%v]: PodOwner %#v cannot be got from local cache: %v",
-				pod.Namespace+"/"+pod.Name, *podOwner, err)
+				pod.Namespace+"/"+pod.Name, *podOwner, err))
 		}
 		return nil
 	}
@@ -394,6 +406,23 @@ func (c *FrameworkController) getPodOwner(pod *core.Pod) *core.ConfigMap {
 	}
 
 	return cm
+}
+
+func (c *FrameworkController) enqueuePodObj(pod *core.Pod, logSfx string) {
+	if cm := c.getPodOwner(pod); cm != nil {
+		c.enqueueConfigMapObj(cm, logSfx)
+	}
+}
+
+func (c *FrameworkController) enqueueConfigMapObj(cm *core.ConfigMap, logSfx string) {
+	if f := c.getConfigMapOwner(cm); f != nil {
+		c.enqueueFrameworkObj(f, logSfx)
+	}
+}
+
+func (c *FrameworkController) enqueueFrameworkObj(f *ci.Framework, logSfx string) {
+	c.fQueue.Add(f.Key())
+	klog.Infof("[%v]: enqueueFrameworkObj: %v", f.Key(), logSfx)
 }
 
 func (c *FrameworkController) Run(stopCh <-chan struct{}) {
@@ -486,15 +515,8 @@ func (c *FrameworkController) syncFramework(key string) (returnedErr error) {
 		klog.Infof(logPfx+"Completed: Duration %v", time.Since(startTime))
 	}()
 
-	namespace, name, err := internal.SplitKey(key)
-	if err != nil {
-		// Unreachable
-		panic(fmt.Errorf(logPfx+
-			"Failed: Got invalid key from queue, but the queue should only contain "+
-			"valid keys: %v", err))
-	}
-
-	localF, err := c.fLister.Frameworks(namespace).Get(name)
+	fNamespace, fName := ci.SplitFrameworkKey(key)
+	localF, err := c.fLister.Frameworks(fNamespace).Get(fName)
 	if err != nil {
 		if apiErrors.IsNotFound(err) {
 			// GarbageCollectionController will handle the dependent object
@@ -509,11 +531,13 @@ func (c *FrameworkController) syncFramework(key string) (returnedErr error) {
 		}
 	} else {
 		f := localF.DeepCopy()
-		// From now on, f is a writable copy of the original local cached one, and
-		// it may be different from the original one.
+		// From now on, we only sync this f instance which is identified by its UID
+		// instead of its name, and the f is a writable copy of the original local
+		// cached one, and it may be different from the original one.
+		klog.Infof(logPfx+"UID %v", f.UID)
 
 		expected := c.getExpectedFrameworkStatusInfo(f.Key())
-		if expected == nil {
+		if expected == nil || expected.uid != f.UID {
 			if f.Status != nil {
 				// Recover f related things, since it is the first time we see it and
 				// its Status is not nil.
@@ -526,7 +550,7 @@ func (c *FrameworkController) syncFramework(key string) (returnedErr error) {
 
 			// f.Status must be the same as the remote one, since it is the first
 			// time we see it.
-			c.updateExpectedFrameworkStatusInfo(f.Key(), f.Status, true)
+			c.updateExpectedFrameworkStatusInfo(f.Key(), f.Status, f.UID, true)
 		} else {
 			// f.Status may be outdated, so override it with the expected one, to
 			// ensure the Framework.Status is Monotonically Exposed.
@@ -537,7 +561,7 @@ func (c *FrameworkController) syncFramework(key string) (returnedErr error) {
 			if !expected.remoteSynced {
 				c.compressFramework(f)
 				updateErr := c.updateRemoteFrameworkStatus(f)
-				c.updateExpectedFrameworkStatusInfo(f.Key(), f.Status, updateErr == nil)
+				c.updateExpectedFrameworkStatusInfo(f.Key(), f.Status, f.UID, updateErr == nil)
 
 				if updateErr != nil {
 					return updateErr
@@ -565,7 +589,7 @@ func (c *FrameworkController) syncFramework(key string) (returnedErr error) {
 			// no need to DeepCopy between f.Status and the expected one.
 			c.compressFramework(f)
 			updateErr := c.updateRemoteFrameworkStatus(f)
-			c.updateExpectedFrameworkStatusInfo(f.Key(), f.Status, updateErr == nil)
+			c.updateExpectedFrameworkStatusInfo(f.Key(), f.Status, f.UID, updateErr == nil)
 
 			errs = append(errs, updateErr)
 		} else {
@@ -1898,10 +1922,13 @@ func (c *FrameworkController) deleteExpectedFrameworkStatusInfo(key string) {
 }
 
 func (c *FrameworkController) updateExpectedFrameworkStatusInfo(key string,
-	status *ci.FrameworkStatus, remoteSynced bool) {
-	klog.Infof("[%v]: updateExpectedFrameworkStatusInfo", key)
+	status *ci.FrameworkStatus, uid types.UID, remoteSynced bool) {
+	klog.Infof(
+		"[%v]: updateExpectedFrameworkStatusInfo: UID %v, RemoteSynced %v",
+		key, uid, remoteSynced)
 	c.fExpectedStatusInfos.Store(key, &ExpectedFrameworkStatusInfo{
 		status:       status,
+		uid:          uid,
 		remoteSynced: remoteSynced,
 	})
 }
