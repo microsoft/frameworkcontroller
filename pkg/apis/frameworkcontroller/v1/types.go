@@ -134,8 +134,7 @@ const (
 //    complete a single Task in the TaskRole.
 //
 // Usage:
-// If the Pod Spec is invalid or
-// the ExecutionType is ExecutionStop or
+// If the ExecutionType is ExecutionStop or
 // the Task's FrameworkAttempt is completing,
 //   will not retry.
 //
