@@ -38,6 +38,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
 	"reflect"
+	"strings"
 	"time"
 )
 
@@ -220,4 +221,12 @@ func GetPodDeletionStartTime(pod *core.Pod) *meta.Time {
 		gracePeriod = common.SecToDuration(pod.DeletionGracePeriodSeconds)
 	}
 	return common.PtrTime(meta.NewTime(pod.DeletionTimestamp.Add(-gracePeriod)))
+}
+
+func IsPodSpecPermanentError(apiErr error) bool {
+	return apiErrors.IsBadRequest(apiErr) ||
+		apiErrors.IsInvalid(apiErr) ||
+		apiErrors.IsRequestEntityTooLargeError(apiErr) ||
+		(apiErrors.IsForbidden(apiErr) &&
+			!strings.Contains(apiErr.Error(), "exceeded quota"))
 }

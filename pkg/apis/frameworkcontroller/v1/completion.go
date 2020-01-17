@@ -68,7 +68,7 @@ const (
 	CompletionCodeConfigMapCreationTimeout CompletionCode = -110
 	CompletionCodePodCreationTimeout       CompletionCode = -111
 	// -2XX: Permanent Error
-	CompletionCodePodSpecInvalid             CompletionCode = -200
+	CompletionCodePodSpecPermanentError      CompletionCode = -200
 	CompletionCodeStopFrameworkRequested     CompletionCode = -210
 	CompletionCodeFrameworkAttemptCompletion CompletionCode = -220
 	// -3XX: Unknown Error
@@ -163,8 +163,8 @@ func initCompletionCodeInfos() {
 				[]CompletionTypeAttribute{CompletionTypeAttributeTransient}},
 		},
 		{
-			Code:   CompletionCodePodSpecInvalid.Ptr(),
-			Phrase: "PodSpecInvalid",
+			Code:   CompletionCodePodSpecPermanentError.Ptr(),
+			Phrase: "PodSpecPermanentError",
 			Type: CompletionType{CompletionTypeNameFailed,
 				[]CompletionTypeAttribute{CompletionTypeAttributePermanent}},
 		},

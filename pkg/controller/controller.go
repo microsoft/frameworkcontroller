@@ -1146,7 +1146,7 @@ func (c *FrameworkController) createConfigMap(
 
 	remoteCM, createErr := c.kClient.CoreV1().ConfigMaps(f.Namespace).Create(cm)
 	if createErr != nil {
-		if apiErrors.IsConflict(createErr) {
+		if apiErrors.IsAlreadyExists(createErr) {
 			// Best effort to judge if conflict with a not controlled object.
 			localCM, getErr := c.cmLister.ConfigMaps(f.Namespace).Get(cm.Name)
 			if getErr == nil && !meta.IsControlledBy(localCM, f) {
@@ -1431,9 +1431,9 @@ func (c *FrameworkController) syncTaskState(
 		pod, err = c.createPod(f, cm, taskRoleName, taskIndex)
 		if err != nil {
 			apiErr := errorWrap.Cause(err)
-			if apiErrors.IsInvalid(apiErr) {
+			if internal.IsPodSpecPermanentError(apiErr) {
 				// Should be Framework Error instead of Platform Transient Error.
-				diag := fmt.Sprintf("%v", apiErr)
+				diag := fmt.Sprintf("Failed to create Pod: %v", common.ToJson(apiErr))
 				klog.Info(logPfx + diag)
 
 				// Ensure pod is deleted in remote to avoid managed pod leak after
@@ -1444,7 +1444,7 @@ func (c *FrameworkController) syncTaskState(
 				}
 
 				c.completeTaskAttempt(f, taskRoleName, taskIndex, true,
-					ci.CompletionCodePodSpecInvalid.
+					ci.CompletionCodePodSpecPermanentError.
 						NewTaskAttemptCompletionStatus(diag, nil))
 				return nil
 			} else {
@@ -1702,7 +1702,7 @@ func (c *FrameworkController) createPod(
 
 	remotePod, createErr := c.kClient.CoreV1().Pods(f.Namespace).Create(pod)
 	if createErr != nil {
-		if apiErrors.IsConflict(createErr) {
+		if apiErrors.IsAlreadyExists(createErr) {
 			// Best effort to judge if conflict with a not controlled object.
 			localPod, getErr := c.podLister.Pods(f.Namespace).Get(pod.Name)
 			if getErr == nil && !meta.IsControlledBy(localPod, cm) {
