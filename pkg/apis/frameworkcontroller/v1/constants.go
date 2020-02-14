@@ -64,6 +64,7 @@ const (
 	// Predefined Labels
 	LabelKeyFrameworkName = AnnotationKeyFrameworkName
 	LabelKeyTaskRoleName  = AnnotationKeyTaskRoleName
+	LabelKeyTaskIndex     = AnnotationKeyTaskIndex
 
 	// For all managed containers
 	// Predefined Environment Variables
