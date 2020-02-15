@@ -396,6 +396,7 @@ func (f *Framework) NewPod(cm *core.ConfigMap, taskRoleName string, taskIndex in
 	}
 	pod.Labels[LabelKeyFrameworkName] = f.Name
 	pod.Labels[LabelKeyTaskRoleName] = taskRoleName
+	pod.Labels[LabelKeyTaskIndex] = taskIndexStr
 
 	predefinedEnvs := []core.EnvVar{
 		{Name: EnvNameFrameworkNamespace, Value: f.Namespace},
