@@ -14,7 +14,7 @@
    - [Framework Consistency vs Availability](#FrameworkConsistencyAvailability)
    - [Controller Extension](#ControllerExtension)
      - [FrameworkBarrier](#FrameworkBarrier)
-     - [HivedScheduler](#HivedScheduler)
+     - [HiveDScheduler](#HiveDScheduler)
    - [Best Practice](#BestPractice)
 
 ## <a name="FrameworkInterop">Framework Interop</a>
@@ -464,9 +464,9 @@ See more in:
 1. [Usage](../pkg/barrier/barrier.go)
 2. Example: [FrameworkBarrier Example](../example/framework/extension/frameworkbarrier.yaml), [TensorFlow Example](../example/framework/scenario/tensorflow), [etc](../example/framework/scenario).
 
-### <a name="HivedScheduler">HivedScheduler</a>
-1. [Usage](https://github.com/microsoft/pai/tree/master/subprojects/hivedscheduler)
-2. Example: [TensorFlow Example](../example/framework/scenario/tensorflow/gpu/tensorflowdistributedtrainingwithhivedscheduledgpu.yaml), [etc](https://github.com/microsoft/pai/blob/master/subprojects/GOPATH/src/github.com/microsoft/hivedscheduler/example/request/design/request.yaml).
+### <a name="HiveDScheduler">HiveDScheduler</a>
+1. [Usage](https://github.com/microsoft/hivedscheduler)
+2. Example: [TensorFlow Example](../example/framework/scenario/tensorflow/gpu/tensorflowdistributedtrainingwithhivedscheduledgpu.yaml), [etc](https://github.com/microsoft/hivedscheduler/example/request/design/request.yaml).
 
 ## <a name="BestPractice">Best Practice</a>
 [Best Practice](../pkg/apis/frameworkcontroller/v1/types.go)
