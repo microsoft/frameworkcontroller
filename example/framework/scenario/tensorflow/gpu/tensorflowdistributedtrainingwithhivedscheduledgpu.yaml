@@ -34,7 +34,7 @@ spec:
               affinityGroup: null
         spec:
           # [PREREQUISITE]
-          # Do not specify the schedulerName if the HivedScheduler is directly
+          # Do not specify the schedulerName if the HiveDScheduler is directly
           # called by the k8s default scheduler.
           schedulerName: hivedscheduler
           restartPolicy: Never
@@ -76,8 +76,8 @@ spec:
             resources:
               limits:
                 # [PREREQUISITE]
-                # User needs to setup HivedScheduler for the k8s cluster.
-                # See https://github.com/microsoft/pai/tree/master/subprojects/hivedscheduler
+                # User needs to setup HiveDScheduler for the k8s cluster.
+                # See https://github.com/microsoft/hivedscheduler
                 hivedscheduler.microsoft.com/pod-scheduling-enable: 1
                 cpu: 3
                 memory: 96Gi
