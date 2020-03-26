@@ -47,6 +47,7 @@ spec:
           # 3 workers are specified with the same containerPort.
           # See https://kubernetes.io/docs/concepts/cluster-administration/networking
           hostNetwork: false
+          priorityClassName: prod-priority
           containers:
           - name: tensorflow
             # Using official image to demonstrate this example.
@@ -159,6 +160,7 @@ spec:
           # [PREREQUISITE]
           # Same as ps TaskRole.
           hostNetwork: false
+          priorityClassName: prod-priority
           containers:
           - name: tensorflow
             image: frameworkcontroller/tensorflow-examples:gpu
@@ -215,3 +217,13 @@ spec:
             #nfs:
             #  server: {NFS Server Host}
             #  path: {NFS Shared Directory}
+---
+# Post to {kubeApiServerAddress}/apis/scheduling.k8s.io/v1/priorityclasses/
+# PodPriority should be set proportional to above AffinityGroupPriority,
+# i.e. the hivedscheduler.microsoft.com/pod-scheduling-spec.priority,
+# otherwise, K8S may be incompatible with hived.
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: prod-priority
+value: 1000
