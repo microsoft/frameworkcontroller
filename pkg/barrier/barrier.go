@@ -288,24 +288,37 @@ func (b *FrameworkBarrier) Run() {
 }
 
 func isBarrierPassed(f *ci.Framework) bool {
+	// Fully counting Tasks in f.Status against f.Spec, as FrameworkController may
+	// have not persist DeletionPending (ScaleDown) Tasks according to current
+	// f.Spec.
 	totalTaskCount := int32(0)
-	for _, taskRole := range f.Spec.TaskRoles {
-		totalTaskCount += taskRole.TaskNumber
-	}
-
 	readyTaskCount := int32(0)
-	if f.Status != nil {
-		for _, taskRoleStatus := range f.TaskRoleStatuses() {
-			for _, taskStatus := range taskRoleStatus.TaskStatuses {
-				if isTaskReady(taskStatus) {
-					readyTaskCount++
-				}
+	for _, taskRoleSpec := range f.Spec.TaskRoles {
+		taskRoleName := taskRoleSpec.Name
+		taskCountSpec := taskRoleSpec.TaskNumber
+		totalTaskCount += taskCountSpec
+
+		if f.Status == nil {
+			continue
+		}
+
+		taskRoleStatus := f.GetTaskRoleStatus(taskRoleName)
+		if taskRoleStatus == nil {
+			continue
+		}
+
+		taskCountStatus := int32(len(taskRoleStatus.TaskStatuses))
+		taskCountStatusAndSpec := common.MinInt32(taskCountStatus, taskCountSpec)
+		for taskIndex := int32(0); taskIndex < taskCountStatusAndSpec; taskIndex++ {
+			taskStatus := taskRoleStatus.TaskStatuses[taskIndex]
+			if isTaskReady(taskStatus, true) {
+				readyTaskCount++
 			}
 		}
 	}
 
 	// Wait until readyTaskCount is consistent with totalTaskCount.
-	if readyTaskCount == totalTaskCount {
+	if readyTaskCount >= totalTaskCount {
 		klog.Infof("BarrierPassed: "+
 			"%v/%v Tasks are ready with not nil PodIP.",
 			readyTaskCount, totalTaskCount)
@@ -318,9 +331,11 @@ func isBarrierPassed(f *ci.Framework) bool {
 	}
 }
 
-func isTaskReady(taskStatus *ci.TaskStatus) bool {
-	return taskStatus.AttemptStatus.PodIP != nil &&
-		*taskStatus.AttemptStatus.PodIP != ""
+func isTaskReady(ts *ci.TaskStatus, ignoreDeletionPending bool) bool {
+	if ts.IsDeletionPendingIgnored(ignoreDeletionPending) {
+		return false
+	}
+	return ts.AttemptStatus.PodIP != nil && *ts.AttemptStatus.PodIP != ""
 }
 
 func dumpFramework(f *ci.Framework) {
@@ -341,6 +356,8 @@ func getTaskRoleEnvName(taskRoleName string, suffix string) string {
 	return strings.Join([]string{"FB", strings.ToUpper(taskRoleName), suffix}, "_")
 }
 
+// All Tasks in f.Spec must be also included in f.Status as Ready, so inject from
+// f.Status is enough.
 func generateInjector(f *ci.Framework) {
 	var injector strings.Builder
 	injector.WriteString("#!/bin/bash")
@@ -357,17 +374,28 @@ func generateInjector(f *ci.Framework) {
 		//   {Task[TaskRole.TaskNumber-1].PodIP}
 		injector.WriteString("\n")
 		for _, taskRoleStatus := range f.TaskRoleStatuses() {
-			ipsEnvName := getTaskRoleEnvName(taskRoleStatus.Name, "IPS")
+			taskRoleName := taskRoleStatus.Name
+			taskCountStatus := int32(len(taskRoleStatus.TaskStatuses))
 
+			taskRoleSpec := f.GetTaskRoleSpec(taskRoleName)
+			if taskRoleSpec == nil {
+				continue
+			}
+
+			ipsEnvName := getTaskRoleEnvName(taskRoleName, "IPS")
 			injector.WriteString("export " + ipsEnvName + "=")
-			for _, taskStatus := range taskRoleStatus.TaskStatuses {
-				taskIndex := taskStatus.Index
+
+			taskCountSpec := taskRoleSpec.TaskNumber
+			taskCountStatusAndSpec := common.MinInt32(taskCountStatus, taskCountSpec)
+			for taskIndex := int32(0); taskIndex < taskCountStatusAndSpec; taskIndex++ {
+				taskStatus := taskRoleStatus.TaskStatuses[taskIndex]
+				taskIP := *taskStatus.AttemptStatus.PodIP
 				if taskIndex > 0 {
 					injector.WriteString(",")
 				}
-				taskIP := *taskStatus.AttemptStatus.PodIP
 				injector.WriteString(taskIP)
 			}
+
 			injector.WriteString("\n")
 			injector.WriteString("echo " + ipsEnvName + "=${" + ipsEnvName + "}")
 			injector.WriteString("\n")
@@ -378,18 +406,29 @@ func generateInjector(f *ci.Framework) {
 		//   {Task[TaskRole.TaskNumber-1].PodIP}:${FB_{UpperCase({TaskRoleName})}_PORT}
 		injector.WriteString("\n")
 		for _, taskRoleStatus := range f.TaskRoleStatuses() {
-			addrsEnvName := getTaskRoleEnvName(taskRoleStatus.Name, "ADDRESSES")
-			portEnvName := getTaskRoleEnvName(taskRoleStatus.Name, "PORT")
+			taskRoleName := taskRoleStatus.Name
+			taskCountStatus := int32(len(taskRoleStatus.TaskStatuses))
 
+			taskRoleSpec := f.GetTaskRoleSpec(taskRoleName)
+			if taskRoleSpec == nil {
+				continue
+			}
+
+			addrsEnvName := getTaskRoleEnvName(taskRoleName, "ADDRESSES")
+			portEnvName := getTaskRoleEnvName(taskRoleName, "PORT")
 			injector.WriteString("export " + addrsEnvName + "=")
-			for _, taskStatus := range taskRoleStatus.TaskStatuses {
-				taskIndex := taskStatus.Index
+
+			taskCountSpec := taskRoleSpec.TaskNumber
+			taskCountStatusAndSpec := common.MinInt32(taskCountStatus, taskCountSpec)
+			for taskIndex := int32(0); taskIndex < taskCountStatusAndSpec; taskIndex++ {
+				taskStatus := taskRoleStatus.TaskStatuses[taskIndex]
+				taskAddr := *taskStatus.AttemptStatus.PodIP + ":" + "${" + portEnvName + "}"
 				if taskIndex > 0 {
 					injector.WriteString(",")
 				}
-				taskAddr := *taskStatus.AttemptStatus.PodIP + ":" + "${" + portEnvName + "}"
 				injector.WriteString(taskAddr)
 			}
+
 			injector.WriteString("\n")
 			injector.WriteString("echo " + addrsEnvName + "=${" + addrsEnvName + "}")
 			injector.WriteString("\n")

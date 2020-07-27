@@ -29,6 +29,7 @@ import (
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -142,10 +143,75 @@ func GetAllContainerStatuses(pod *core.Pod) []core.ContainerStatus {
 		pod.Status.ContainerStatuses...)
 }
 
+func BindIDP(
+	selectorIDP TaskStatusSelectorIDP,
+	ignoreDeletionPending bool) TaskStatusSelector {
+	return func(taskStatus *TaskStatus) bool {
+		return selectorIDP(taskStatus, ignoreDeletionPending)
+	}
+}
+
+func NewFailedTaskTriggeredCompletionStatus(
+	triggerTaskStatus *TaskStatus,
+	triggerTaskRoleName string,
+	failedTaskCount int32,
+	minFailedTaskCount int32) *FrameworkAttemptCompletionStatus {
+	return &FrameworkAttemptCompletionStatus{
+		CompletionStatus: triggerTaskStatus.AttemptStatus.CompletionStatus.CompletionStatus,
+		Trigger: &CompletionPolicyTriggerStatus{
+			Message: fmt.Sprintf(
+				"FailedTaskCount %v has reached MinFailedTaskCount %v in the TaskRole",
+				failedTaskCount, minFailedTaskCount),
+			TaskRoleName: triggerTaskRoleName,
+			TaskIndex:    triggerTaskStatus.Index,
+		},
+	}
+}
+
+func NewSucceededTaskTriggeredCompletionStatus(
+	triggerTaskStatus *TaskStatus,
+	triggerTaskRoleName string,
+	succeededTaskCount int32,
+	minSucceededTaskCount int32) *FrameworkAttemptCompletionStatus {
+	return &FrameworkAttemptCompletionStatus{
+		CompletionStatus: triggerTaskStatus.AttemptStatus.CompletionStatus.CompletionStatus,
+		Trigger: &CompletionPolicyTriggerStatus{
+			Message: fmt.Sprintf(
+				"SucceededTaskCount %v has reached MinSucceededTaskCount %v in the TaskRole",
+				succeededTaskCount, minSucceededTaskCount),
+			TaskRoleName: triggerTaskRoleName,
+			TaskIndex:    triggerTaskStatus.Index,
+		},
+	}
+}
+
+func NewCompletedTaskTriggeredCompletionStatus(
+	triggerTaskStatus *TaskStatus,
+	triggerTaskRoleName string,
+	completedTaskCount int32,
+	totalTaskCount int32) *FrameworkAttemptCompletionStatus {
+	diag := fmt.Sprintf(
+		"CompletedTaskCount %v has reached TotalTaskCount %v and no user specified "+
+			"conditions in FrameworkAttemptCompletionPolicy have ever been triggered",
+		completedTaskCount, totalTaskCount)
+	if triggerTaskStatus == nil {
+		return CompletionCodeSucceeded.NewFrameworkAttemptCompletionStatus(diag, nil)
+	} else {
+		return CompletionCodeSucceeded.NewFrameworkAttemptCompletionStatus(diag,
+			&CompletionPolicyTriggerStatus{
+				Message:      diag,
+				TaskRoleName: triggerTaskRoleName,
+				TaskIndex:    triggerTaskStatus.Index,
+			},
+		)
+	}
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////
 // Interfaces
 ///////////////////////////////////////////////////////////////////////////////////////
-type TaskStatusSelector func(*TaskStatus) bool
+type TaskStatusSelector func(taskStatus *TaskStatus) bool
+type TaskStatusSelectorIDP func(taskStatus *TaskStatus, ignoreDeletionPending bool) bool
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // Spec Read Methods
@@ -154,13 +220,36 @@ func (f *Framework) Key() string {
 	return f.Namespace + "/" + f.Name
 }
 
-func (f *Framework) TaskRoleSpec(taskRoleName string) *TaskRoleSpec {
+// Return nil if and only if TaskRoleSpec is deleted while the TaskRole's
+// TaskRoleStatus still exist due to graceful deletion.
+func (f *Framework) GetTaskRoleSpec(taskRoleName string) *TaskRoleSpec {
 	for _, taskRole := range f.Spec.TaskRoles {
 		if taskRole.Name == taskRoleName {
 			return taskRole
 		}
 	}
+	return nil
+}
+
+// Panic if and only if TaskRoleSpec is deleted while the TaskRole's
+// TaskRoleStatus still exist due to graceful deletion.
+func (f *Framework) TaskRoleSpec(taskRoleName string) *TaskRoleSpec {
+	if taskRole := f.GetTaskRoleSpec(taskRoleName); taskRole != nil {
+		return taskRole
+	}
 	panic(fmt.Errorf("[%v]: TaskRole is not found in Spec", taskRoleName))
+}
+
+func (f *Framework) GetTaskCountSpec() int32 {
+	taskCount := int32(0)
+	for _, taskRole := range f.Spec.TaskRoles {
+		taskCount += taskRole.TaskNumber
+	}
+	return taskCount
+}
+
+func (f *Framework) GetTotalTaskCountSpec() int32 {
+	return f.GetTaskCountSpec()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -210,28 +299,49 @@ func (f *Framework) TaskRoleStatuses() []*TaskRoleStatus {
 	return f.Status.AttemptStatus.TaskRoleStatuses
 }
 
-func (f *Framework) TaskRoleStatus(taskRoleName string) *TaskRoleStatus {
+func (f *Framework) GetTaskRoleStatus(taskRoleName string) *TaskRoleStatus {
 	for _, taskRoleStatus := range f.TaskRoleStatuses() {
 		if taskRoleStatus.Name == taskRoleName {
 			return taskRoleStatus
 		}
 	}
+	return nil
+}
+
+func (f *Framework) TaskRoleStatus(taskRoleName string) *TaskRoleStatus {
+	if taskRoleStatus := f.GetTaskRoleStatus(taskRoleName); taskRoleStatus != nil {
+		return taskRoleStatus
+	}
 	panic(fmt.Errorf("[%v]: TaskRole is not found in Status", taskRoleName))
 }
 
-func (f *Framework) TaskStatus(taskRoleName string, taskIndex int32) *TaskStatus {
+func (f *Framework) GetTaskStatus(taskRoleName string, taskIndex int32) *TaskStatus {
 	taskRoleStatus := f.TaskRoleStatus(taskRoleName)
 	if 0 <= taskIndex && taskIndex < int32(len(taskRoleStatus.TaskStatuses)) {
 		return taskRoleStatus.TaskStatuses[taskIndex]
 	}
+	return nil
+}
+
+func (f *Framework) TaskStatus(taskRoleName string, taskIndex int32) *TaskStatus {
+	if taskStatus := f.GetTaskStatus(taskRoleName, taskIndex); taskStatus != nil {
+		return taskStatus
+	}
 	panic(fmt.Errorf("[%v][%v]: Task is not found in Status", taskRoleName, taskIndex))
+}
+
+func (ts *TaskStatus) IsDeletionPendingIgnored(ignoreDeletionPending bool) bool {
+	return ts.DeletionPending && ignoreDeletionPending
 }
 
 func (f *Framework) IsCompleted() bool {
 	return f.Status.State == FrameworkCompleted
 }
 
-func (ts *TaskStatus) IsCompleted() bool {
+func (ts *TaskStatus) IsCompleted(ignoreDeletionPending bool) bool {
+	if ts.IsDeletionPendingIgnored(ignoreDeletionPending) {
+		return false
+	}
 	return ts.State == TaskCompleted
 }
 
@@ -239,7 +349,10 @@ func (f *Framework) IsRunning() bool {
 	return f.Status.State == FrameworkAttemptRunning
 }
 
-func (ts *TaskStatus) IsRunning() bool {
+func (ts *TaskStatus) IsRunning(ignoreDeletionPending bool) bool {
+	if ts.IsDeletionPendingIgnored(ignoreDeletionPending) {
+		return false
+	}
 	return ts.State == TaskAttemptRunning
 }
 
@@ -249,7 +362,10 @@ func (f *Framework) IsCompleting() bool {
 		f.Status.State == FrameworkAttemptDeleting
 }
 
-func (ts *TaskStatus) IsCompleting() bool {
+func (ts *TaskStatus) IsCompleting(ignoreDeletionPending bool) bool {
+	if ts.IsDeletionPendingIgnored(ignoreDeletionPending) {
+		return false
+	}
 	return ts.State == TaskAttemptDeletionPending ||
 		ts.State == TaskAttemptDeletionRequested ||
 		ts.State == TaskAttemptDeleting
@@ -259,50 +375,72 @@ func (f *Framework) IsSucceeded() bool {
 	return f.IsCompleted() && f.CompletionType().IsSucceeded()
 }
 
-func (ts *TaskStatus) IsSucceeded() bool {
-	return ts.IsCompleted() && ts.CompletionType().IsSucceeded()
+func (ts *TaskStatus) IsSucceeded(ignoreDeletionPending bool) bool {
+	return ts.IsCompleted(ignoreDeletionPending) && ts.CompletionType().IsSucceeded()
 }
 
 func (f *Framework) IsFailed() bool {
 	return f.IsCompleted() && f.CompletionType().IsFailed()
 }
 
-func (ts *TaskStatus) IsFailed() bool {
-	return ts.IsCompleted() && ts.CompletionType().IsFailed()
+func (ts *TaskStatus) IsFailed(ignoreDeletionPending bool) bool {
+	return ts.IsCompleted(ignoreDeletionPending) && ts.CompletionType().IsFailed()
+}
+
+func (trs *TaskRoleStatus) CompletionTimeOrderedTaskStatus(
+	selector TaskStatusSelector, orderIndex int32) *TaskStatus {
+	orderedTasks := trs.GetTaskStatuses(selector)
+	sort.SliceStable(orderedTasks, func(i, j int) bool {
+		return orderedTasks[i].CompletionTime.Before(orderedTasks[j].CompletionTime)
+	})
+
+	if 0 <= orderIndex && orderIndex < int32(len(orderedTasks)) {
+		return orderedTasks[orderIndex]
+	}
+	panic(fmt.Errorf(
+		"Task orderIndex %v is not found in CompletionTime orderedTasks: %v",
+		orderIndex, orderedTasks))
 }
 
 func (trs *TaskRoleStatus) GetTaskStatuses(selector TaskStatusSelector) []*TaskStatus {
-	if selector == nil {
-		return trs.TaskStatuses
-	}
-
 	taskStatuses := []*TaskStatus{}
 	for _, taskStatus := range trs.TaskStatuses {
-		if selector(taskStatus) {
+		if selector == nil || selector(taskStatus) {
 			taskStatuses = append(taskStatuses, taskStatus)
 		}
 	}
 	return taskStatuses
 }
 
-func (trs *TaskRoleStatus) GetTaskCount(selector TaskStatusSelector) int32 {
-	return int32(len(trs.GetTaskStatuses(selector)))
-}
+func (trs *TaskRoleStatus) GetTaskCountStatus(selector TaskStatusSelector) int32 {
+	if selector == nil {
+		return int32(len(trs.TaskStatuses))
+	}
 
-func (f *Framework) GetTaskCount(selector TaskStatusSelector) int32 {
 	taskCount := int32(0)
-	for _, taskRoleStatus := range f.TaskRoleStatuses() {
-		taskCount += taskRoleStatus.GetTaskCount(selector)
+	for _, taskStatus := range trs.TaskStatuses {
+		if selector(taskStatus) {
+			taskCount++
+		}
 	}
 	return taskCount
 }
 
-func (f *Framework) AreAllTasksCompleted() bool {
-	return f.GetTaskCount((*TaskStatus).IsCompleted) == f.GetTaskCount(nil)
+func (f *Framework) GetTaskCountStatus(selector TaskStatusSelector) int32 {
+	taskCount := int32(0)
+	for _, taskRoleStatus := range f.TaskRoleStatuses() {
+		taskCount += taskRoleStatus.GetTaskCountStatus(selector)
+	}
+	return taskCount
 }
 
-func (f *Framework) IsAnyTaskRunning() bool {
-	return f.GetTaskCount((*TaskStatus).IsRunning) > 0
+func (f *Framework) GetTotalTaskCountStatus() int32 {
+	return f.GetTaskCountStatus(nil)
+}
+
+func (f *Framework) IsAnyTaskRunning(ignoreDeletionPending bool) bool {
+	return f.GetTaskCountStatus(BindIDP(
+		(*TaskStatus).IsRunning, ignoreDeletionPending)) > 0
 }
 
 func (f *Framework) NewConfigMap() *core.ConfigMap {
@@ -484,11 +622,12 @@ func (f *Framework) NewTaskRoleStatuses() []*TaskRoleStatus {
 
 func (f *Framework) NewTaskStatus(taskRoleName string, taskIndex int32) *TaskStatus {
 	return &TaskStatus{
-		Index:          taskIndex,
-		StartTime:      meta.Now(),
-		CompletionTime: nil,
-		State:          TaskAttemptCreationPending,
-		TransitionTime: meta.Now(),
+		Index:           taskIndex,
+		StartTime:       meta.Now(),
+		DeletionPending: false,
+		CompletionTime:  nil,
+		State:           TaskAttemptCreationPending,
+		TransitionTime:  meta.Now(),
 		RetryPolicyStatus: RetryPolicyStatus{
 			TotalRetriedCount:       0,
 			AccountableRetriedCount: 0,
@@ -539,7 +678,8 @@ func (rp RetryPolicySpec) ShouldRetry(
 
 	// 0. Built-in Always-on RetryPolicy
 	if cs.Code == CompletionCodeStopFrameworkRequested ||
-		cs.Code == CompletionCodeFrameworkAttemptCompletion {
+		cs.Code == CompletionCodeFrameworkAttemptCompletion ||
+		cs.Code == CompletionCodeDeleteTaskRequested {
 		return RetryDecision{false, true, 0, fmt.Sprintf(
 			"CompletionCode is %v, %v", cs.Code, cs.Phrase)}
 	}
@@ -692,4 +832,19 @@ func (f *Framework) Decompress() error {
 	}
 
 	return nil
+}
+
+func (ts *TaskStatus) MarkAsDeletionPending() (isNewDeletionPendingTask bool) {
+	if ts.DeletionPending {
+		return false
+	}
+
+	ts.DeletionPending = true
+	if ts.AttemptStatus.CompletionStatus == nil {
+		ts.AttemptStatus.CompletionStatus =
+			CompletionCodeDeleteTaskRequested.
+				NewTaskAttemptCompletionStatus(
+					"User has requested to delete the Task by Framework ScaleDown", nil)
+	}
+	return true
 }

@@ -148,6 +148,7 @@ type LogObjectSnapshot struct {
 type LogFrameworkSnapshot struct {
 	OnTaskRetry         *bool `yaml:"onTaskRetry"`
 	OnFrameworkRetry    *bool `yaml:"onFrameworkRetry"`
+	OnFrameworkRescale  *bool `yaml:"onFrameworkRescale"`
 	OnFrameworkDeletion *bool `yaml:"onFrameworkDeletion"`
 }
 
@@ -244,6 +245,9 @@ func NewConfig() *Config {
 	}
 	if c.LogObjectSnapshot.Framework.OnFrameworkRetry == nil {
 		c.LogObjectSnapshot.Framework.OnFrameworkRetry = common.PtrBool(true)
+	}
+	if c.LogObjectSnapshot.Framework.OnFrameworkRescale == nil {
+		c.LogObjectSnapshot.Framework.OnFrameworkRescale = common.PtrBool(true)
 	}
 	if c.LogObjectSnapshot.Framework.OnFrameworkDeletion == nil {
 		c.LogObjectSnapshot.Framework.OnFrameworkDeletion = common.PtrBool(true)

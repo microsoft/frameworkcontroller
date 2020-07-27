@@ -7,7 +7,7 @@ spec:
   executionType: Start
   retryPolicy:
     fancyRetryPolicy: false
-    maxRetryCount: -1
+    maxRetryCount: -2
   taskRoles:
   - name: serverstateful
     taskNumber: 3
@@ -17,7 +17,7 @@ spec:
     task:
       retryPolicy:
         fancyRetryPolicy: false
-        maxRetryCount: -1
+        maxRetryCount: -2
       pod:
         spec:
           # Using Never restartPolicy, ActiveDeadlineSeconds and initContainers
