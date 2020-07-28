@@ -31,6 +31,7 @@ spec:
             - containerPort: 80
 ---
 # Post to {kubeApiServerAddress}/api/v1/namespaces/default/services/
+# Then the above nginx server can be accessed by http://10.169.8.232:30170
 apiVersion: v1
 kind: Service
 metadata:
@@ -42,6 +43,8 @@ spec:
     FC_TASKROLE_NAME: server
     # Also can use customized labels
     #app: server
-  ports:
-  - port: 80
   type: NodePort
+  ports:
+  - targetPort: 80
+    port: 30170
+    nodePort: 30170

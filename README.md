@@ -12,15 +12,15 @@ These kinds of applications include but not limited to:
   - DeepLearning Serving: [TensorFlow Serving](https://www.tensorflow.org/tfx/guide/serving), etc.
   - Big Data Serving: HDFS, HBase, Kafka, Nginx, etc.
 - __Stateless and Stateful Batch__:
-  - DeepLearning MPI Training: [Horovod Training](https://horovod.readthedocs.io), etc.
-  - DeepLearning Elastic Training without Server: [PyTorch Elastic Training with shared etcd](https://pytorch.org/elastic), etc.
-  - DeepLearning Batch/Offline Inference: [TensorFlow Inference](https://www.tensorflow.org/lite/guide/inference), etc.
+  - DeepLearning Elastic Training without Server: [PyTorch Elastic Training with whole cluster shared etcd](https://pytorch.org/elastic), etc.
+  - DeepLearning Batch/Offline Inference: [PyTorch Inference](https://pytorch.org/tutorials/recipes/recipes/saving_and_loading_models_for_inference.html), etc.
   - Automated Machine Learning: [NNI](https://nni.readthedocs.io), etc.
   - Big Data Batch Processing: [Standalone Spark](http://spark.apache.org/docs/latest/spark-standalone.html), KD-Tree Building, etc.
 - __Any combination of above applications__:
+  - DeepLearning MPI Training: [Horovod MPI Training](https://horovod.readthedocs.io/en/stable/mpirun.html), etc.
   - DeepLearning ParameterServer Training: [TensorFlow ParameterServer Training](https://www.tensorflow.org/guide/distributed_training#parameterserverstrategy), etc.
   - DeepLearning Interactive Training: [TensorFlow with Jupyter Notebook](https://www.tensorflow.org/tensorboard/tensorboard_in_notebooks), etc.
-  - DeepLearning Elastic Training with Server: [PyTorch Elastic Training with dedicated etcd](https://pytorch.org/elastic), etc.
+  - DeepLearning Elastic Training with Server: [PyTorch Elastic Training with per-application dedicated etcd](https://pytorch.org/elastic), etc.
   - DeepLearning Streaming/Online Inference: [TensorFlow Inference with Streaming I/O](https://www.tensorflow.org/io), etc.
   - DeepLearning Incremental/Online Training: [TensorFlow Training with Streaming I/O](https://www.tensorflow.org/io), etc.
   - Big Data Stream Processing: [Standalone Flink](https://ci.apache.org/projects/flink/flink-docs-stable/ops/deployment/cluster_setup.html), etc.
