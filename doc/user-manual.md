@@ -490,10 +490,10 @@ Notes:
       <td><i>MinFailedTaskCount = 1</i><br>MinSucceededTaskCount = {Worker.TaskNumber}</td>
     </tr>
     <tr>
-      <td rowspan="3"><b>Master Dominated: <a href="https://horovod.readthedocs.io/en/stable/mpirun.html">Horovod MPI Training</a></td>
+      <td rowspan="2"><b>Master Dominated: <a href="https://horovod.readthedocs.io/en/stable/mpirun.html">Horovod MPI Training</a></td>
       <td>Master</td>
       <td><i>MinFailedTaskCount = 1</i><br>MinSucceededTaskCount = 1</td>
-      <td rowspan="3">The FrameworkAttemptCompletionPolicy is fully delegated to the single instance master of the user application:<br>Fail the FrameworkAttempt immediately if the master failed.<br>Succeed the FrameworkAttempt immediately if the master succeeded.</td>
+      <td rowspan="2">The FrameworkAttemptCompletionPolicy is fully delegated to the single instance master of the user application:<br>Fail the FrameworkAttempt immediately if the master failed.<br>Succeed the FrameworkAttempt immediately if the master succeeded.</td>
     </tr>
     <tr>
       <td>Worker</td>
