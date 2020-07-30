@@ -1005,7 +1005,7 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 
 	if f.Status.State == ci.FrameworkCompleted {
 		if c.enqueueFrameworkCompletedRetainTimeoutCheck(f, true) {
-			klog.Infof(logPfx + "Skipped: Framework is already %v, " +
+			klog.Infof(logPfx+"Skipped: Framework is already %v, "+
 				"and waiting to be deleted after FrameworkCompletedRetainSec",
 				f.Status.State)
 			return nil
