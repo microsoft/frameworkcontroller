@@ -971,6 +971,11 @@ func (c *FrameworkController) updatePodGracefulDeletionTimeoutSec(
 
 	changed = false
 
+	if f.Status.State == ci.FrameworkCompleted {
+		klog.Infof(logPfx+"Skipped: Framework is already %v", f.Status.State)
+		return changed
+	}
+
 	for _, taskRoleSpec := range f.Spec.TaskRoles {
 		taskRoleName := taskRoleSpec.Name
 		taskRoleStatus := f.GetTaskRoleStatus(taskRoleName)
@@ -1000,8 +1005,9 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 
 	if f.Status.State == ci.FrameworkCompleted {
 		if c.enqueueFrameworkCompletedRetainTimeoutCheck(f, true) {
-			klog.Infof(logPfx + "Skipped: Framework is already completed, " +
-				"and waiting to be deleted after FrameworkCompletedRetainSec")
+			klog.Infof(logPfx + "Skipped: Framework is already %v, " +
+				"and waiting to be deleted after FrameworkCompletedRetainSec",
+				f.Status.State)
 			return nil
 		}
 

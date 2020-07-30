@@ -18,8 +18,14 @@ spec:
       retryPolicy:
         fancyRetryPolicy: false
         maxRetryCount: -2
+      # Never force delete Pod as it may break the stateful service.
+      podGracefulDeletionTimeoutSec: null
       pod:
         spec:
+          # By leveraging below Headless Service, the Pod can be discovered by its DNS FQDN:
+          # {FC_TASKROLE_NAME}-{FC_TASK_INDEX}.{FC_FRAMEWORK_NAME}.{FC_FRAMEWORK_NAMESPACE}.svc.cluster.local
+          hostname: "{{FC_TASKROLE_NAME}}-{{FC_TASK_INDEX}}"
+          subdomain: "{{FC_FRAMEWORK_NAME}}"
           # Using Never restartPolicy, ActiveDeadlineSeconds and initContainers
           # just to demonstrate consistent identities in this example.
           restartPolicy: Never
@@ -33,18 +39,34 @@ spec:
           - name: ubuntu
             image: ubuntu:trusty
             # See comments in batchstatefulfailed.yaml
-            command: ["sh", "-c", "printenv"]
+            command: [
+              "sh", "-c",
+              "printenv &&
+              getent ahosts &&
+              echo Local DNS FQDN Resolved: $(hostname -f) &&
+              PEER_FQDN=${FC_TASKROLE_NAME}-$((2-${FC_TASK_INDEX})).${FC_FRAMEWORK_NAME}.${FC_FRAMEWORK_NAMESPACE}.svc.cluster.local &&
+              until getent ahosts ${PEER_FQDN};
+                do echo Waiting Peer DNS FQDN Resolved: ${PEER_FQDN}; sleep 3;
+              done;
+              echo Peer DNS FQDN Resolved: ${PEER_FQDN}"]
 ---
 # Post to {kubeApiServerAddress}/api/v1/namespaces/default/services/
+# It is a Headless Service which does not create a load-balancer, but still
+# creates DNS records for each Pod of above Framework, so that they can resolve
+# each other's IP.
 apiVersion: v1
 kind: Service
 metadata:
-  name: serverstateful
+  name: servicestateful
 spec:
+  # Headless Service
+  clusterIP: None
+  # Create DNS records regardless of Pod readiness, to simply peer discovery.
+  publishNotReadyAddresses: true
   selector:
     # See comments in service.yaml
     FC_FRAMEWORK_NAME: servicestateful
     FC_TASKROLE_NAME: serverstateful
   ports:
-  - port: 80
-  type: NodePort
+  - targetPort: 80
+    port: 30180

@@ -18,6 +18,8 @@ spec:
       retryPolicy:
         fancyRetryPolicy: true
         maxRetryCount: 1
+      # Large timeout to force delete Pod as it may break the stateful batch.
+      podGracefulDeletionTimeoutSec: 1800
       pod:
         spec:
           restartPolicy: Never
