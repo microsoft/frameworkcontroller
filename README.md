@@ -34,8 +34,8 @@ Build a General-Purpose Kubernetes Pod Controller: FrameworkController.
 
 And then we can get below benefits from it:
 - __Support Kubernetes official unsupported applications__:
-  - [Stateful Batch with Service](example/framework/basic/batchwithservicesucceeded.yaml) applications, like [TensorFlow ParameterServer Training](https://www.tensorflow.org/guide/distributed_training#parameterserverstrategy).
-  - [ScaleUp/ScaleDown Tolerable Stateful Batch](doc/user-manual.md#FrameworkRescale) applications, like [PyTorch Elastic Training](https://pytorch.org/elastic).
+  - [Stateful Batch with Service](example/framework/basic/batchwithservicesucceeded.yaml) applications, like [TensorFlow ParameterServer Training on FC](example/framework/scenario/tensorflow/ps).
+  - [ScaleUp/ScaleDown Tolerable Stateful Batch](doc/user-manual.md#FrameworkRescale) applications, like [PyTorch Elastic Training on FC](example/framework/scenario/pytorch/elastic).
 - __Only need to learn, use, develop, deploy and maintain a single controller__
 - __All kinds of applications can leverage almost all provided features and guarantees__
 - __All kinds of applications can be used through the same interface with a unified experience__

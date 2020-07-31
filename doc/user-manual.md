@@ -500,7 +500,7 @@ Notes:
       <td>MinFailedTaskCount = -1<br><i>MinSucceededTaskCount = -1</i></td>
     </tr>
     <tr>
-      <td rowspan="1"><b>First Completed Task Dominated: <a href="https://pytorch.org/elastic">PyTorch Elastic Training</a></td>
+      <td rowspan="1"><b>First Completed Task Dominated: <a href="https://github.com/pytorch/elastic/blob/adb5f057359e87a2cb804c7354af5a4e424961c3/torchelastic/agent/server/local_elastic_agent.py#L122-L127">PyTorch Elastic Training</a></td>
       <td>Worker</td>
       <td><i>MinFailedTaskCount = 1</i><br>MinSucceededTaskCount = 1</td>
       <td rowspan="1">The FrameworkAttemptCompletionPolicy is fully delegated to the first completed Task of the user application:<br>Fail the FrameworkAttempt immediately if any Task failed.<br>Succeed the FrameworkAttempt immediately if any Task succeeded.</td>
@@ -523,7 +523,7 @@ Before you start to Rescale Framework, make sure your application executed by th
    2. To mitigate it, the ScaleUp Task can immediately complete itself by leveraging empty work queue or existing checkpoint from previous run.
 3. For **Batch** application, it would better **not too early succeeded** after ScaleDown:
    1. Too early succeeded may happen if all Tasks succeeded except one Task still running, but you ScaleDown the running Task.
-   2. To resolve it, make sure it is safe to ScaleDown the running Task, such as leverage `First Completed Task Dominated` or `Master Dominated` FrameworkType in [FrameworkAttemptCompletionPolicy](#FrameworkAttemptCompletionPolicy). For the `First Completed Task Dominated` FrameworkType, an exit barrier may be needed to ensure any Task succeeded means the whole application already succeeded, like [PyTorch Elastic Training](https://pytorch.org/elastic). For the `Master Dominated` FrameworkType, a master TaskRole is needed and do not ScaleDown the master TaskRole.
+   2. To resolve it, make sure it is safe to ScaleDown the running Task, such as leverage `First Completed Task Dominated` or `Master Dominated` FrameworkType in [FrameworkAttemptCompletionPolicy](#FrameworkAttemptCompletionPolicy). For the `First Completed Task Dominated` FrameworkType, an exit barrier may be needed to ensure any Task succeeded means the whole application already succeeded, like [PyTorch Elastic Training](https://github.com/pytorch/elastic/blob/adb5f057359e87a2cb804c7354af5a4e424961c3/torchelastic/agent/server/local_elastic_agent.py#L122-L127). For the `Master Dominated` FrameworkType, a master TaskRole is needed and do not ScaleDown the master TaskRole.
 
 ### <a name="FrameworkRescaleAPI">API</a>
 - [Add TaskRole](#Add_TaskRole)
@@ -674,6 +674,7 @@ spec:
     - This demonstrates [SafetyGuarantee2](#FrameworkRescaleGuarantee), as otherwise, the previous ScaleDown Task `rescalebasic-a-2`, `rescalebasic-a-3` may be wrongly reused in later ScaleUp.
 
 #### <a name="FrameworkRescalePETExample">PyTorch Elastic Training Example</a>
+[PyTorch Elastic Training On FrameworkController](../example/framework/scenario/pytorch/elastic)
 
 ### <a name="FrameworkRescalePipeline">Pipeline</a>
 **ScaleUp Pipeline**:
@@ -705,6 +706,8 @@ Besides these general [Framework ConsistencyGuarantees](#ConsistencyGuarantees),
       - If the user observed a new non-[DeletionPending](../pkg/apis/frameworkcontroller/v1/types.go) Task (caused by ScaleUp), later ScaleDown will delete it (i.e. ScaleUp committed), otherwise, later ScaleDown may not delete it but previous ScaleUp must not have impacted it, such as start to create its TaskAttempt (i.e. ScaleUp rollbacked).
     - For ScaleDown immediately followed by a ScaleUp:
       - If the user observed a new [DeletionPending](../pkg/apis/frameworkcontroller/v1/types.go) Task (caused by ScaleDown), later ScaleUp will not reuse it (i.e. ScaleDown committed), otherwise, later ScaleUp may reuse it but previous ScaleDown must not have impacted it, such as start to delete it (i.e. ScaleDown rollbacked).
+
+**See [Framework Rescale Basic Example](#FrameworkRescaleBasicExample) to demonstrate these Strong Safety Guarantees.**
 
 ## <a name="LargeScaleFramework">Large Scale Framework</a>
 To safely run large scale Framework, i.e. the total task number in a single Framework is greater than 300, you just need to enable the [LargeFrameworkCompression](../pkg/apis/frameworkcontroller/v1/config.go). However, you may also need to decompress the Framework by yourself.
@@ -797,11 +800,11 @@ See more in:
 ## <a name="ControllerExtension">Controller Extension</a>
 ### <a name="FrameworkBarrier">FrameworkBarrier</a>
 1. [Usage](../pkg/barrier/barrier.go)
-2. Example: [FrameworkBarrier Example](../example/framework/extension/frameworkbarrier.yaml), [TensorFlow Example](../example/framework/scenario/tensorflow), [etc](../example/framework/scenario).
+2. Example: [FrameworkBarrier Example](../example/framework/extension/frameworkbarrier.yaml), [TensorFlow ParameterServer Training Example](../example/framework/scenario/tensorflow/ps), [etc](../example/framework/scenario).
 
 ### <a name="HiveDScheduler">HiveDScheduler</a>
 1. [Usage](https://github.com/microsoft/hivedscheduler)
-2. Example: [TensorFlow Example](../example/framework/scenario/tensorflow/gpu/tensorflowdistributedtrainingwithhivedscheduledgpu.yaml), [etc](https://github.com/microsoft/hivedscheduler/blob/master/example/request/design/request.yaml).
+2. Example: [TensorFlow ParameterServer Training Example](../example/framework/scenario/tensorflow/ps/gpu/tensorflowdistributedtrainingwithhivedscheduledgpu.yaml), [etc](https://github.com/microsoft/hivedscheduler/blob/master/example/request/design/request.yaml).
 
 ## <a name="BestPractice">Best Practice</a>
 [Best Practice](../pkg/apis/frameworkcontroller/v1/types.go)
