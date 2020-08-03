@@ -624,10 +624,10 @@ func (f *Framework) NewTaskStatus(taskRoleName string, taskIndex int32) *TaskSta
 	return &TaskStatus{
 		Index:           taskIndex,
 		StartTime:       meta.Now(),
-		DeletionPending: false,
 		CompletionTime:  nil,
 		State:           TaskAttemptCreationPending,
 		TransitionTime:  meta.Now(),
+		DeletionPending: false,
 		RetryPolicyStatus: RetryPolicyStatus{
 			TotalRetriedCount:       0,
 			AccountableRetriedCount: 0,

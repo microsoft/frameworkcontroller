@@ -455,8 +455,8 @@ status:
         startTime: '2020-07-31T06:52:25Z'
         completionTime: '2020-07-31T07:56:14Z'
         state: Completed
-        deletionPending: false
         transitionTime: '2020-07-31T07:56:14Z'
+        deletionPending: false
         retryPolicyStatus:
           accountableRetriedCount: 0
           retryDelaySec:
@@ -487,8 +487,8 @@ status:
         startTime: '2020-07-31T06:52:25Z'
         completionTime: '2020-07-31T07:55:18Z'
         state: Completed
-        deletionPending: false
         transitionTime: '2020-07-31T07:55:18Z'
+        deletionPending: false
         retryPolicyStatus:
           accountableRetriedCount: 0
           retryDelaySec:
@@ -520,8 +520,8 @@ status:
         startTime: '2020-07-31T06:52:25Z'
         completionTime: '2020-07-31T07:55:30Z'
         state: Completed
-        deletionPending: false
         transitionTime: '2020-07-31T07:55:30Z'
+        deletionPending: false
         retryPolicyStatus:
           accountableRetriedCount: 0
           retryDelaySec:
@@ -553,8 +553,8 @@ status:
         startTime: '2020-07-31T07:34:55Z'
         completionTime: '2020-07-31T07:55:22Z'
         state: Completed
-        deletionPending: false
         transitionTime: '2020-07-31T07:55:22Z'
+        deletionPending: false
         retryPolicyStatus:
           accountableRetriedCount: 0
           retryDelaySec:

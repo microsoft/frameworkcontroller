@@ -300,13 +300,13 @@ type TaskStatus struct {
 	StartTime      meta.Time  `json:"startTime"`
 	CompletionTime *meta.Time `json:"completionTime"`
 	State          TaskState  `json:"state"`
+	TransitionTime meta.Time  `json:"transitionTime"`
 
 	// Task DeletionPending is caused by Framework ScaleDown.
 	// If a Task is DeletionPending, it is logically detached from its Framework
 	// immediately, and will be proactively but still gracefully completed and
 	// finally deleted.
 	DeletionPending   bool              `json:"deletionPending"`
-	TransitionTime    meta.Time         `json:"transitionTime"`
 	RetryPolicyStatus RetryPolicyStatus `json:"retryPolicyStatus"`
 	AttemptStatus     TaskAttemptStatus `json:"attemptStatus"`
 }
