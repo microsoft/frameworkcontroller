@@ -341,6 +341,7 @@ Test: [310/313]	Time  0.281 ( 0.177)	Loss 8.7371e+00 (8.1767e+00)	Acc@1   0.00 (
  * Acc@1 1.130 Acc@5 3.850
 => saved checkpoint for epoch 1 at /tmp/checkpoint.pth.tar
 => best model found at epoch 1 saving to /tmp/model_best.pth.tar
+[INFO] 2020-07-31 07:55:16,413 api: [default] All workers successfully finished.
 ```
 10. Finally, the whole Framework will succeed, with Status like below:
 ```yaml

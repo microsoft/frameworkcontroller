@@ -1,7 +1,7 @@
 # PyTorch On FrameworkController
 
 ## Feature
-1. Support [almost all PyTorch applications](../../../../README.md#microsoft-openpai-frameworkcontroller), including [PyTorch Elastic Training](elastic)
+1. Support [almost all kinds of PyTorch applications](../../../../README.md#microsoft-openpai-frameworkcontroller), including [PyTorch Elastic Training](elastic)
 2. [Common Feature](../../../../README.md#Feature)
 
 ## Quick Start
