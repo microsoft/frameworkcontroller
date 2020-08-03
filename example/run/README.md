@@ -14,7 +14,7 @@ Notes:
 - This approach is better for production, since StatefulSet by itself provides [self-healing](https://kubernetes.io/docs/concepts/workloads/pods/pod/#durability-of-pods-or-lack-thereof) and can ensure [at most one instance](https://github.com/kubernetes/community/blob/ee8998b156031f6b363daade51ca2d12521f4ac0/contributors/design-proposals/storage/pod-safety.md) of FrameworkController is running at any point in time.
 - Using official image to demonstrate this example.
 
-**Prerequisite**
+### Prerequisite
 
 If the k8s cluster enforces [Authorization](https://kubernetes.io/docs/reference/access-authn-authz/authorization/#using-flags-for-your-authorization-module), you need to first create a [Service Account](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account) with granted permission for FrameworkController. For example, if the cluster enforces [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#kubectl-create-clusterrolebinding):
 ```shell
@@ -24,14 +24,16 @@ kubectl create clusterrolebinding frameworkcontroller \
   --user=system:serviceaccount:default:frameworkcontroller
 ```
 
-**Run**
+### Run
 
 Run FrameworkController with above Service Account and the [k8s inClusterConfig](https://kubernetes.io/docs/tasks/access-application-cluster/access-cluster/#accessing-the-api-from-a-pod):
+
+#### Run with [default config](../../example/config/default/frameworkcontroller.yaml)
 ```shell
-kubectl create -f frameworkcontroller.yaml
+kubectl create -f frameworkcontroller-with-default-config.yaml
 ```
 
-frameworkcontroller.yaml:
+frameworkcontroller-with-default-config.yaml:
 ```yaml
 apiVersion: apps/v1
 kind: StatefulSet
@@ -64,11 +66,86 @@ spec:
         #  value: {Pod Local KubeConfig File Path}
 ```
 
+#### Run with customized config
+```shell
+kubectl create -f frameworkcontroller-customized-config.yaml
+kubectl create -f frameworkcontroller-with-customized-config.yaml
+```
+
+frameworkcontroller-customized-config.yaml:
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frameworkcontroller-config
+  namespace: default
+data:
+  frameworkcontroller.yaml: |
+    workerNumber: 20
+    largeFrameworkCompression: true
+    frameworkCompletedRetainSec: 2592000
+    #podFailureSpec:
+    #- code: 221
+    #  phrase: ContainerTensorflowOOMKilled
+    #  type:
+    #    attributes: [Permanent]
+    #  podPatterns:
+    #  - containers:
+    #    - messageRegex: '(?msi)tensorflow.*ResourceExhaustedError.*OOM.*'
+    #      codeRange: {min: 1}
+    #      nameRegex: '(?ms).*'
+    #- {More customized podFailureSpec, better to also include these in the default config}
+```
+
+frameworkcontroller-with-customized-config.yaml:
+```yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: frameworkcontroller
+  namespace: default
+spec:
+  serviceName: frameworkcontroller
+  selector:
+    matchLabels:
+      app: frameworkcontroller
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: frameworkcontroller
+    spec:
+      # Using the service account with granted permission
+      # if the k8s cluster enforces authorization.
+      serviceAccountName: frameworkcontroller
+      containers:
+      - name: frameworkcontroller
+        image: frameworkcontroller/frameworkcontroller
+        # Using k8s inClusterConfig, so usually, no need to specify
+        # KUBE_APISERVER_ADDRESS or KUBECONFIG
+        #env:
+        #- name: KUBE_APISERVER_ADDRESS
+        #  value: {http[s]://host:port}
+        #- name: KUBECONFIG
+        #  value: {Pod Local KubeConfig File Path}
+        command: [
+          "bash", "-c",
+          "cp /frameworkcontroller-config/frameworkcontroller.yaml . &&
+          ./start.sh"]
+        volumeMounts:
+          - name: frameworkcontroller-config
+            mountPath: /frameworkcontroller-config
+      volumes:
+      - name: frameworkcontroller-config
+        configMap:
+          name: frameworkcontroller-config
+```
+
 ## <a name="RunByDockerContainer">Run By Docker Container</a>
 - This approach may be better for development sometimes.
 - Using official image to demonstrate this example.
 
-**Run**
+### Run
 
 If you have an insecure ApiServer address (can be got from [Insecure ApiServer](https://kubernetes.io/docs/reference/access-authn-authz/controlling-access/#api-server-ports-and-ips) or [kubectl proxy](https://kubernetes.io/docs/tasks/access-application-cluster/access-cluster/#using-kubectl-proxy)) which does not enforce authentication, you only need to provide the address:
 ```shell
@@ -95,7 +172,7 @@ docker run -e KUBECONFIG=/mnt/.kube/config \
 - This approach may be better for development sometimes.
 - Using local built binary distribution to demonstrate this example.
 
-**Prerequisite**
+### Prerequisite
 
 Ensure you have installed [Golang 1.12.6 or above](https://golang.org/doc/install#install) and the [${GOPATH}](https://golang.org/doc/code.html#GOPATH) is valid.
 
@@ -109,7 +186,7 @@ cd ${PROJECT_DIR}
 ./build/frameworkcontroller/go-build.sh
 ```
 
-**Run**
+### Run
 
 If you have an insecure ApiServer address (can be got from [Insecure ApiServer](https://kubernetes.io/docs/reference/access-authn-authz/controlling-access/#api-server-ports-and-ips) or [kubectl proxy](https://kubernetes.io/docs/tasks/access-application-cluster/access-cluster/#using-kubectl-proxy)) which does not enforce authentication, you only need to provide the address:
 ```shell
