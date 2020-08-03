@@ -348,244 +348,238 @@ Test: [310/313]	Time  0.281 ( 0.177)	Loss 8.7371e+00 (8.1767e+00)	Acc@1   0.00 (
 apiVersion: frameworkcontroller.microsoft.com/v1
 kind: Framework
 metadata:
-  creationTimestamp: '2020-07-31T06:52:25Z'
-  generation: 43
   name: pet
   namespace: default
+  creationTimestamp: '2020-07-31T06:52:25Z'
+  generation: 43
   resourceVersion: '35492058'
   selfLink: "/apis/frameworkcontroller.microsoft.com/v1/namespaces/default/frameworks/pet"
   uid: c3f9e3a1-314d-4b5f-94b9-9287d15ac5d6
 spec:
-  description: ''
   executionType: Start
   retryPolicy:
     fancyRetryPolicy: true
     maxRetryCount: 2
   taskRoles:
-  - frameworkAttemptCompletionPolicy:
+  - name: etcd
+    taskNumber: 1
+    frameworkAttemptCompletionPolicy:
       minFailedTaskCount: 1
       minSucceededTaskCount: -1
-    name: etcd
     task:
+      retryPolicy:
+        fancyRetryPolicy: false
+        maxRetryCount: -2
+      podGracefulDeletionTimeoutSec: 1800
       pod:
-        metadata:
-          creationTimestamp: 
         spec:
+          restartPolicy: Always
           containers:
-          - command:
+          - name: etcd
+            image: quay.io/coreos/etcd:v3.4.9
+            command:
             - sh
             - "-c"
             - "/usr/local/bin/etcd --data-dir /var/lib/etcd --enable-v2 --listen-client-urls
               http://0.0.0.0:2379 --advertise-client-urls http://0.0.0.0:2379 --initial-cluster-state
               new"
-            image: quay.io/coreos/etcd:v3.4.9
-            name: etcd
             ports:
             - containerPort: 2379
-            resources: {}
-          restartPolicy: Always
-      podGracefulDeletionTimeoutSec: 1800
-      retryPolicy:
-        fancyRetryPolicy: false
-        maxRetryCount: -2
-    taskNumber: 1
-  - frameworkAttemptCompletionPolicy:
+  - name: worker
+    taskNumber: 3
+    frameworkAttemptCompletionPolicy:
       minFailedTaskCount: 1
       minSucceededTaskCount: 3
-    name: worker
     task:
+      retryPolicy:
+        fancyRetryPolicy: true
+        maxRetryCount: 2
+      podGracefulDeletionTimeoutSec: 1800
       pod:
-        metadata:
-          creationTimestamp: 
         spec:
+          hostname: "{{FC_TASKROLE_NAME}}-{{FC_TASK_INDEX}}"
+          subdomain: "{{FC_FRAMEWORK_NAME}}-{{FC_TASKROLE_NAME}}"
+          restartPolicy: Never
           containers:
-          - command:
+          - name: pytorch
+            image: torchelastic/examples:0.2.0
+            command:
             - sh
             - "-c"
             - python -m torchelastic.distributed.launch --rdzv_backend=etcd --rdzv_endpoint=${FC_FRAMEWORK_NAME}-etcd:2379
               --rdzv_id=${FC_FRAMEWORK_NAME} --nnodes=1:4 --nproc_per_node=1 /workspace/examples/imagenet/main.py
               --arch=resnet18 --batch-size=32 --epochs=2 /workspace/data/tiny-imagenet-200
-            image: torchelastic/examples:0.2.0
-            name: pytorch
             resources:
               limits:
                 nvidia.com/gpu: '1'
             volumeMounts:
-            - mountPath: "/dev/shm"
-              name: shm-volume
-          hostname: "{{FC_TASKROLE_NAME}}-{{FC_TASK_INDEX}}"
-          restartPolicy: Never
-          subdomain: "{{FC_FRAMEWORK_NAME}}-{{FC_TASKROLE_NAME}}"
+            - name: shm-volume
+              mountPath: "/dev/shm"
           volumes:
-          - emptyDir:
+          - name: shm-volume
+            emptyDir:
               medium: Memory
-            name: shm-volume
-      podGracefulDeletionTimeoutSec: 1800
-      retryPolicy:
-        fancyRetryPolicy: true
-        maxRetryCount: 2
-    taskNumber: 3
 status:
+  startTime: '2020-07-31T06:52:25Z'
+  completionTime: '2020-07-31T07:56:14Z'
+  state: Completed
+  transitionTime: '2020-07-31T07:56:14Z'
+  retryPolicyStatus:
+    accountableRetriedCount: 0
+    retryDelaySec:
+    totalRetriedCount: 0
   attemptStatus:
+    id: 0
+    startTime: '2020-07-31T06:52:25Z'
+    runTime: '2020-07-31T06:52:30Z'
+    completionTime: '2020-07-31T07:56:14Z'
+    instanceUID: 0_da3b7866-d1b2-45be-8222-ff85ac67ef23
+    configMapName: pet-attempt
+    configMapUID: da3b7866-d1b2-45be-8222-ff85ac67ef23
     completionStatus:
       code: 0
-      diagnostics: Pod succeeded
       phrase: Succeeded
-      trigger:
-        message: SucceededTaskCount 3 has reached MinSucceededTaskCount 3 in the TaskRole
-        taskIndex: 1
-        taskRoleName: worker
       type:
         attributes: []
         name: Succeeded
-    completionTime: '2020-07-31T07:56:14Z'
-    configMapName: pet-attempt
-    configMapUID: da3b7866-d1b2-45be-8222-ff85ac67ef23
-    id: 0
-    instanceUID: 0_da3b7866-d1b2-45be-8222-ff85ac67ef23
-    runTime: '2020-07-31T06:52:30Z'
-    startTime: '2020-07-31T06:52:25Z'
+      diagnostics: Pod succeeded
+      trigger:
+        message: SucceededTaskCount 3 has reached MinSucceededTaskCount 3 in the TaskRole
+        taskRoleName: worker
+        taskIndex: 1
     taskRoleStatuses:
     - name: etcd
       podGracefulDeletionTimeoutSec: 1800
       taskStatuses:
-      - attemptStatus:
+      - index: 0
+        startTime: '2020-07-31T06:52:25Z'
+        completionTime: '2020-07-31T07:56:14Z'
+        state: Completed
+        deletionPending: false
+        transitionTime: '2020-07-31T07:56:14Z'
+        retryPolicyStatus:
+          accountableRetriedCount: 0
+          retryDelaySec:
+          totalRetriedCount: 0
+        attemptStatus:
+          id: 0
+          startTime: '2020-07-31T06:52:25Z'
+          runTime: '2020-07-31T06:52:30Z'
+          completionTime: '2020-07-31T07:56:13Z'
+          instanceUID: 0_7870a450-4eb4-4596-a0d2-be5c6727de03
+          podName: pet-etcd-0
+          podUID: 7870a450-4eb4-4596-a0d2-be5c6727de03
+          podNodeName: node11
+          podIP: 10.207.128.5
+          podHostIP: 10.151.40.232
           completionStatus:
             code: -220
-            diagnostics: Stop to complete current FrameworkAttempt
             phrase: FrameworkAttemptCompletion
             type:
               attributes:
               - Permanent
               name: Failed
-          completionTime: '2020-07-31T07:56:13Z'
-          id: 0
-          instanceUID: 0_7870a450-4eb4-4596-a0d2-be5c6727de03
-          podHostIP: 10.151.40.232
-          podIP: 10.207.128.5
-          podName: pet-etcd-0
-          podNodeName: node11
-          podUID: 7870a450-4eb4-4596-a0d2-be5c6727de03
-          runTime: '2020-07-31T06:52:30Z'
-          startTime: '2020-07-31T06:52:25Z'
-        completionTime: '2020-07-31T07:56:14Z'
-        deletionPending: false
-        index: 0
-        retryPolicyStatus:
-          accountableRetriedCount: 0
-          retryDelaySec: 
-          totalRetriedCount: 0
-        startTime: '2020-07-31T06:52:25Z'
-        state: Completed
-        transitionTime: '2020-07-31T07:56:14Z'
+            diagnostics: Stop to complete current FrameworkAttempt
     - name: worker
       podGracefulDeletionTimeoutSec: 1800
       taskStatuses:
-      - attemptStatus:
-          completionStatus:
-            code: 0
-            diagnostics: Pod succeeded
-            phrase: Succeeded
-            pod:
-              containers:
-              - code: 0
-                name: pytorch
-                reason: Completed
-            type:
-              attributes: []
-              name: Succeeded
-          completionTime: '2020-07-31T07:55:18Z'
-          id: 0
-          instanceUID: 0_a550a22a-6371-4ac3-991b-fc5957fb0dac
-          podHostIP: 10.151.40.230
-          podIP: 10.204.128.1
-          podName: pet-worker-0
-          podNodeName: node9
-          podUID: a550a22a-6371-4ac3-991b-fc5957fb0dac
-          runTime: '2020-07-31T06:52:30Z'
-          startTime: '2020-07-31T06:52:25Z'
+      - index: 0
+        startTime: '2020-07-31T06:52:25Z'
         completionTime: '2020-07-31T07:55:18Z'
-        deletionPending: false
-        index: 0
-        retryPolicyStatus:
-          accountableRetriedCount: 0
-          retryDelaySec: 
-          totalRetriedCount: 0
-        startTime: '2020-07-31T06:52:25Z'
         state: Completed
+        deletionPending: false
         transitionTime: '2020-07-31T07:55:18Z'
-      - attemptStatus:
-          completionStatus:
-            code: 0
-            diagnostics: Pod succeeded
-            phrase: Succeeded
-            pod:
-              containers:
-              - code: 0
-                name: pytorch
-                reason: Completed
-            type:
-              attributes: []
-              name: Succeeded
-          completionTime: '2020-07-31T07:55:29Z'
+        retryPolicyStatus:
+          accountableRetriedCount: 0
+          retryDelaySec:
+          totalRetriedCount: 0
+        attemptStatus:
           id: 0
-          instanceUID: 0_6213facb-d11d-416d-9530-32adeb708439
-          podHostIP: 10.151.40.231
-          podIP: 10.201.0.2
-          podName: pet-worker-1
-          podNodeName: node10
-          podUID: 6213facb-d11d-416d-9530-32adeb708439
-          runTime: '2020-07-31T06:52:31Z'
           startTime: '2020-07-31T06:52:25Z'
-        completionTime: '2020-07-31T07:55:30Z'
-        deletionPending: false
-        index: 1
-        retryPolicyStatus:
-          accountableRetriedCount: 0
-          retryDelaySec: 
-          totalRetriedCount: 0
-        startTime: '2020-07-31T06:52:25Z'
-        state: Completed
-        transitionTime: '2020-07-31T07:55:30Z'
-      - attemptStatus:
+          runTime: '2020-07-31T06:52:30Z'
+          completionTime: '2020-07-31T07:55:18Z'
+          instanceUID: 0_a550a22a-6371-4ac3-991b-fc5957fb0dac
+          podName: pet-worker-0
+          podUID: a550a22a-6371-4ac3-991b-fc5957fb0dac
+          podNodeName: node9
+          podIP: 10.204.128.1
+          podHostIP: 10.151.40.230
           completionStatus:
             code: 0
-            diagnostics: Pod succeeded
             phrase: Succeeded
+            type:
+              attributes: []
+              name: Succeeded
+            diagnostics: Pod succeeded
             pod:
               containers:
               - code: 0
                 name: pytorch
                 reason: Completed
+      - index: 1
+        startTime: '2020-07-31T06:52:25Z'
+        completionTime: '2020-07-31T07:55:30Z'
+        state: Completed
+        deletionPending: false
+        transitionTime: '2020-07-31T07:55:30Z'
+        retryPolicyStatus:
+          accountableRetriedCount: 0
+          retryDelaySec:
+          totalRetriedCount: 0
+        attemptStatus:
+          id: 0
+          startTime: '2020-07-31T06:52:25Z'
+          runTime: '2020-07-31T06:52:31Z'
+          completionTime: '2020-07-31T07:55:29Z'
+          instanceUID: 0_6213facb-d11d-416d-9530-32adeb708439
+          podName: pet-worker-1
+          podUID: 6213facb-d11d-416d-9530-32adeb708439
+          podNodeName: node10
+          podIP: 10.201.0.2
+          podHostIP: 10.151.40.231
+          completionStatus:
+            code: 0
+            phrase: Succeeded
             type:
               attributes: []
               name: Succeeded
-          completionTime: '2020-07-31T07:55:22Z'
-          id: 0
-          instanceUID: 0_d12681fc-986d-4f36-95f3-f0edde5750ca
-          podHostIP: 10.151.40.227
-          podIP: 10.202.128.6
-          podName: pet-worker-2
-          podNodeName: node6
-          podUID: d12681fc-986d-4f36-95f3-f0edde5750ca
-          runTime: '2020-07-31T07:34:58Z'
-          startTime: '2020-07-31T07:34:55Z'
+            diagnostics: Pod succeeded
+            pod:
+              containers:
+              - code: 0
+                name: pytorch
+                reason: Completed
+      - index: 2
+        startTime: '2020-07-31T07:34:55Z'
         completionTime: '2020-07-31T07:55:22Z'
+        state: Completed
         deletionPending: false
-        index: 2
+        transitionTime: '2020-07-31T07:55:22Z'
         retryPolicyStatus:
           accountableRetriedCount: 0
-          retryDelaySec: 
+          retryDelaySec:
           totalRetriedCount: 0
-        startTime: '2020-07-31T07:34:55Z'
-        state: Completed
-        transitionTime: '2020-07-31T07:55:22Z'
-  completionTime: '2020-07-31T07:56:14Z'
-  retryPolicyStatus:
-    accountableRetriedCount: 0
-    retryDelaySec: 
-    totalRetriedCount: 0
-  startTime: '2020-07-31T06:52:25Z'
-  state: Completed
-  transitionTime: '2020-07-31T07:56:14Z'
+        attemptStatus:
+          id: 0
+          startTime: '2020-07-31T07:34:55Z'
+          runTime: '2020-07-31T07:34:58Z'
+          completionTime: '2020-07-31T07:55:22Z'
+          instanceUID: 0_d12681fc-986d-4f36-95f3-f0edde5750ca
+          podName: pet-worker-2
+          podUID: d12681fc-986d-4f36-95f3-f0edde5750ca
+          podNodeName: node6
+          podIP: 10.202.128.6
+          podHostIP: 10.151.40.227
+          completionStatus:
+            code: 0
+            phrase: Succeeded
+            type:
+              attributes: []
+              name: Succeeded
+            diagnostics: Pod succeeded
+            pod:
+              containers:
+              - code: 0
+                name: pytorch
+                reason: Completed
 ```
