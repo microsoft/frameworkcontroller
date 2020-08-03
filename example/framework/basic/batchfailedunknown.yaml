@@ -18,6 +18,7 @@ spec:
       retryPolicy:
         fancyRetryPolicy: true
         maxRetryCount: 1
+      podGracefulDeletionTimeoutSec: 600
       pod:
         spec:
           restartPolicy: Never

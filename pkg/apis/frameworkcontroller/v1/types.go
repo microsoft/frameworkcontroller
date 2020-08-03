@@ -48,6 +48,8 @@ type FrameworkList struct {
 // 5. With fine grained RetryPolicy for each Task and the whole Framework
 // 6. With fine grained FrameworkAttemptCompletionPolicy for each TaskRole
 // 7. With PodGracefulDeletionTimeoutSec for each Task to tune Consistency vs Availability
+// 8. With fine grained Status for each TaskAttempt/Task, each TaskRole and the whole
+//    FrameworkAttempt/Framework
 //
 // Notes:
 // 1. Status field should only be modified by FrameworkController, and
@@ -135,7 +137,8 @@ const (
 //
 // Usage:
 // If the ExecutionType is ExecutionStop or
-// the Task's FrameworkAttempt is completing,
+// the Task's FrameworkAttempt is completing or
+// the Task is DeletionPending (ScaleDown),
 //   will not retry.
 //
 // If the FancyRetryPolicy is enabled,
@@ -184,19 +187,20 @@ type RetryPolicySpec struct {
 // 1. If the ExecutionType is ExecutionStop, immediately complete the FrameworkAttempt,
 //    regardless of any uncompleted Task, and the CompletionStatus is failed which
 //    is not inherited from any Task.
-// 2. If MinFailedTaskCount != -1 and MinFailedTaskCount <= failed Task count of
+// 2. If MinFailedTaskCount >= 1 and MinFailedTaskCount <= failed Task count of
 //    current TaskRole, immediately complete the FrameworkAttempt, regardless of
 //    any uncompleted Task, and the CompletionStatus is failed which is inherited
 //    from the Task which triggers the completion.
-// 3. If MinSucceededTaskCount != -1 and MinSucceededTaskCount <= succeeded Task
+// 3. If MinSucceededTaskCount >= 1 and MinSucceededTaskCount <= succeeded Task
 //    count of current TaskRole, immediately complete the FrameworkAttempt, regardless
 //    of any uncompleted Task, and the CompletionStatus is succeeded which is
 //    inherited from the Task which triggers the completion.
-// 4. If multiple above 1. and 2. conditions of all TaskRoles are satisfied at the
-//    same time, the behavior can be any one of these satisfied conditions.
-// 5. If none of above 1. and 2. conditions of all TaskRoles are satisfied until all
-//    Tasks of the Framework are completed, immediately complete the FrameworkAttempt
-//    and the CompletionStatus is succeeded which is not inherited from any Task.
+// 4. If multiple above conditions are satisfied at the same time, the behavior can
+//    be any one of these satisfied conditions.
+// 5. If none of above conditions are satisfied until all Tasks of the Framework are
+//    completed (including a special case that the Framework does even not have any
+//    Task), immediately complete the FrameworkAttempt and the CompletionStatus is
+//    succeeded which is not inherited from any Task.
 //
 // Notes:
 // 1. When the FrameworkAttempt is completed, the FrameworkState is transitioned to
@@ -279,6 +283,12 @@ type TaskRoleStatus struct {
 	// TaskRoleName
 	Name string `json:"name"`
 
+	// Effective and Backup PodGracefulDeletionTimeoutSec:
+	// It is the immediate backup of corresponding field in TaskRoleSpec.TaskSpec,
+	// in case the TaskRoleSpec is directly deleted later while the TaskRole's
+	// TaskRoleStatus still exist due to graceful deletion.
+	PodGracefulDeletionTimeoutSec *int64 `json:"podGracefulDeletionTimeoutSec"`
+
 	// Tasks with TaskIndex in range [0, TaskNumber)
 	TaskStatuses []*TaskStatus `json:"taskStatuses"`
 }
@@ -287,10 +297,16 @@ type TaskStatus struct {
 	// TaskIndex
 	Index int32 `json:"index"`
 
-	StartTime         meta.Time         `json:"startTime"`
-	CompletionTime    *meta.Time        `json:"completionTime"`
-	State             TaskState         `json:"state"`
-	TransitionTime    meta.Time         `json:"transitionTime"`
+	StartTime      meta.Time  `json:"startTime"`
+	CompletionTime *meta.Time `json:"completionTime"`
+	State          TaskState  `json:"state"`
+	TransitionTime meta.Time  `json:"transitionTime"`
+
+	// Task DeletionPending is caused by Framework ScaleDown.
+	// If a Task is DeletionPending, it is logically detached from its Framework
+	// immediately, and will be proactively but still gracefully completed and
+	// finally deleted.
+	DeletionPending   bool              `json:"deletionPending"`
 	RetryPolicyStatus RetryPolicyStatus `json:"retryPolicyStatus"`
 	AttemptStatus     TaskAttemptStatus `json:"attemptStatus"`
 }
@@ -381,6 +397,7 @@ type ContainerCompletionStatus struct {
 
 type TaskAttemptCompletionStatus struct {
 	// Summary
+	// Must be not nil for TaskAttemptCompleted and TaskCompleted Task.
 	*CompletionStatus `json:",inline"`
 	// Detail
 	Pod *PodCompletionStatus `json:"pod,omitempty"`
@@ -394,6 +411,7 @@ type CompletionPolicyTriggerStatus struct {
 
 type FrameworkAttemptCompletionStatus struct {
 	// Summary
+	// Must be not nil for FrameworkAttemptCompleted and FrameworkCompleted Framework.
 	*CompletionStatus `json:",inline"`
 	// Detail
 	Trigger *CompletionPolicyTriggerStatus `json:"trigger,omitempty"`

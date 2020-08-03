@@ -7,7 +7,7 @@
 apiVersion: frameworkcontroller.microsoft.com/v1
 kind: Framework
 metadata:
-  name: tensorflowdistributedtrainingwithcpu
+  name: tensorflowdistributedtrainingwithdefaultscheduledgpu
 spec:
   executionType: Start
   retryPolicy:
@@ -23,6 +23,8 @@ spec:
       retryPolicy:
         fancyRetryPolicy: false
         maxRetryCount: 0
+      # Large timeout to force delete Pod as it may break the stateful batch.
+      podGracefulDeletionTimeoutSec: 1800
       pod:
         spec:
           restartPolicy: Never
@@ -39,7 +41,7 @@ spec:
           - name: tensorflow
             # Using official image to demonstrate this example.
             # The image contains and only contains tensorflow official code.
-            image: frameworkcontroller/tensorflow-examples:cpu
+            image: frameworkcontroller/tensorflow-examples:gpu
             # For the tf_cnn_benchmarks usage, see
             # https://github.com/tensorflow/benchmarks/tree/master/scripts/tf_cnn_benchmarks
             workingDir: /tensorflow/benchmarks/scripts/tf_cnn_benchmarks
@@ -56,11 +58,17 @@ spec:
             --ps_hosts=${FB_PS_ADDRESSES} --worker_hosts=${FB_WORKER_ADDRESSES}
             --variable_update=parameter_server --cross_replica_sync=false
             --model=alexnet --batch_size=8 --num_batches=10
-            --device=cpu --local_parameter_device=cpu --data_format=NHWC
+            --device=gpu --local_parameter_device=gpu --num_gpus=1 --data_format=NCHW
             --data_name=cifar10 --data_dir=/mnt/data/cifar-10-batches-py
             --train_dir=/mnt/data/${FC_FRAMEWORK_NAME}/output"]
             ports:
             - containerPort: 4001
+            resources:
+              limits:
+                # [PREREQUISITE]
+                # User needs to setup GPU for the k8s cluster.
+                # See https://kubernetes.io/docs/tasks/manage-gpus/scheduling-gpus
+                nvidia.com/gpu: 1
             volumeMounts:
             - name: frameworkbarrier-volume
               mountPath: /mnt/frameworkbarrier
@@ -117,6 +125,8 @@ spec:
       retryPolicy:
         fancyRetryPolicy: false
         maxRetryCount: 0
+      # Large timeout to force delete Pod as it may break the stateful batch.
+      podGracefulDeletionTimeoutSec: 1800
       pod:
         spec:
           restartPolicy: Never
@@ -125,7 +135,7 @@ spec:
           hostNetwork: false
           containers:
           - name: tensorflow
-            image: frameworkcontroller/tensorflow-examples:cpu
+            image: frameworkcontroller/tensorflow-examples:gpu
             workingDir: /tensorflow/benchmarks/scripts/tf_cnn_benchmarks
             command: [
             "sh", "-c",
@@ -134,11 +144,16 @@ spec:
             --ps_hosts=${FB_PS_ADDRESSES} --worker_hosts=${FB_WORKER_ADDRESSES}
             --variable_update=parameter_server --cross_replica_sync=false
             --model=alexnet --batch_size=8 --num_batches=10
-            --device=cpu --local_parameter_device=cpu --data_format=NHWC
+            --device=gpu --local_parameter_device=gpu --num_gpus=1 --data_format=NCHW
             --data_name=cifar10 --data_dir=/mnt/data/cifar-10-batches-py
             --train_dir=/mnt/data/${FC_FRAMEWORK_NAME}/output"]
             ports:
             - containerPort: 5001
+            resources:
+              limits:
+                # [PREREQUISITE]
+                # Same as ps TaskRole.
+                nvidia.com/gpu: 1
             volumeMounts:
             - name: frameworkbarrier-volume
               mountPath: /mnt/frameworkbarrier

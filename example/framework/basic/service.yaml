@@ -7,17 +7,18 @@ spec:
   executionType: Start
   retryPolicy:
     fancyRetryPolicy: false
-    maxRetryCount: -1
+    maxRetryCount: -2
   taskRoles:
   - name: server
-    taskNumber: 1
+    taskNumber: 3
     frameworkAttemptCompletionPolicy:
       minFailedTaskCount: 1
       minSucceededTaskCount: -1
     task:
       retryPolicy:
         fancyRetryPolicy: false
-        maxRetryCount: -1
+        maxRetryCount: -2
+      podGracefulDeletionTimeoutSec: 600
       pod:
         #metadata:
         #  labels:
@@ -31,10 +32,11 @@ spec:
             - containerPort: 80
 ---
 # Post to {kubeApiServerAddress}/api/v1/namespaces/default/services/
+# Then the above nginx server can be accessed by load-balancer http://service:30170
 apiVersion: v1
 kind: Service
 metadata:
-  name: server
+  name: service
 spec:
   selector:
     # Using predefined labels
@@ -42,6 +44,8 @@ spec:
     FC_TASKROLE_NAME: server
     # Also can use customized labels
     #app: server
-  ports:
-  - port: 80
   type: NodePort
+  ports:
+  - targetPort: 80
+    port: 30170
+    nodePort: 30170

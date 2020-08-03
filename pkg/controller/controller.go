@@ -662,15 +662,14 @@ func (c *FrameworkController) enqueueTaskRetryDelayTimeoutCheck(
 }
 
 func (c *FrameworkController) enqueuePodGracefulDeletionTimeoutCheck(
-	f *ci.Framework, taskRoleName string,
+	f *ci.Framework, timeoutSec *int64,
 	failIfTimeout bool, pod *core.Pod) bool {
-	taskSpec := f.TaskRoleSpec(taskRoleName).Task
 	if pod.DeletionTimestamp == nil {
 		return false
 	}
 
 	return c.enqueueFrameworkTimeoutCheck(
-		f, *internal.GetPodDeletionStartTime(pod), taskSpec.PodGracefulDeletionTimeoutSec,
+		f, *internal.GetPodDeletionStartTime(pod), timeoutSec,
 		failIfTimeout, "PodGracefulDeletionTimeoutCheck")
 }
 
@@ -708,13 +707,297 @@ func (c *FrameworkController) syncFrameworkStatus(f *ci.Framework) error {
 
 	if f.Status == nil {
 		f.Status = f.NewFrameworkStatus()
+
+		// To ensure FrameworkAttemptCreationPending is persisted before creating
+		// its cm, we need to wait until next sync to create the cm, so manually
+		// enqueue a sync.
+		c.enqueueFrameworkSync(f, "FrameworkAttemptCreationPending")
+		klog.Infof(logPfx + "Waiting FrameworkAttemptCreationPending to be persisted")
+		return nil
 	} else {
-		// TODO: Support Framework.Spec Update
+		if c.syncFrameworkScale(f) || c.compactFrameworkScale(f) {
+			// To ensure TaskAttemptCreationPending is persisted before creating
+			// its pod, we need to wait until next sync to create the pod, so manually
+			// enqueue a sync.
+			// To ensure the Task[DeletionPending] is persisted before deleting its pod
+			// or deleting/replacing its Task instance, we need to wait until next sync
+			// to delete its pod or delete/replace the Task instance, so manually enqueue
+			// a sync.
+			c.enqueueFrameworkSync(f, "TaskAttemptCreationPending/Task[DeletionPending]")
+			klog.Infof(logPfx +
+				"Waiting TaskAttemptCreationPending/Task[DeletionPending] to be persisted")
+			return nil
+		}
+
+		if c.updatePodGracefulDeletionTimeoutSec(f) {
+			// To ensure PodGracefulDeletionTimeoutSec is persisted before gracefully
+			// delete any pod, we need to wait until next sync to gracefully delete,
+			// so manually enqueue a sync.
+			c.enqueueFrameworkSync(f, "Task[PodGracefulDeletionTimeoutSec][Changed]")
+			klog.Infof(logPfx +
+				"Waiting Task[PodGracefulDeletionTimeoutSec][Changed] to be persisted")
+			return nil
+		}
 	}
 
 	return c.syncFrameworkState(f)
 }
 
+// Rescale not Completing/Completed Framework according to its current f.Spec.
+// After this, all ScaleUp TaskRoles and Tasks are added, and all ScaleDown Tasks
+// are marked as DeletionPending for later lazy graceful deletion, thus:
+// 1. TaskRoles/Tasks in f.Status must fully contain TaskRoles/Tasks in f.Spec.
+// 2. TaskRoles/Tasks in f.Spec must fully contain not DeletionPending (ScaleDown)
+//    TaskRoles/Tasks in f.Status.
+//
+// This helps to ensure the Rescale is effective immediately, as essentially,
+// ScaleUp/ScaleDown is to setup/destroy the relationship between Framework and
+// its TaskRoles/Tasks, which does not have to wait until, such as
+// FrameworkAttemptInstance (ConfigMap) is created or any DeletionPending
+// (ScaleDown) TaskAttemptInstance (Pod) is gracefully deleted.
+func (c *FrameworkController) syncFrameworkScale(
+	f *ci.Framework) (producedNewPendingTask bool) {
+	logPfx := fmt.Sprintf("[%v]: syncFrameworkScale: ", f.Key())
+	klog.Infof(logPfx + "Started")
+	defer func() { klog.Infof(logPfx + "Completed") }()
+
+	producedNewPendingTask = false
+
+	// No longer react to Rescale after the whole FrameworkAttempt Completing,
+	// to ensure DeletionPending (ScaleDown) Task will never trigger (impact)
+	// Framework/FrameworkAttempt completion.
+	if f.IsCompleting() ||
+		f.Status.State == ci.FrameworkAttemptCompleted ||
+		f.Status.State == ci.FrameworkCompleted {
+		klog.Infof(logPfx+"Skipped: Framework is already %v", f.Status.State)
+		return producedNewPendingTask
+	}
+
+	for _, taskRoleSpec := range f.Spec.TaskRoles {
+		taskRoleName := taskRoleSpec.Name
+		taskCountSpec := taskRoleSpec.TaskNumber
+		taskRoleStatus := f.GetTaskRoleStatus(taskRoleName)
+
+		if taskRoleStatus == nil {
+			// ScaleUp: Directly add TaskRole that need to bring up.
+			klog.Infof("[%v][%v]: syncFrameworkScale: ScaleUp: Goal: %v -> %v",
+				f.Key(), taskRoleName, nil, taskCountSpec)
+
+			trs := ci.TaskRoleStatus{Name: taskRoleName, TaskStatuses: []*ci.TaskStatus{}}
+			for taskIndex := int32(0); taskIndex < taskCountSpec; taskIndex++ {
+				trs.TaskStatuses =
+					append(trs.TaskStatuses, f.NewTaskStatus(taskRoleName, taskIndex))
+				producedNewPendingTask = true
+			}
+			f.Status.AttemptStatus.TaskRoleStatuses =
+				append(f.Status.AttemptStatus.TaskRoleStatuses, &trs)
+		} else {
+			taskCountStatus := int32(len(taskRoleStatus.TaskStatuses))
+			if taskCountStatus < taskCountSpec {
+				// ScaleUp: Directly add Task that need to bring up.
+				klog.Infof("[%v][%v]: syncFrameworkScale: ScaleUp: Goal: %v -> %v",
+					f.Key(), taskRoleName, taskCountStatus, taskCountSpec)
+
+				for taskIndex := taskCountStatus; taskIndex < taskCountSpec; taskIndex++ {
+					taskRoleStatus.TaskStatuses =
+						append(taskRoleStatus.TaskStatuses, f.NewTaskStatus(taskRoleName, taskIndex))
+					producedNewPendingTask = true
+				}
+			} else if taskCountStatus > taskCountSpec {
+				// ScaleDown: Just mark Task that need to bring down as DeletionPending.
+				klog.Infof("[%v][%v]: syncFrameworkScale: ScaleDown: Goal: %v -> %v",
+					f.Key(), taskRoleName, taskCountStatus, taskCountSpec)
+
+				for taskIndex := taskCountStatus - 1; taskIndex >= taskCountSpec; taskIndex-- {
+					taskStatus := taskRoleStatus.TaskStatuses[taskIndex]
+					if taskStatus.MarkAsDeletionPending() {
+						producedNewPendingTask = true
+					}
+				}
+			}
+		}
+	}
+
+	for _, taskRoleStatus := range f.TaskRoleStatuses() {
+		taskRoleName := taskRoleStatus.Name
+		taskCountStatus := int32(len(taskRoleStatus.TaskStatuses))
+		taskRoleSpec := f.GetTaskRoleSpec(taskRoleName)
+
+		if taskRoleSpec == nil {
+			// ScaleDown: Just mark Task that need to bring down as DeletionPending.
+			klog.Infof("[%v][%v]: syncFrameworkScale: ScaleDown: Goal: %v -> %v",
+				f.Key(), taskRoleName, taskCountStatus, nil)
+
+			for taskIndex := taskCountStatus - 1; taskIndex >= 0; taskIndex-- {
+				taskStatus := taskRoleStatus.TaskStatuses[taskIndex]
+				if taskStatus.MarkAsDeletionPending() {
+					producedNewPendingTask = true
+				}
+			}
+		}
+	}
+
+	return producedNewPendingTask
+}
+
+// Compact not Completing/Completed Framework scale by cleaning up its Completed
+// DeletionPending TaskRoles/Tasks.
+// It drives the Completed DeletionPending TaskRoles/Tasks to be deleted or
+// replaced by new Task instance.
+// Before calling it, ensure the Completed DeletionPending TaskRoles/Tasks has
+// been persisted, so it is safe to also expose them as history snapshots here.
+func (c *FrameworkController) compactFrameworkScale(
+	f *ci.Framework) (producedNewPendingTask bool) {
+	logPfx := fmt.Sprintf("[%v]: compactFrameworkScale: ", f.Key())
+	klog.Infof(logPfx + "Started")
+	defer func() { klog.Infof(logPfx + "Completed") }()
+
+	producedNewPendingTask = false
+
+	// Align with syncFrameworkScale to simplify completing.
+	if f.IsCompleting() ||
+		f.Status.State == ci.FrameworkAttemptCompleted ||
+		f.Status.State == ci.FrameworkCompleted {
+		klog.Infof(logPfx+"Skipped: Framework is already %v", f.Status.State)
+		return producedNewPendingTask
+	}
+
+	// For TaskRoles/Tasks which no longer belong to its current f.Spec, try to
+	// delete the Completed DeletionPending ones.
+	taskRoleStatuses := &f.Status.AttemptStatus.TaskRoleStatuses
+	for taskRoleIndex := len(*taskRoleStatuses) - 1; taskRoleIndex >= 0; taskRoleIndex-- {
+		taskRoleStatus := (*taskRoleStatuses)[taskRoleIndex]
+		taskRoleName := taskRoleStatus.Name
+		taskCountStatus := int32(len(taskRoleStatus.TaskStatuses))
+		// Will delete Tasks in in range [taskIndexDeleteStart, taskCountStatus)
+		taskIndexDeleteStart := taskCountStatus
+
+		taskRoleSpec := f.GetTaskRoleSpec(taskRoleName)
+		var taskCountSpec int32
+		if taskRoleSpec == nil {
+			taskCountSpec = 0
+		} else {
+			taskCountSpec = taskRoleSpec.TaskNumber
+		}
+
+		for taskIndex := taskCountStatus - 1; taskIndex >= taskCountSpec; taskIndex-- {
+			taskStatus := taskRoleStatus.TaskStatuses[taskIndex]
+			if taskStatus.DeletionPending && taskStatus.State == ci.TaskCompleted {
+				taskIndexDeleteStart = taskIndex
+			} else {
+				// Cannot continue graceful deletion anymore
+				break
+			}
+		}
+
+		var newTaskCountStatus *int32
+		if taskIndexDeleteStart == 0 && taskRoleSpec == nil {
+			// Delete the whole Completed DeletionPending TaskRole
+			newTaskCountStatus = nil
+		} else {
+			// Delete tail Completed DeletionPending Tasks
+			newTaskCountStatus = &taskIndexDeleteStart
+		}
+
+		if newTaskCountStatus != nil && *newTaskCountStatus == taskCountStatus {
+			// Nothing can be deleted
+			continue
+		}
+
+		// Start deletion
+		logSfx := ""
+		if *c.cConfig.LogObjectSnapshot.Framework.OnFrameworkRescale {
+			// Ensure the FrameworkSnapshot is exposed before the deletion.
+			logSfx = ci.GetFrameworkSnapshotLogTail(f)
+		}
+		klog.Info(fmt.Sprintf(
+			"[%v][%v]: compactFrameworkScale: ScaleDown: Deletion: %v -> %v",
+			f.Key(), taskRoleName, taskCountStatus,
+			common.SprintPtrInt32(newTaskCountStatus)) + logSfx)
+
+		if newTaskCountStatus == nil {
+			taskRoleLastIndex := len(*taskRoleStatuses) - 1
+			(*taskRoleStatuses)[taskRoleIndex] = (*taskRoleStatuses)[taskRoleLastIndex]
+			(*taskRoleStatuses)[taskRoleLastIndex] = nil
+			*taskRoleStatuses = (*taskRoleStatuses)[:taskRoleLastIndex]
+		} else {
+			for taskIndex := taskCountStatus - 1; taskIndex >= *newTaskCountStatus; taskIndex-- {
+				taskRoleStatus.TaskStatuses[taskIndex] = nil
+			}
+			taskRoleStatus.TaskStatuses = taskRoleStatus.TaskStatuses[:*newTaskCountStatus]
+		}
+	}
+
+	// For TaskRoles/Tasks which still belong to its current f.Spec, replace all
+	// Completed DeletionPending ones with new Task instances.
+	for _, taskRoleStatus := range f.TaskRoleStatuses() {
+		taskRoleName := taskRoleStatus.Name
+		taskCountStatus := int32(len(taskRoleStatus.TaskStatuses))
+		taskRoleSpec := f.GetTaskRoleSpec(taskRoleName)
+
+		if taskRoleSpec != nil {
+			taskCountSpec := taskRoleSpec.TaskNumber
+			taskCountStatusAndSpec := common.MinInt32(taskCountStatus, taskCountSpec)
+			for taskIndex := taskCountStatusAndSpec - 1; taskIndex >= 0; taskIndex-- {
+				taskStatus := taskRoleStatus.TaskStatuses[taskIndex]
+
+				if taskStatus.DeletionPending && taskStatus.State == ci.TaskCompleted {
+					// Replace the Completed DeletionPending Task with new instance
+					logSfx := ""
+					if *c.cConfig.LogObjectSnapshot.Framework.OnFrameworkRescale {
+						// Ensure the FrameworkSnapshot is exposed before the deletion.
+						logSfx = ci.GetFrameworkSnapshotLogTail(f)
+					}
+					klog.Info(fmt.Sprintf(
+						"[%v][%v][%v]: compactFrameworkScale: ScaleDown: Replacement",
+						f.Key(), taskRoleName, taskIndex) + logSfx)
+
+					taskRoleStatus.TaskStatuses[taskIndex] =
+						f.NewTaskStatus(taskRoleName, taskIndex)
+					producedNewPendingTask = true
+				}
+			}
+		}
+	}
+
+	return producedNewPendingTask
+}
+
+func (c *FrameworkController) updatePodGracefulDeletionTimeoutSec(
+	f *ci.Framework) (changed bool) {
+	logPfx := fmt.Sprintf("[%v]: updatePodGracefulDeletionTimeoutSec: ", f.Key())
+	klog.Infof(logPfx + "Started")
+	defer func() { klog.Infof(logPfx + "Completed") }()
+
+	changed = false
+
+	if f.Status.State == ci.FrameworkCompleted {
+		klog.Infof(logPfx+"Skipped: Framework is already %v", f.Status.State)
+		return changed
+	}
+
+	for _, taskRoleSpec := range f.Spec.TaskRoles {
+		taskRoleName := taskRoleSpec.Name
+		taskRoleStatus := f.GetTaskRoleStatus(taskRoleName)
+		if taskRoleStatus == nil {
+			// Unreachable
+			continue
+		}
+
+		if !common.EqualsPtrInt64(
+			taskRoleStatus.PodGracefulDeletionTimeoutSec,
+			taskRoleSpec.Task.PodGracefulDeletionTimeoutSec) {
+			taskRoleStatus.PodGracefulDeletionTimeoutSec =
+				common.DeepCopyInt64(taskRoleSpec.Task.PodGracefulDeletionTimeoutSec)
+			changed = true
+		}
+	}
+
+	return changed
+}
+
+// Sync Framework with other related objects.
+// It also drives the DeletionPending TaskRoles/Tasks to be Completed.
 func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 	logPfx := fmt.Sprintf("[%v]: syncFrameworkState: ", f.Key())
 	klog.Infof(logPfx + "Started")
@@ -722,8 +1005,9 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 
 	if f.Status.State == ci.FrameworkCompleted {
 		if c.enqueueFrameworkCompletedRetainTimeoutCheck(f, true) {
-			klog.Infof(logPfx + "Skipped: Framework is already completed, " +
-				"and waiting to be deleted after FrameworkCompletedRetainSec")
+			klog.Infof(logPfx+"Skipped: Framework is already %v, "+
+				"and waiting to be deleted after FrameworkCompletedRetainSec",
+				f.Status.State)
 			return nil
 		}
 
@@ -755,7 +1039,7 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 				var diag string
 				var code ci.CompletionCode
 				if f.Spec.ExecutionType == ci.ExecutionStop {
-					diag = fmt.Sprintf("User has requested to stop the Framework")
+					diag = "User has requested to stop the Framework"
 					code = ci.CompletionCodeStopFrameworkRequested
 					klog.Info(logPfx + diag)
 				} else {
@@ -909,6 +1193,13 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 			f.Status.AttemptStatus = f.NewFrameworkAttemptStatus(
 				f.Status.RetryPolicyStatus.TotalRetriedCount)
 			f.TransitionFrameworkState(ci.FrameworkAttemptCreationPending)
+
+			// To ensure FrameworkAttemptCreationPending is persisted before creating
+			// its cm, we need to wait until next sync to create the cm, so manually
+			// enqueue a sync.
+			c.enqueueFrameworkSync(f, "FrameworkAttemptCreationPending")
+			klog.Infof(logPfx + "Waiting FrameworkAttemptCreationPending to be persisted")
+			return nil
 		}
 	}
 	// At this point, f.Status.State must be in:
@@ -924,7 +1215,7 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 		}
 
 		if f.Spec.ExecutionType == ci.ExecutionStop {
-			diag := fmt.Sprintf("User has requested to stop the Framework")
+			diag := "User has requested to stop the Framework"
 			klog.Info(logPfx + diag)
 
 			// Ensure cm is deleted in remote to avoid managed cm leak after
@@ -972,7 +1263,7 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 		f.Status.State == ci.FrameworkAttemptDeleting {
 		if !f.IsCompleting() {
 			if f.Spec.ExecutionType == ci.ExecutionStop {
-				diag := fmt.Sprintf("User has requested to stop the Framework")
+				diag := "User has requested to stop the Framework"
 				klog.Info(logPfx + diag)
 				c.completeFrameworkAttempt(f, false,
 					ci.CompletionCodeStopFrameworkRequested.
@@ -980,10 +1271,14 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 			}
 		}
 
+		if !f.IsCompleting() {
+			c.syncFrameworkAttemptCompletionPolicy(f)
+		}
+
 		err := c.syncTaskRoleStatuses(f, cm)
 
 		if f.Status.State == ci.FrameworkAttemptPreparing {
-			if f.IsAnyTaskRunning() {
+			if f.IsAnyTaskRunning(true) {
 				f.TransitionFrameworkState(ci.FrameworkAttemptRunning)
 			}
 		}
@@ -1167,6 +1462,125 @@ func (c *FrameworkController) createConfigMap(
 	}
 }
 
+// FrameworkAttemptCompletionPolicy can be triggered by not only completed Tasks
+// increased in f.Status, but also FrameworkAttemptCompletionPolicy or TotalTaskCount
+// decreased in f.Spec, so full sync here is needed.
+// Note, the sync is relatively very cheap, so it is fine to call the sync during
+// all kinds of FrameworkSync.
+func (c *FrameworkController) syncFrameworkAttemptCompletionPolicy(
+	f *ci.Framework) (completionPolicyTriggered bool) {
+	logPfx := fmt.Sprintf("[%v]: syncFrameworkAttemptCompletionPolicy: ", f.Key())
+	klog.Infof(logPfx + "Started")
+	defer func() { klog.Infof(logPfx + "Completed") }()
+
+	failedTaskSelector := ci.BindIDP((*ci.TaskStatus).IsFailed, true)
+	succeededTaskSelector := ci.BindIDP((*ci.TaskStatus).IsSucceeded, true)
+	completedTaskSelector := ci.BindIDP((*ci.TaskStatus).IsCompleted, true)
+
+	var firstTriggerTime *meta.Time
+	var firstTriggerCompletionStatus *ci.FrameworkAttemptCompletionStatus
+	for _, taskRoleSpec := range f.Spec.TaskRoles {
+		taskRoleName := taskRoleSpec.Name
+		taskRoleStatus := f.GetTaskRoleStatus(taskRoleName)
+		if taskRoleStatus == nil {
+			// Unreachable
+			continue
+		}
+
+		completionPolicy := taskRoleSpec.FrameworkAttemptCompletionPolicy
+		minFailedTaskCount := completionPolicy.MinFailedTaskCount
+		minSucceededTaskCount := completionPolicy.MinSucceededTaskCount
+
+		if minFailedTaskCount >= 1 {
+			failedTaskCount := taskRoleStatus.GetTaskCountStatus(failedTaskSelector)
+			if failedTaskCount >= minFailedTaskCount {
+				trigger := taskRoleStatus.CompletionTimeOrderedTaskStatus(
+					failedTaskSelector, minFailedTaskCount-1)
+
+				if firstTriggerTime == nil || trigger.CompletionTime.Before(firstTriggerTime) {
+					firstTriggerTime = trigger.CompletionTime
+					firstTriggerCompletionStatus = ci.NewFailedTaskTriggeredCompletionStatus(
+						trigger, taskRoleName, failedTaskCount, minFailedTaskCount)
+				}
+			}
+		}
+
+		if minSucceededTaskCount >= 1 {
+			succeededTaskCount := taskRoleStatus.GetTaskCountStatus(succeededTaskSelector)
+			if succeededTaskCount >= minSucceededTaskCount {
+				trigger := taskRoleStatus.CompletionTimeOrderedTaskStatus(
+					succeededTaskSelector, minSucceededTaskCount-1)
+
+				if firstTriggerTime == nil || trigger.CompletionTime.Before(firstTriggerTime) {
+					firstTriggerTime = trigger.CompletionTime
+					firstTriggerCompletionStatus = ci.NewSucceededTaskTriggeredCompletionStatus(
+						trigger, taskRoleName, succeededTaskCount, minSucceededTaskCount)
+				}
+			}
+		}
+	}
+
+	if firstTriggerCompletionStatus != nil {
+		klog.Infof("[%v][%v][%v]: syncFrameworkAttemptCompletionPolicy: %v", f.Key(),
+			firstTriggerCompletionStatus.Trigger.TaskRoleName,
+			firstTriggerCompletionStatus.Trigger.TaskIndex,
+			firstTriggerCompletionStatus.Trigger.Message)
+		c.completeFrameworkAttempt(f, false, firstTriggerCompletionStatus)
+		return true
+	}
+
+	// The Framework must not Completing or Completed, so TaskRoles/Tasks in
+	// f.Spec must fully contain not DeletionPending (ScaleDown) TaskRoles/Tasks
+	// in f.Status, thus completedTaskCount must <= totalTaskCount.
+	totalTaskCount := f.GetTotalTaskCountSpec()
+	completedTaskCount := f.GetTaskCountStatus(completedTaskSelector)
+	if completedTaskCount >= totalTaskCount {
+		var lastCompletedTaskStatus *ci.TaskStatus
+		var lastCompletedTaskRoleName string
+		for _, taskRoleSpec := range f.Spec.TaskRoles {
+			taskRoleName := taskRoleSpec.Name
+			taskRoleStatus := f.GetTaskRoleStatus(taskRoleName)
+			if taskRoleStatus == nil {
+				// Unreachable
+				continue
+			}
+
+			roleTotalTaskCount := taskRoleSpec.TaskNumber
+			if roleTotalTaskCount == 0 {
+				continue
+			}
+
+			roleLastCompletedTask := taskRoleStatus.CompletionTimeOrderedTaskStatus(
+				completedTaskSelector, roleTotalTaskCount-1)
+
+			if lastCompletedTaskStatus == nil ||
+				roleLastCompletedTask.CompletionTime.Time.After(
+					lastCompletedTaskStatus.CompletionTime.Time) {
+				lastCompletedTaskStatus = roleLastCompletedTask
+				lastCompletedTaskRoleName = taskRoleName
+			}
+		}
+
+		firstTriggerCompletionStatus = ci.NewCompletedTaskTriggeredCompletionStatus(
+			lastCompletedTaskStatus, lastCompletedTaskRoleName,
+			completedTaskCount, totalTaskCount)
+
+		if firstTriggerCompletionStatus.Trigger == nil {
+			klog.Infof("[%v]: syncFrameworkAttemptCompletionPolicy: %v", f.Key(),
+				firstTriggerCompletionStatus.Diagnostics)
+		} else {
+			klog.Infof("[%v][%v][%v]: syncFrameworkAttemptCompletionPolicy: %v", f.Key(),
+				firstTriggerCompletionStatus.Trigger.TaskRoleName,
+				firstTriggerCompletionStatus.Trigger.TaskIndex,
+				firstTriggerCompletionStatus.Trigger.Message)
+		}
+		c.completeFrameworkAttempt(f, false, firstTriggerCompletionStatus)
+		return true
+	}
+
+	return false
+}
+
 func (c *FrameworkController) syncTaskRoleStatuses(
 	f *ci.Framework, cm *core.ConfigMap) (err error) {
 	logPfx := fmt.Sprintf("[%v]: syncTaskRoleStatuses: ", f.Key())
@@ -1199,18 +1613,19 @@ func (c *FrameworkController) syncTaskState(
 	klog.Infof(logPfx + "Started")
 	defer func() { klog.Infof(logPfx + "Completed") }()
 
-	taskRoleSpec := f.TaskRoleSpec(taskRoleName)
-	taskSpec := taskRoleSpec.Task
+	taskRoleSpec := f.GetTaskRoleSpec(taskRoleName)
 	taskRoleStatus := f.TaskRoleStatus(taskRoleName)
 	taskStatus := f.TaskStatus(taskRoleName, taskIndex)
 
 	if taskStatus.State == ci.TaskCompleted {
-		// The TaskCompleted should not trigger FrameworkAttemptDeletionPending, so
-		// it is safe to skip the attemptToCompleteFrameworkAttempt.
-		// Otherwise, given it is impossible that the TaskCompleted is persisted
-		// but the FrameworkAttemptDeletionPending is not persisted, the TaskCompleted
-		// should have already triggered and persisted FrameworkAttemptDeletionPending
-		// in previous sync, so current sync should have already been skipped but not.
+		// The TaskCompleted has already been considered during above
+		// syncFrameworkAttemptCompletionPolicy, so it is safe to skip below
+		// attemptToCompleteFrameworkAttempt.
+		//
+		// If the Task is DeletionPending, since it is not deleted, this must be caused
+		// by other Task behind it has not yet TaskCompleted.
+		// And if the following Task becomes TaskCompleted later, a sync will be
+		// enqueued to trigger the deletion.
 		klog.Infof(logPfx + "Skipped: Task is already completed")
 		return nil
 	}
@@ -1228,17 +1643,26 @@ func (c *FrameworkController) syncTaskState(
 			// Avoid sync with outdated object:
 			// pod is remote creation requested but not found in the local cache.
 			if taskStatus.State == ci.TaskAttemptCreationRequested {
-				if c.enqueueTaskAttemptCreationTimeoutCheck(f, taskRoleName, taskIndex, true) {
-					klog.Infof(logPfx +
-						"Waiting Pod to appear in the local cache or timeout")
-					return nil
-				}
+				var diag string
+				var code ci.CompletionCode
+				if taskStatus.DeletionPending {
+					diag = "User has requested to delete the Task by Framework ScaleDown"
+					code = ci.CompletionCodeDeleteTaskRequested
+					klog.Info(logPfx + diag)
+				} else {
+					if c.enqueueTaskAttemptCreationTimeoutCheck(f, taskRoleName, taskIndex, true) {
+						klog.Infof(logPfx +
+							"Waiting Pod to appear in the local cache or timeout")
+						return nil
+					}
 
-				diag := fmt.Sprintf(
-					"Pod does not appear in the local cache within timeout %v, "+
-						"so consider it was deleted and explicitly delete it",
-					common.SecToDuration(c.cConfig.ObjectLocalCacheCreationTimeoutSec))
-				klog.Warning(logPfx + diag)
+					diag = fmt.Sprintf(
+						"Pod does not appear in the local cache within timeout %v, "+
+							"so consider it was deleted and explicitly delete it",
+						common.SecToDuration(c.cConfig.ObjectLocalCacheCreationTimeoutSec))
+					code = ci.CompletionCodePodCreationTimeout
+					klog.Warning(logPfx + diag)
+				}
 
 				// Ensure pod is deleted in remote to avoid managed pod leak after
 				// TaskAttemptCompleted.
@@ -1248,8 +1672,7 @@ func (c *FrameworkController) syncTaskState(
 				}
 
 				c.completeTaskAttempt(f, taskRoleName, taskIndex, true,
-					ci.CompletionCodePodCreationTimeout.
-						NewTaskAttemptCompletionStatus(diag, nil))
+					code.NewTaskAttemptCompletionStatus(diag, nil))
 				return nil
 			}
 
@@ -1295,31 +1718,26 @@ func (c *FrameworkController) syncTaskState(
 					f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptPreparing)
 				}
 
-				// Possibly due to the NodeController has not heard from the kubelet who
-				// manages the Pod for more than node-monitor-grace-period but less than
-				// pod-eviction-timeout.
-				// And after pod-eviction-timeout, the Pod will be marked as deleting, but
-				// it will only be automatically deleted after the kubelet comes back and
-				// kills the Pod.
-				if pod.Status.Phase == core.PodUnknown {
-					klog.Infof(logPfx+
-						"Waiting Pod to be deleted or deleting or transitioned from %v",
-						pod.Status.Phase)
-					return nil
-				}
-
 				// Below Pod fields may be available even when PodPending, such as the Pod
 				// has been bound to a Node, but one or more Containers has not been started.
 				taskStatus.AttemptStatus.PodNodeName = &pod.Spec.NodeName
 				taskStatus.AttemptStatus.PodIP = &pod.Status.PodIP
 				taskStatus.AttemptStatus.PodHostIP = &pod.Status.HostIP
 
-				if pod.Status.Phase == core.PodPending {
+				if pod.Status.Phase == core.PodUnknown {
+					// Possibly due to the NodeController has not heard from the kubelet who
+					// manages the Pod for more than node-monitor-grace-period but less than
+					// pod-eviction-timeout.
+					// And after pod-eviction-timeout, the Pod will be marked as deleting, but
+					// it will only be automatically deleted after the kubelet comes back and
+					// kills the Pod.
+					klog.Infof(logPfx+
+						"Waiting Pod to be deleted or deleting or transitioned from %v",
+						pod.Status.Phase)
+				} else if pod.Status.Phase == core.PodPending {
 					f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptPreparing)
-					return nil
 				} else if pod.Status.Phase == core.PodRunning {
 					f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptRunning)
-					return nil
 				} else if pod.Status.Phase == core.PodSucceeded {
 					diag := fmt.Sprintf("Pod succeeded")
 					klog.Info(logPfx + diag)
@@ -1362,14 +1780,36 @@ func (c *FrameworkController) syncTaskState(
 		}
 	}
 	// At this point, taskStatus.State must be in:
+	// {TaskAttemptCreationPending, TaskAttemptPreparing,
+	// TaskAttemptRunning, TaskAttemptCompleted}
+
+	if taskStatus.State == ci.TaskAttemptPreparing ||
+		taskStatus.State == ci.TaskAttemptRunning {
+		if taskStatus.DeletionPending {
+			diag := "User has requested to delete the Task by Framework ScaleDown"
+			klog.Info(logPfx + diag)
+			c.completeTaskAttempt(f, taskRoleName, taskIndex, false,
+				ci.CompletionCodeDeleteTaskRequested.
+					NewTaskAttemptCompletionStatus(diag, nil))
+		}
+		return nil
+	}
+	// At this point, taskStatus.State must be in:
 	// {TaskAttemptCreationPending, TaskAttemptCompleted}
 
 	if taskStatus.State == ci.TaskAttemptCompleted {
 		// attemptToRetryTask
-		retryDecision := taskSpec.RetryPolicy.ShouldRetry(
-			taskStatus.RetryPolicyStatus,
-			taskStatus.AttemptStatus.CompletionStatus.CompletionStatus,
-			0, 0)
+		var retryDecision ci.RetryDecision
+		if taskRoleSpec == nil {
+			retryDecision = ci.RetryDecision{
+				ShouldRetry: false, IsAccountable: true,
+				DelaySec: 0, Reason: "TaskRoleSpec is already deleted"}
+		} else {
+			retryDecision = taskRoleSpec.Task.RetryPolicy.ShouldRetry(
+				taskStatus.RetryPolicyStatus,
+				taskStatus.AttemptStatus.CompletionStatus.CompletionStatus,
+				0, 0)
+		}
 
 		if taskStatus.RetryPolicyStatus.RetryDelaySec == nil {
 			// RetryTask is not yet scheduled, so need to be decided.
@@ -1393,9 +1833,15 @@ func (c *FrameworkController) syncTaskState(
 		if taskStatus.RetryPolicyStatus.RetryDelaySec != nil {
 			// RetryTask is already scheduled, so just need to check whether it
 			// should be executed now.
-			if c.enqueueTaskRetryDelayTimeoutCheck(f, taskRoleName, taskIndex, true) {
-				klog.Infof(logPfx + "Waiting Task to retry after delay")
-				return nil
+			if taskStatus.DeletionPending {
+				klog.Infof(logPfx +
+					"User has requested to delete the Task by Framework ScaleDown, " +
+					"so immediately retry without delay")
+			} else {
+				if c.enqueueTaskRetryDelayTimeoutCheck(f, taskRoleName, taskIndex, true) {
+					klog.Infof(logPfx + "Waiting Task to retry after delay")
+					return nil
+				}
 			}
 
 			// retryTask
@@ -1415,6 +1861,13 @@ func (c *FrameworkController) syncTaskState(
 			taskStatus.AttemptStatus = f.NewTaskAttemptStatus(
 				taskRoleName, taskIndex, taskStatus.RetryPolicyStatus.TotalRetriedCount)
 			f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptCreationPending)
+
+			// To ensure TaskAttemptCreationPending is persisted before creating
+			// its pod, we need to wait until next sync to create the pod, so manually
+			// enqueue a sync.
+			c.enqueueFrameworkSync(f, "TaskAttemptCreationPending")
+			klog.Infof(logPfx + "Waiting TaskAttemptCreationPending to be persisted")
+			return nil
 		}
 	}
 	// At this point, taskStatus.State must be in:
@@ -1424,6 +1877,23 @@ func (c *FrameworkController) syncTaskState(
 		if f.IsCompleting() {
 			klog.Infof(logPfx + "Skip to createTaskAttempt: " +
 				"FrameworkAttempt is completing")
+			return nil
+		}
+
+		if taskStatus.DeletionPending || taskRoleSpec == nil {
+			diag := "User has requested to delete the Task by Framework ScaleDown"
+			klog.Info(logPfx + diag)
+
+			// Ensure pod is deleted in remote to avoid managed pod leak after
+			// TaskAttemptCompleted.
+			_, err = c.getOrCleanupPod(f, cm, taskRoleName, taskIndex, true)
+			if err != nil {
+				return err
+			}
+
+			c.completeTaskAttempt(f, taskRoleName, taskIndex, true,
+				ci.CompletionCodeDeleteTaskRequested.
+					NewTaskAttemptCompletionStatus(diag, nil))
 			return nil
 		}
 
@@ -1478,72 +1948,61 @@ func (c *FrameworkController) syncTaskState(
 			return nil
 		}
 
+		if taskStatus.DeletionPending || taskRoleSpec == nil {
+			klog.Infof(logPfx + "Skip to attemptToCompleteFrameworkAttempt: " +
+				"Task is DeletionPending")
+
+			// To ensure the TaskCompleted[DeletionPending] is persisted before
+			// deleting/replacing its Task instance, we need to wait until next
+			// sync to delete/replace the Task instance, so manually enqueue a sync.
+			c.enqueueFrameworkSync(f, "TaskCompleted[DeletionPending]")
+			klog.Infof(logPfx + "Waiting TaskCompleted[DeletionPending] to be persisted")
+			return nil
+		}
+
 		// attemptToCompleteFrameworkAttempt
+		failedTaskSelector := ci.BindIDP((*ci.TaskStatus).IsFailed, true)
+		succeededTaskSelector := ci.BindIDP((*ci.TaskStatus).IsSucceeded, true)
+		completedTaskSelector := ci.BindIDP((*ci.TaskStatus).IsCompleted, true)
+
 		completionPolicy := taskRoleSpec.FrameworkAttemptCompletionPolicy
 		minFailedTaskCount := completionPolicy.MinFailedTaskCount
 		minSucceededTaskCount := completionPolicy.MinSucceededTaskCount
 
-		if taskStatus.IsFailed() && minFailedTaskCount != ci.UnlimitedValue {
-			failedTaskCount := taskRoleStatus.GetTaskCount((*ci.TaskStatus).IsFailed)
+		var triggerCompletionStatus *ci.FrameworkAttemptCompletionStatus
+		if taskStatus.IsFailed(true) && minFailedTaskCount >= 1 {
+			failedTaskCount := taskRoleStatus.GetTaskCountStatus(failedTaskSelector)
 			if failedTaskCount >= minFailedTaskCount {
-				msg := fmt.Sprintf(
-					"FailedTaskCount %v has reached MinFailedTaskCount %v in the TaskRole",
-					failedTaskCount, minFailedTaskCount)
-				klog.Info(logPfx + msg)
-				c.completeFrameworkAttempt(f, false,
-					&ci.FrameworkAttemptCompletionStatus{
-						CompletionStatus: taskStatus.AttemptStatus.CompletionStatus.CompletionStatus,
-						Trigger: &ci.CompletionPolicyTriggerStatus{
-							Message:      msg,
-							TaskRoleName: taskRoleName,
-							TaskIndex:    taskIndex,
-						},
-					},
-				)
-				return nil
+				triggerCompletionStatus = ci.NewFailedTaskTriggeredCompletionStatus(
+					taskStatus, taskRoleName, failedTaskCount, minFailedTaskCount)
 			}
 		}
 
-		if taskStatus.IsSucceeded() && minSucceededTaskCount != ci.UnlimitedValue {
-			succeededTaskCount := taskRoleStatus.GetTaskCount((*ci.TaskStatus).IsSucceeded)
+		if taskStatus.IsSucceeded(true) && minSucceededTaskCount >= 1 {
+			succeededTaskCount := taskRoleStatus.GetTaskCountStatus(succeededTaskSelector)
 			if succeededTaskCount >= minSucceededTaskCount {
-				msg := fmt.Sprintf(
-					"SucceededTaskCount %v has reached MinSucceededTaskCount %v in the TaskRole",
-					succeededTaskCount, minSucceededTaskCount)
-				klog.Info(logPfx + msg)
-				c.completeFrameworkAttempt(f, false,
-					ci.CompletionCodeSucceeded.NewFrameworkAttemptCompletionStatus(
-						taskStatus.AttemptStatus.CompletionStatus.Diagnostics,
-						&ci.CompletionPolicyTriggerStatus{
-							Message:      msg,
-							TaskRoleName: taskRoleName,
-							TaskIndex:    taskIndex,
-						},
-					),
-				)
-				return nil
+				triggerCompletionStatus = ci.NewSucceededTaskTriggeredCompletionStatus(
+					taskStatus, taskRoleName, succeededTaskCount, minSucceededTaskCount)
 			}
 		}
 
-		if f.AreAllTasksCompleted() {
-			totalTaskCount := f.GetTaskCount(nil)
-			failedTaskCount := f.GetTaskCount((*ci.TaskStatus).IsFailed)
-			msg := fmt.Sprintf(
-				"All Tasks are completed and no user specified conditions in "+
-					"FrameworkAttemptCompletionPolicy have ever been triggered: "+
-					"TotalTaskCount: %v, FailedTaskCount: %v",
-				totalTaskCount, failedTaskCount)
-			klog.Info(logPfx + msg)
-			c.completeFrameworkAttempt(f, false,
-				ci.CompletionCodeSucceeded.NewFrameworkAttemptCompletionStatus(
-					taskStatus.AttemptStatus.CompletionStatus.Diagnostics,
-					&ci.CompletionPolicyTriggerStatus{
-						Message:      msg,
-						TaskRoleName: taskRoleName,
-						TaskIndex:    taskIndex,
-					},
-				),
-			)
+		if triggerCompletionStatus != nil {
+			klog.Info(logPfx + triggerCompletionStatus.Trigger.Message)
+			c.completeFrameworkAttempt(f, false, triggerCompletionStatus)
+			return nil
+		}
+
+		// The Framework must not Completing or Completed, so TaskRoles/Tasks in
+		// f.Spec must fully contain not DeletionPending (ScaleDown) TaskRoles/Tasks
+		// in f.Status, thus completedTaskCount must <= totalTaskCount.
+		totalTaskCount := f.GetTotalTaskCountSpec()
+		completedTaskCount := f.GetTaskCountStatus(completedTaskSelector)
+		if completedTaskCount >= totalTaskCount {
+			triggerCompletionStatus = ci.NewCompletedTaskTriggeredCompletionStatus(
+				taskStatus, taskRoleName, completedTaskCount, totalTaskCount)
+
+			klog.Info(logPfx + triggerCompletionStatus.Trigger.Message)
+			c.completeFrameworkAttempt(f, false, triggerCompletionStatus)
 			return nil
 		}
 
@@ -1563,23 +2022,24 @@ func (c *FrameworkController) handlePodGracefulDeletion(
 	f *ci.Framework, taskRoleName string, taskIndex int32, pod *core.Pod) error {
 	logPfx := fmt.Sprintf("[%v][%v][%v]: handlePodGracefulDeletion: ",
 		f.Key(), taskRoleName, taskIndex)
-	taskSpec := f.TaskRoleSpec(taskRoleName).Task
+	taskStatus := f.TaskRoleStatus(taskRoleName)
+	timeoutSec := taskStatus.PodGracefulDeletionTimeoutSec
 
 	if pod.DeletionTimestamp == nil {
 		return nil
 	}
-	if taskSpec.PodGracefulDeletionTimeoutSec == nil {
+	if timeoutSec == nil {
 		klog.Infof(logPfx + "Waiting Pod to be deleted")
 		return nil
 	}
-	if c.enqueuePodGracefulDeletionTimeoutCheck(f, taskRoleName, true, pod) {
+	if c.enqueuePodGracefulDeletionTimeoutCheck(f, timeoutSec, true, pod) {
 		klog.Infof(logPfx + "Waiting Pod to be deleted or timeout")
 		return nil
 	}
 
 	klog.Warningf(logPfx+
 		"Pod cannot be deleted within timeout %v, so force delete it",
-		common.SecToDuration(taskSpec.PodGracefulDeletionTimeoutSec))
+		common.SecToDuration(timeoutSec))
 	// Always confirm the force deletion to expose the failure that even force
 	// deletion cannot delete the Pod, such as the Pod Finalizers is not empty.
 	return c.deletePod(f, taskRoleName, taskIndex, pod.UID, true, true)
@@ -1649,6 +2109,10 @@ func (c *FrameworkController) getOrCleanupPod(
 
 // Using UID to ensure we delete the right object.
 // The podUID should be controlled by f's cm.
+// Note, Pod force deletion can only be done after PodGracefulDeletionTimeoutSec
+// expired which is mostly caused by bad node, for other cases, such as even if
+// delete an unmanaged Pod, the force deletion may cause local node resource
+// conflict since the node may be still healthy.
 func (c *FrameworkController) deletePod(
 	f *ci.Framework, taskRoleName string, taskIndex int32,
 	podUID types.UID, confirm bool, force bool) error {
@@ -1751,18 +2215,19 @@ func (c *FrameworkController) completeTaskAttempt(
 				common.ToJson(taskStatus.AttemptStatus.CompletionStatus))
 		}
 
-		// To ensure the completed TaskAttempt is persisted before exposed,
-		// we need to wait until next sync to expose it, so manually enqueue a sync.
+		// To ensure TaskAttemptCompleted is persisted before exposed its TaskAttempt,
+		// we need to wait until next sync to expose the TaskAttempt, so manually
+		// enqueue a sync.
 		c.enqueueFrameworkSync(f, "TaskAttemptCompleted")
-		klog.Infof(logPfx + "Waiting the completed TaskAttempt to be persisted")
+		klog.Infof(logPfx + "Waiting TaskAttemptCompleted to be persisted")
 	} else {
 		f.TransitionTaskState(taskRoleName, taskIndex, ci.TaskAttemptDeletionPending)
 
-		// To ensure the CompletionStatus is persisted before deleting the pod,
+		// To ensure TaskAttemptDeletionPending is persisted before deleting its pod,
 		// we need to wait until next sync to delete the pod, so manually enqueue
 		// a sync.
 		c.enqueueFrameworkSync(f, "TaskAttemptDeletionPending")
-		klog.Infof(logPfx + "Waiting the CompletionStatus to be persisted")
+		klog.Infof(logPfx + "Waiting TaskAttemptDeletionPending to be persisted")
 	}
 }
 
@@ -1817,18 +2282,19 @@ func (c *FrameworkController) completeFrameworkAttempt(
 				common.ToJson(f.Status.AttemptStatus.CompletionStatus))
 		}
 
-		// To ensure the completed FrameworkAttempt is persisted before exposed,
-		// we need to wait until next sync to expose it, so manually enqueue a sync.
+		// To ensure FrameworkAttemptCompleted is persisted before exposed its
+		// FrameworkAttempt, we need to wait until next sync to expose the
+		// FrameworkAttempt, so manually enqueue a sync.
 		c.enqueueFrameworkSync(f, "FrameworkAttemptCompleted")
-		klog.Infof(logPfx + "Waiting the completed FrameworkAttempt to be persisted")
+		klog.Infof(logPfx + "Waiting FrameworkAttemptCompleted to be persisted")
 	} else {
 		f.TransitionFrameworkState(ci.FrameworkAttemptDeletionPending)
 
-		// To ensure the CompletionStatus is persisted before deleting the cm,
-		// we need to wait until next sync to delete the cm, so manually enqueue
-		// a sync.
+		// To ensure FrameworkAttemptDeletionPending is persisted before deleting
+		// its cm, we need to wait until next sync to delete the cm, so manually
+		// enqueue a sync.
 		c.enqueueFrameworkSync(f, "FrameworkAttemptDeletionPending")
-		klog.Infof(logPfx + "Waiting the CompletionStatus to be persisted")
+		klog.Infof(logPfx + "Waiting FrameworkAttemptDeletionPending to be persisted")
 	}
 }
 

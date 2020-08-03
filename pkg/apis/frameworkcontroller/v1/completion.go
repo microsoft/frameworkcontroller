@@ -71,6 +71,7 @@ const (
 	CompletionCodePodSpecPermanentError      CompletionCode = -200
 	CompletionCodeStopFrameworkRequested     CompletionCode = -210
 	CompletionCodeFrameworkAttemptCompletion CompletionCode = -220
+	CompletionCodeDeleteTaskRequested        CompletionCode = -230
 	// -3XX: Unknown Error
 	CompletionCodePodFailedWithoutFailedContainer CompletionCode = -300
 )
@@ -177,6 +178,12 @@ func initCompletionCodeInfos() {
 		{
 			Code:   CompletionCodeFrameworkAttemptCompletion.Ptr(),
 			Phrase: "FrameworkAttemptCompletion",
+			Type: CompletionType{CompletionTypeNameFailed,
+				[]CompletionTypeAttribute{CompletionTypeAttributePermanent}},
+		},
+		{
+			Code:   CompletionCodeDeleteTaskRequested.Ptr(),
+			Phrase: "DeleteTaskRequested",
 			Type: CompletionType{CompletionTypeNameFailed,
 				[]CompletionTypeAttribute{CompletionTypeAttributePermanent}},
 		},
@@ -530,7 +537,8 @@ func (re Regex) FindString(s string) *string {
 		return &s
 	}
 	if loc := re.Regexp.FindStringIndex(s); loc != nil {
-		return common.PtrString(s[loc[0]:loc[1]])
+		// Decouple string garbage collection
+		return common.PtrString(string([]byte(s[loc[0]:loc[1]])))
 	}
 	return nil
 }

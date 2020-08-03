@@ -53,6 +53,42 @@ func ReferPlaceholder(name string) string {
 	return "{{" + name + "}}"
 }
 
+func MinInt32(x, y int32) int32 {
+	if x < y {
+		return x
+	} else {
+		return y
+	}
+}
+
+func MaxInt32(x, y int32) int32 {
+	if x > y {
+		return x
+	} else {
+		return y
+	}
+}
+
+func EqualsPtrInt64(x, y *int64) bool {
+	if x == y {
+		return true
+	} else if x == nil {
+		return false
+	} else if y == nil {
+		return false
+	} else {
+		return *x == *y
+	}
+}
+
+func DeepCopyInt64(o *int64) *int64 {
+	if o == nil {
+		return o
+	} else {
+		return PtrInt64(*o)
+	}
+}
+
 func PtrString(o string) *string {
 	return &o
 }
@@ -173,6 +209,14 @@ func NewStopChannel() <-chan struct{} {
 // Rand in range [min, max]
 func RandInt64(min int64, max int64) int64 {
 	return min + rand.Int63n(max-min+1)
+}
+
+func SprintPtrInt32(obj *int32) string {
+	if obj == nil {
+		return fmt.Sprintf("%v", obj)
+	} else {
+		return fmt.Sprintf("%v", *obj)
+	}
 }
 
 func ToYaml(obj interface{}) string {
