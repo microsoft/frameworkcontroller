@@ -10,7 +10,7 @@ As one standalone component of [Microsoft OpenPAI](https://github.com/microsoft/
 These kinds of applications include but not limited to:
 - __Stateless and Stateful Service__:
   - DeepLearning Serving: [TensorFlow Serving](https://www.tensorflow.org/tfx/guide/serving), etc.
-  - Big Data Serving: HDFS, HBase, Kafka, Nginx, etc.
+  - Big Data Serving: HDFS, HBase, Kafka, Etcd, Nginx, etc.
 - __Stateless and Stateful Batch__:
   - DeepLearning AllReduce Training: [TensorFlow MultiWorkerMirrored Training](https://www.tensorflow.org/guide/distributed_training#multiworkermirroredstrategy), [Horovod Training](https://horovod.readthedocs.io), etc.
   - DeepLearning Elastic Training without Server: [PyTorch Elastic Training with whole cluster shared etcd](https://pytorch.org/elastic), etc.
