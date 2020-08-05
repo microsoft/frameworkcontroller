@@ -457,7 +457,7 @@ Notes:
       <td rowspan="2"><b>DEFAULT</td>
       <td>TaskRole-A</td>
       <td><i>MinFailedTaskCount = 1<br>MinSucceededTaskCount = -1</i></td>
-      <td rowspan="2">The default FrameworkAttemptCompletionPolicy:<br>Fail the FrameworkAttempt immediately if any Task failed.<br>Succeed the FrameworkAttempt until all Tasks succeeded.</td>
+      <td rowspan="2">The default FrameworkAttemptCompletionPolicy:<br>Fail the FrameworkAttempt immediately if any Task failed.<br>Succeed the FrameworkAttempt only until all Tasks succeeded.</td>
     </tr>
     <tr>
       <td>TaskRole-B</td>
@@ -473,37 +473,37 @@ Notes:
       <td rowspan="2"><b>MapReduce</td>
       <td>Map</td>
       <td>MinFailedTaskCount = {Map.TaskNumber} * {mapreduce.map.failures.maxpercent} + 1<br><i>MinSucceededTaskCount = -1</i></td>
-      <td rowspan="2">A few failed Tasks is acceptable, but always want to wait all Tasks to succeed:<br>Fail the FrameworkAttempt immediately if the failed Tasks exceeded the limit.<br>Succeed the FrameworkAttempt until all Tasks completed and the failed Tasks is within the limit.</td>
+      <td rowspan="2">A few failed Tasks is acceptable, but always want to wait all Tasks to succeed:<br>Fail the FrameworkAttempt immediately if the failed Tasks exceeded the limit.<br>Succeed the FrameworkAttempt only until all Tasks completed and the failed Tasks is within the limit.</td>
     </tr>
     <tr>
       <td>Reduce</td>
       <td>MinFailedTaskCount = {Reduce.TaskNumber} * {mapreduce.reduce.failures.maxpercent} + 1<br><i>MinSucceededTaskCount = -1</i></td>
     </tr>
     <tr>
-      <td rowspan="2"><b>Worker Dominated: <a href="https://www.tensorflow.org/guide/distributed_training#parameterserverstrategy">TensorFlow ParameterServer Training</a></td>
-      <td>ParameterServer</td>
-      <td><i>MinFailedTaskCount = 1<br>MinSucceededTaskCount = -1</i></td>
-      <td rowspan="2">Succeed a certain TaskRole is enough, and do not want to wait all Tasks to succeed:<br>Fail the FrameworkAttempt immediately if any Task failed.<br>Succeed the FrameworkAttempt immediately if Worker's all Tasks succeeded.</td>
-    </tr>
-    <tr>
-      <td>Worker</td>
-      <td><i>MinFailedTaskCount = 1</i><br>MinSucceededTaskCount = {Worker.TaskNumber}</td>
-    </tr>
-    <tr>
-      <td rowspan="2"><b>Master Dominated: <a href="https://horovod.readthedocs.io/en/stable/mpirun.html">Horovod MPI Training</a></td>
-      <td>Master</td>
+      <td rowspan="2"><b>Master Dominated: <a href="https://pytorch.org/tutorials/intermediate/dist_tuto.html#initialization-methods">PyTorch Training with explict master role</a>, <a href="https://www.tensorflow.org/guide/distributed_training#TF_CONFIG">TensorFlow Training with explict chief role</a></td>
+      <td>Master/Chief</td>
       <td><i>MinFailedTaskCount = 1</i><br>MinSucceededTaskCount = 1</td>
-      <td rowspan="2">The FrameworkAttemptCompletionPolicy is fully delegated to the single instance master of the user application:<br>Fail the FrameworkAttempt immediately if the master failed.<br>Succeed the FrameworkAttempt immediately if the master succeeded.</td>
+      <td rowspan="2">The FrameworkAttemptCompletionStatus is fully determined by the single instance master of the user application:<br>Fail the FrameworkAttempt immediately if the master failed.<br>Succeed the FrameworkAttempt immediately if the master succeeded.</td>
     </tr>
     <tr>
       <td>Worker</td>
       <td>MinFailedTaskCount = -1<br><i>MinSucceededTaskCount = -1</i></td>
     </tr>
     <tr>
-      <td rowspan="1"><b>First Completed Task Dominated: <a href="https://github.com/pytorch/elastic/blob/adb5f057359e87a2cb804c7354af5a4e424961c3/torchelastic/agent/server/local_elastic_agent.py#L122-L127">PyTorch Elastic Training</a></td>
+      <td rowspan="2"><b>All Workers Dominated: <a href="https://pytorch.org/tutorials/intermediate/dist_tuto.html#initialization-methods">PyTorch Training without explict master role</a>, <a href="https://www.tensorflow.org/guide/distributed_training#TF_CONFIG">TensorFlow Training without explict chief role</a></td>
+      <td>ParameterServer/<i>None</i></td>
+      <td><i>MinFailedTaskCount = 1<br>MinSucceededTaskCount = -1</i></td>
+      <td rowspan="2">Fail the FrameworkAttempt immediately if any Task failed.<br>Succeed the FrameworkAttempt only until all workers succeeded.</td>
+    </tr>
+    <tr>
       <td>Worker</td>
-      <td><i>MinFailedTaskCount = 1</i><br>MinSucceededTaskCount = 1</td>
-      <td rowspan="1">The FrameworkAttemptCompletionPolicy is fully delegated to the first completed Task of the user application:<br>Fail the FrameworkAttempt immediately if any Task failed.<br>Succeed the FrameworkAttempt immediately if any Task succeeded.</td>
+      <td><i>MinFailedTaskCount = 1</i><br>MinSucceededTaskCount = {Worker.TaskNumber}</td>
+    </tr>
+    <tr>
+      <td rowspan="1"><b>Any Worker Dominated: <a href="https://github.com/pytorch/elastic/blob/adb5f057359e87a2cb804c7354af5a4e424961c3/torchelastic/agent/server/local_elastic_agent.py#L122-L127">PyTorch Elastic Training</a></td>
+      <td>Worker</td>
+      <td><i>MinFailedTaskCount = {Worker.TaskNumber}</i><br>MinSucceededTaskCount = 1</td>
+      <td rowspan="1">Fail the FrameworkAttempt only until all workers failed.<br>Succeed the FrameworkAttempt immediately if any worker succeeded.</td>
     </tr>
   </tbody>
 </table>
@@ -523,7 +523,7 @@ Before you start to Rescale Framework, make sure your application executed by th
    2. To mitigate it, the ScaleUp Task can immediately complete itself by leveraging empty work queue or existing checkpoint from previous run.
 3. For **Batch** application, it would better **not too early succeeded** after ScaleDown:
    1. Too early succeeded may happen if all Tasks succeeded except one Task still running, but you ScaleDown the running Task.
-   2. To resolve it, make sure it is safe to ScaleDown the running Task, such as leverage `First Completed Task Dominated` or `Master Dominated` FrameworkType in [FrameworkAttemptCompletionPolicy](#FrameworkAttemptCompletionPolicy). For the `First Completed Task Dominated` FrameworkType, an exit barrier may be needed to ensure any Task succeeded means the whole application already succeeded, like [PyTorch Elastic Training](https://github.com/pytorch/elastic/blob/adb5f057359e87a2cb804c7354af5a4e424961c3/torchelastic/agent/server/local_elastic_agent.py#L122-L127). For the `Master Dominated` FrameworkType, a master TaskRole is needed and do not ScaleDown the master TaskRole.
+   2. To resolve it, make sure it is safe to ScaleDown the running Task, such as leverage `Master Dominated` or `Any Worker Dominated` FrameworkType in [FrameworkAttemptCompletionPolicy](#FrameworkAttemptCompletionPolicy). For the `Master Dominated` FrameworkType, a master TaskRole is needed and do not ScaleDown the master TaskRole. For the `Any Worker Dominated` FrameworkType, an exit barrier may be needed to ensure any worker succeeded means the whole application already succeeded, like [PyTorch Elastic Training](https://github.com/pytorch/elastic/blob/adb5f057359e87a2cb804c7354af5a4e424961c3/torchelastic/agent/server/local_elastic_agent.py#L122-L127).
 
 ### <a name="FrameworkRescaleAPI">API</a>
 - [Add TaskRole](#Add_TaskRole)

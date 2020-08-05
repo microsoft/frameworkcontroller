@@ -12,12 +12,12 @@ These kinds of applications include but not limited to:
   - DeepLearning Serving: [TensorFlow Serving](https://www.tensorflow.org/tfx/guide/serving), etc.
   - Big Data Serving: HDFS, HBase, Kafka, Nginx, etc.
 - __Stateless and Stateful Batch__:
+  - DeepLearning AllReduce Training: [TensorFlow MultiWorkerMirrored Training](https://www.tensorflow.org/guide/distributed_training#multiworkermirroredstrategy), [Horovod Training](https://horovod.readthedocs.io), etc.
   - DeepLearning Elastic Training without Server: [PyTorch Elastic Training with whole cluster shared etcd](https://pytorch.org/elastic), etc.
   - DeepLearning Batch/Offline Inference: [PyTorch Inference](https://pytorch.org/tutorials/recipes/recipes/saving_and_loading_models_for_inference.html), etc.
   - Automated Machine Learning: [NNI](https://nni.readthedocs.io), etc.
   - Big Data Batch Processing: [Standalone Spark](http://spark.apache.org/docs/latest/spark-standalone.html), KD-Tree Building, etc.
 - __Any combination of above applications__:
-  - DeepLearning MPI Training: [Horovod MPI Training](https://horovod.readthedocs.io/en/stable/mpirun.html), etc.
   - DeepLearning ParameterServer Training: [TensorFlow ParameterServer Training](https://www.tensorflow.org/guide/distributed_training#parameterserverstrategy), etc.
   - DeepLearning Interactive Training: [TensorFlow with Jupyter Notebook](https://www.tensorflow.org/tensorboard/tensorboard_in_notebooks), etc.
   - DeepLearning Elastic Training with Server: [PyTorch Elastic Training with per-application dedicated etcd](https://pytorch.org/elastic), etc.
