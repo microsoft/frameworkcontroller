@@ -483,7 +483,7 @@ Notes:
       <td rowspan="2"><b>Master Dominated: <a href="https://pytorch.org/tutorials/intermediate/dist_tuto.html#initialization-methods">PyTorch Training with explict master role</a>, <a href="https://www.tensorflow.org/guide/distributed_training#TF_CONFIG">TensorFlow Training with explict chief role</a></td>
       <td>Master/Chief</td>
       <td><i>MinFailedTaskCount = 1</i><br>MinSucceededTaskCount = 1</td>
-      <td rowspan="2">The FrameworkAttemptCompletionStatus is fully determined by the single instance master of the user application:<br>Fail the FrameworkAttempt immediately if the master failed.<br>Succeed the FrameworkAttempt immediately if the master succeeded.</td>
+      <td rowspan="2">The CompletionStatus is fully determined by the single instance master of the user application:<br>Fail the FrameworkAttempt immediately if the master failed.<br>Succeed the FrameworkAttempt immediately if the master succeeded.</td>
     </tr>
     <tr>
       <td>Worker</td>
