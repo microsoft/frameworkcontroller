@@ -74,6 +74,7 @@ func buildFrameworkValidation() *apiExtensions.CustomResourceValidation {
 					Properties: map[string]apiExtensions.JSONSchemaProps{
 						"executionType": {
 							Enum: []apiExtensions.JSON{
+								{Raw: []byte(common.Quote(string(ExecutionCreate)))},
 								{Raw: []byte(common.Quote(string(ExecutionStart)))},
 								{Raw: []byte(common.Quote(string(ExecutionStop)))},
 							},

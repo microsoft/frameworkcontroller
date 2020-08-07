@@ -16,7 +16,7 @@ Notes:
 
 ### Prerequisite
 
-If the k8s cluster enforces [Authorization](https://kubernetes.io/docs/reference/access-authn-authz/authorization/#using-flags-for-your-authorization-module), you need to first create a [Service Account](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account) with granted permission for FrameworkController. For example, if the cluster enforces [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#kubectl-create-clusterrolebinding):
+If the k8s cluster enforces [Authorization](https://kubernetes.io/docs/reference/access-authn-authz/authorization/#using-flags-for-your-authorization-module), you need to first create a [ServiceAccount](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account) with granted permission for FrameworkController. For example, if the cluster enforces [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#kubectl-create-clusterrolebinding):
 ```shell
 kubectl create serviceaccount frameworkcontroller --namespace default
 kubectl create clusterrolebinding frameworkcontroller \
@@ -26,7 +26,7 @@ kubectl create clusterrolebinding frameworkcontroller \
 
 ### Run
 
-Run FrameworkController with above Service Account and the [k8s inClusterConfig](https://kubernetes.io/docs/tasks/access-application-cluster/access-cluster/#accessing-the-api-from-a-pod):
+Run FrameworkController with above ServiceAccount and the [k8s inClusterConfig](https://kubernetes.io/docs/tasks/access-application-cluster/access-cluster/#accessing-the-api-from-a-pod):
 
 #### Run with [default config](../../example/config/default/frameworkcontroller.yaml)
 ```shell
@@ -51,7 +51,7 @@ spec:
       labels:
         app: frameworkcontroller
     spec:
-      # Using the service account with granted permission
+      # Using the ServiceAccount with granted permission
       # if the k8s cluster enforces authorization.
       serviceAccountName: frameworkcontroller
       containers:
@@ -115,7 +115,7 @@ spec:
       labels:
         app: frameworkcontroller
     spec:
-      # Using the service account with granted permission
+      # Using the ServiceAccount with granted permission
       # if the k8s cluster enforces authorization.
       serviceAccountName: frameworkcontroller
       containers:
@@ -133,8 +133,8 @@ spec:
           "cp /frameworkcontroller-config/frameworkcontroller.yaml . &&
           ./start.sh"]
         volumeMounts:
-          - name: frameworkcontroller-config
-            mountPath: /frameworkcontroller-config
+        - name: frameworkcontroller-config
+          mountPath: /frameworkcontroller-config
       volumes:
       - name: frameworkcontroller-config
         configMap:

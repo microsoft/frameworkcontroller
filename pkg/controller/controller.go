@@ -1214,6 +1214,12 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 			return nil
 		}
 
+		if f.Spec.ExecutionType == ci.ExecutionCreate {
+			klog.Infof(logPfx + "Skip to createFrameworkAttempt: " +
+				"User has requested to just create the Framework without starting it")
+			return nil
+		}
+
 		if f.Spec.ExecutionType == ci.ExecutionStop {
 			diag := "User has requested to stop the Framework"
 			klog.Info(logPfx + diag)

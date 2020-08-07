@@ -69,7 +69,7 @@ spec:
             - name: data-volume
               mountPath: /mnt/data
           # [PREREQUISITE]
-          # User needs to create a service account for frameworkbarrier, if the
+          # User needs to create a ServiceAccount for frameworkbarrier, if the
           # k8s cluster enforces authorization.
           # See more in ./example/framework/extension/frameworkbarrier.yaml
           serviceAccountName: frameworkbarrier

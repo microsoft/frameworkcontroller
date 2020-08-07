@@ -54,10 +54,11 @@ A Framework represents an application with a set of Tasks:
 2. Partitioned to different heterogeneous TaskRoles which share the same lifecycle
 3. Ordered in the same homogeneous TaskRole by TaskIndex
 4. With consistent identity {FrameworkName}-{TaskRoleName}-{TaskIndex} as PodName
-5. With fine grained [RetryPolicy](doc/user-manual.md#RetryPolicy) for each Task and the whole Framework
-6. With fine grained [FrameworkAttemptCompletionPolicy](doc/user-manual.md#FrameworkAttemptCompletionPolicy) for each TaskRole
-7. With PodGracefulDeletionTimeoutSec for each Task to [tune Consistency vs Availability](doc/user-manual.md#FrameworkConsistencyAvailability)
-8. With fine grained [Status](pkg/apis/frameworkcontroller/v1/types.go) for each TaskAttempt/Task, each TaskRole and the whole FrameworkAttempt/Framework
+5. With fine grained [ExecutionType](doc/user-manual.md#FrameworkExecutionType) to Start/Stop the whole Framework
+6. With fine grained [RetryPolicy](doc/user-manual.md#RetryPolicy) for each Task and the whole Framework
+7. With fine grained [FrameworkAttemptCompletionPolicy](doc/user-manual.md#FrameworkAttemptCompletionPolicy) for each TaskRole
+8. With PodGracefulDeletionTimeoutSec for each Task to [tune Consistency vs Availability](doc/user-manual.md#FrameworkConsistencyAvailability)
+9. With fine grained [Status](pkg/apis/frameworkcontroller/v1/types.go) for each TaskAttempt/Task, each TaskRole and the whole FrameworkAttempt/Framework
 
 ### Controller Feature
 1. Highly generalized as it is built for all kinds of applications
