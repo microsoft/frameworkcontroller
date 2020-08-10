@@ -45,10 +45,11 @@ type FrameworkList struct {
 // 2. Partitioned to different heterogeneous TaskRoles which share the same lifecycle
 // 3. Ordered in the same homogeneous TaskRole by TaskIndex
 // 4. With consistent identity {FrameworkName}-{TaskRoleName}-{TaskIndex} as PodName
-// 5. With fine grained RetryPolicy for each Task and the whole Framework
-// 6. With fine grained FrameworkAttemptCompletionPolicy for each TaskRole
-// 7. With PodGracefulDeletionTimeoutSec for each Task to tune Consistency vs Availability
-// 8. With fine grained Status for each TaskAttempt/Task, each TaskRole and the whole
+// 5. With fine grained ExecutionType to Start/Stop the whole Framework
+// 6. With fine grained RetryPolicy for each Task and the whole Framework
+// 7. With fine grained FrameworkAttemptCompletionPolicy for each TaskRole
+// 8. With PodGracefulDeletionTimeoutSec for each Task to tune Consistency vs Availability
+// 9. With fine grained Status for each TaskAttempt/Task, each TaskRole and the whole
 //    FrameworkAttempt/Framework
 //
 // Notes:
@@ -204,14 +205,14 @@ type RetryPolicySpec struct {
 //    from the Task which triggers the completion.
 // 3. If MinSucceededTaskCount >= 1 and MinSucceededTaskCount <= succeeded Task
 //    count of current TaskRole, immediately complete the FrameworkAttempt, regardless
-//    of any uncompleted Task, and the CompletionStatus is succeeded which is
-//    inherited from the Task which triggers the completion.
+//    of any uncompleted Task, and the CompletionStatus is succeeded which is inherited
+//    from the Task which triggers the completion.
 // 4. If multiple above conditions are satisfied at the same time, the behavior can
 //    be any one of these satisfied conditions.
 // 5. If none of above conditions are satisfied until all Tasks of the Framework are
-//    completed (including a special case that the Framework does even not have any
-//    Task), immediately complete the FrameworkAttempt and the CompletionStatus is
-//    succeeded which is not inherited from any Task.
+//    completed and the Framework has at least one Task, immediately complete the
+//    FrameworkAttempt and the CompletionStatus is succeeded which is not inherited
+//    from any Task.
 //
 // Notes:
 // 1. When the FrameworkAttempt is completed, the FrameworkState is transitioned to
