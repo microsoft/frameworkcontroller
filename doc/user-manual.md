@@ -2,6 +2,7 @@
 
 ## <a name="Index">Index</a>
    - [Framework Interop](#FrameworkInterop)
+   - [Framework ExecutionType](#FrameworkExecutionType)
    - [Container EnvironmentVariable](#ContainerEnvironmentVariable)
    - [Pod Failure Classification](#PodFailureClassification)
    - [Predefined CompletionCode](#PredefinedCompletionCode)
@@ -38,7 +39,7 @@ As Framework is actually a [Kubernetes CRD](https://kubernetes.io/docs/concepts/
 ### <a name="SupportedInteroperation">Supported Interoperation</a>
 | API Kind | Operations |
 |:---- |:---- |
-| Framework | [CREATE](#CREATE_Framework) [DELETE](#DELETE_Framework) [GET](#GET_Framework) [LIST](#LIST_Frameworks) [WATCH](#WATCH_Framework) [WATCH_LIST](#WATCH_LIST_Frameworks)<br>[PATCH](#PATCH_Framework) ([Stop](#Stop_Framework), [Add TaskRole](#Add_TaskRole), [Delete TaskRole](#Delete_TaskRole), [Add/Delete Task](#Add_Delete_Task)) |
+| Framework | [CREATE](#CREATE_Framework) [DELETE](#DELETE_Framework) [GET](#GET_Framework) [LIST](#LIST_Frameworks) [WATCH](#WATCH_Framework) [WATCH_LIST](#WATCH_LIST_Frameworks)<br>[PATCH](#PATCH_Framework) ([Start](#Start_Framework), [Stop](#Stop_Framework), [Add TaskRole](#Add_TaskRole), [Delete TaskRole](#Delete_TaskRole), [Add/Delete Task](#Add_Delete_Task)) |
 | [ConfigMap](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#configmap-v1-core) | All operations except for [CREATE](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#create-configmap-v1-core) [PUT](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#replace-configmap-v1-core) [PATCH](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#patch-configmap-v1-core) |
 | [Pod](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#pod-v1-core) | All operations except for [CREATE](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#create-pod-v1-core) [PUT](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#replace-pod-v1-core) [PATCH](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#patch-pod-v1-core) |
 
@@ -55,6 +56,8 @@ Type: application/json or application/yaml
 
 Create the specified Framework.
 
+Any [ExecutionType](#FrameworkExecutionType) can be specified to create the Framework.
+
 **Response**
 
 | Code | Body | Description |
@@ -65,6 +68,38 @@ Create the specified Framework.
 | Conflict(409) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#status-v1-meta) | The specified Framework already exists. |
 
 #### <a name="PATCH_Framework">PATCH Framework</a>
+##### <a name="Start_Framework">Start Framework</a>
+**Request**
+
+    PATCH /apis/frameworkcontroller.microsoft.com/v1/namespaces/{FrameworkNamespace}/frameworks/{FrameworkName}
+
+Body:
+
+```json
+[
+  {
+    "op": "replace",
+    "path": "/spec/executionType",
+    "value": "Start"
+  }
+]
+```
+
+Type: application/json-patch+json
+
+**Description**
+
+Start the specified Framework whose [ExecutionType](#FrameworkExecutionType) should be `Create`.
+
+Before the Start, the Framework will not start to run or complete, but the object of the Framework is created, see [Framework PreStart Example](#FrameworkExecutionTypePreStartExample).
+
+**Response**
+
+| Code | Body | Description |
+|:---- |:---- |:---- |
+| OK(200) | [Framework](../pkg/apis/frameworkcontroller/v1/types.go) | Return current Framework. |
+| NotFound(404) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#status-v1-meta) | The specified Framework is not found. |
+
 ##### <a name="Stop_Framework">Stop Framework</a>
 **Request**
 
@@ -86,9 +121,9 @@ Type: application/json-patch+json
 
 **Description**
 
-Stop the specified Framework:
+Stop the specified Framework whose [ExecutionType](#FrameworkExecutionType) should be `Create` or `Start`.
 
-All running containers of the Framework will be stopped while the object of the Framework is still kept.
+After the Stop, the Framework will start to complete, but the object of the Framework will not be deleted, see [Framework PostStop Example](#FrameworkExecutionTypePostStopExample).
 
 **Response**
 
@@ -345,6 +380,100 @@ Watch the change events of all Frameworks (in the specified FrameworkNamespace).
 | Code | Body | Description |
 |:---- |:---- |:---- |
 | OK(200) | [WatchEvent](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#watchevent-v1-meta) | Streaming the change events of all Frameworks (in the specified FrameworkNamespace). |
+
+## <a name="FrameworkExecutionType">Framework ExecutionType</a>
+Framework [ExecutionType](../pkg/apis/frameworkcontroller/v1/types.go) can be specified to control the execution of the Framework:
+1. You can just [Create Framework](#CREATE_Framework) with `Create` ExecutionType, which does not also start it at the same time.
+   - This is useful when you need to do some PreStart actions depend on the Framework object, see [Framework PreStart Example](#FrameworkExecutionTypePreStartExample). And once these actions are done, you can safely [Start Framework](#Start_Framework).
+2. You can just [Stop Framework](#Stop_Framework), which does not also delete it at the same time.
+   - This is useful when you need to do some PostStop actions depend on the Framework object, see [Framework PostStop Example](#FrameworkExecutionTypePostStopExample). And once these actions are done, you can safely [Delete Framework](#DELETE_Framework).
+
+### <a name="FrameworkExecutionTypeExample">Example</a>
+#### <a name="FrameworkExecutionTypePreStartExample">Framework PreStart Example</a>
+In this example, you need to run a [Framework which depends on a ServiceAccount](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account), but the ServiceAccount also depends on the Framework object to be [OwnerReferences](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#owners-and-dependents), so you cannot directly [Create Framework](#CREATE_Framework) with ExecutionType `Start`.
+1. [Create Framework](#CREATE_Framework) with `Create` ExecutionType and a ServiceAccount reference as below, then the Framework will stay as AttemptCreationPending:
+```yaml
+apiVersion: frameworkcontroller.microsoft.com/v1
+kind: Framework
+metadata:
+  name: prestart
+spec:
+  executionType: Create
+  retryPolicy:
+    fancyRetryPolicy: false
+    maxRetryCount: 0
+  taskRoles:
+  - name: a
+    taskNumber: 4
+    frameworkAttemptCompletionPolicy:
+      minFailedTaskCount: 4
+      minSucceededTaskCount: 1
+    task:
+      retryPolicy:
+        fancyRetryPolicy: false
+        maxRetryCount: 0
+      podGracefulDeletionTimeoutSec: 600
+      pod:
+        spec:
+          restartPolicy: Never
+          serviceAccountName: prestart
+          containers:
+          - name: ubuntu
+            image: ubuntu:trusty
+            command: ["sh", "-c", "printenv && sleep infinity"]
+```
+2. Use above creation response's `metadata.uid` to override below {{FrameworkUID}}, and [Create ServiceAccount](https://v1-14.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#create-serviceaccount-v1-core) with above Framework reference as below:
+```yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prestart
+  ownerReferences:
+  - apiVersion: frameworkcontroller.microsoft.com/v1
+    kind: Framework
+    name: prestart
+    uid: {{FrameworkUID}}
+    controller: true
+    blockOwnerDeletion: true
+```
+3. [Start Framework](#Start_Framework), then the Framework will start to run successfully.
+4. [Delete Framework](#DELETE_Framework), then both the Framework and above ServiceAccount will be deleted.
+
+#### <a name="FrameworkExecutionTypePostStopExample">Framework PostStop Example</a>
+In this example, you need to stop a Framework whose final stopped Framework object needs to be [pushed to/pulled by external systems](#FrameworkPodHistory), so you cannot directly [Delete Framework](#DELETE_Framework).
+1. [Create Framework](#CREATE_Framework) as below:
+```yaml
+apiVersion: frameworkcontroller.microsoft.com/v1
+kind: Framework
+metadata:
+  name: poststop
+spec:
+  executionType: Start
+  retryPolicy:
+    fancyRetryPolicy: false
+    maxRetryCount: 0
+  taskRoles:
+  - name: a
+    taskNumber: 4
+    frameworkAttemptCompletionPolicy:
+      minFailedTaskCount: 4
+      minSucceededTaskCount: 1
+    task:
+      retryPolicy:
+        fancyRetryPolicy: false
+        maxRetryCount: 0
+      podGracefulDeletionTimeoutSec: 600
+      pod:
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: ubuntu
+            image: ubuntu:trusty
+            command: ["sh", "-c", "printenv && sleep infinity"]
+```
+2. [Stop Framework](#Stop_Framework), then the Framework will be stopped, i.e. FrameworkCompleted.
+3. [Get Framework](#GET_Framework), and archive it into a DataBase first.
+4. [Delete Framework](#DELETE_Framework), then the Framework will be deleted.
 
 ## <a name="ContainerEnvironmentVariable">Container EnvironmentVariable</a>
 [Container EnvironmentVariable](../pkg/apis/frameworkcontroller/v1/constants.go)
@@ -713,7 +842,7 @@ Besides these general [Framework ConsistencyGuarantees](#ConsistencyGuarantees),
 To safely run large scale Framework, i.e. the total task number in a single Framework is greater than 300, you just need to enable the [LargeFrameworkCompression](../pkg/apis/frameworkcontroller/v1/config.go). However, you may also need to decompress the Framework by yourself.
 
 ## <a name="FrameworkPodHistory">Framework and Pod History</a>
-By leveraging the [LogObjectSnapshot](../pkg/apis/frameworkcontroller/v1/config.go), external systems, such as [Fluentd](https://www.fluentd.org) and [ElasticSearch](https://www.elastic.co/products/elasticsearch), can collect and process Framework and Pod history snapshots even if it was retried or deleted, such as persistence, metrics conversion, visualization, alerting, acting, analysis, etc.
+By leveraging the [LogObjectSnapshot](../pkg/apis/frameworkcontroller/v1/config.go), external systems, such as [Fluentd](https://www.fluentd.org) and [ElasticSearch](https://www.elastic.co/products/elasticsearch), can collect and process Framework and Pod history snapshots even if it was retried or deleted, such as for persistence, metrics conversion, visualization, alerting, acting, analysis, etc.
 
 ## <a name="FrameworkTaskStateMachine">Framework and Task State Machine</a>
 ### <a name="FrameworkStateMachine">Framework State Machine</a>

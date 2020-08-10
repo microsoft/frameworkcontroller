@@ -70,8 +70,7 @@ type Framework struct {
 // Spec
 //////////////////////////////////////////////////////////////////////////////////////////////////
 type FrameworkSpec struct {
-	Description string `json:"description"`
-	// Only support to update from ExecutionStart to ExecutionStop
+	Description   string          `json:"description"`
 	ExecutionType ExecutionType   `json:"executionType"`
 	RetryPolicy   RetryPolicySpec `json:"retryPolicy"`
 	TaskRoles     []*TaskRoleSpec `json:"taskRoles"`
@@ -115,11 +114,23 @@ type TaskSpec struct {
 	Pod                           core.PodTemplateSpec `json:"pod"`
 }
 
+// User can set any ExecutionType when create a Framework, and then he can choose
+// to change the ExecutionType or not.
+// However, only below changes are supported:
+// 1. ExecutionCreate -> ExecutionStart/ExecutionStop
+// 2. ExecutionStart  -> ExecutionStop
 type ExecutionType string
 
 const (
+	// The Framework will be kept in FrameworkAttemptCreationPending.
+	// So it will never start to run or complete.
+	ExecutionCreate ExecutionType = "Create"
+	// The Framework will be transitioned from FrameworkAttemptCreationPending.
+	// So it will immediately start to run.
 	ExecutionStart ExecutionType = "Start"
-	ExecutionStop  ExecutionType = "Stop"
+	// The Framework will be transitioned to FrameworkCompleted.
+	// So it will immediately start to complete.
+	ExecutionStop ExecutionType = "Stop"
 )
 
 // RetryPolicySpec can be configured for the whole Framework and each TaskRole

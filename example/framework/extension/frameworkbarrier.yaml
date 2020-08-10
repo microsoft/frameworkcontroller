@@ -59,7 +59,7 @@ spec:
             - name: frameworkbarrier-volume
               mountPath: /mnt/frameworkbarrier
           # [PREREQUISITE]
-          # User needs to create a service account in the same namespace of this
+          # User needs to create a ServiceAccount in the same namespace of this
           # Framework with granted permission for frameworkbarrier, if the k8s
           # cluster enforces authorization.
           # For example, if the cluster enforces RBAC:
