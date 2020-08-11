@@ -1535,12 +1535,13 @@ func (c *FrameworkController) syncFrameworkAttemptCompletionPolicy(
 		return true
 	}
 
-	// The Framework must not Completing or Completed, so TaskRoles/Tasks in
-	// f.Spec must fully contain not DeletionPending (ScaleDown) TaskRoles/Tasks
-	// in f.Status, thus completedTaskCount must <= totalTaskCount.
 	totalTaskCount := f.GetTotalTaskCountSpec()
+	// At least one completed Task is needed to trigger its Framework completion.
 	if totalTaskCount >= 1 {
 		completedTaskCount := f.GetTaskCountStatus(completedTaskSelector)
+		// The Framework must not Completing or Completed, so TaskRoles/Tasks in
+		// f.Spec must fully contain not DeletionPending (ScaleDown) TaskRoles/Tasks
+		// in f.Status, thus completedTaskCount must <= totalTaskCount.
 		if completedTaskCount >= totalTaskCount {
 			var lastCompletedTaskStatus *ci.TaskStatus
 			var lastCompletedTaskRoleName string
@@ -2000,12 +2001,13 @@ func (c *FrameworkController) syncTaskState(
 			return nil
 		}
 
-		// The Framework must not Completing or Completed, so TaskRoles/Tasks in
-		// f.Spec must fully contain not DeletionPending (ScaleDown) TaskRoles/Tasks
-		// in f.Status, thus completedTaskCount must <= totalTaskCount.
 		totalTaskCount := f.GetTotalTaskCountSpec()
+		// At least one completed Task is needed to trigger its Framework completion.
 		if taskStatus.IsCompleted(true) && totalTaskCount >= 1 {
 			completedTaskCount := f.GetTaskCountStatus(completedTaskSelector)
+			// The Framework must not Completing or Completed, so TaskRoles/Tasks in
+			// f.Spec must fully contain not DeletionPending (ScaleDown) TaskRoles/Tasks
+			// in f.Status, thus completedTaskCount must <= totalTaskCount.
 			if completedTaskCount >= totalTaskCount {
 				triggerCompletionStatus = ci.NewCompletedTaskTriggeredCompletionStatus(
 					taskStatus, taskRoleName, completedTaskCount, totalTaskCount)
