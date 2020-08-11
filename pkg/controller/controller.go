@@ -1536,7 +1536,8 @@ func (c *FrameworkController) syncFrameworkAttemptCompletionPolicy(
 	}
 
 	totalTaskCount := f.GetTotalTaskCountSpec()
-	// At least one completed Task is needed to trigger its Framework completion.
+	// At least one completed Task is needed to trigger its
+	// FrameworkAttemptCompletionPolicy.
 	if totalTaskCount >= 1 {
 		completedTaskCount := f.GetTaskCountStatus(completedTaskSelector)
 		// The Framework must not Completing or Completed, so TaskRoles/Tasks in
@@ -2002,7 +2003,8 @@ func (c *FrameworkController) syncTaskState(
 		}
 
 		totalTaskCount := f.GetTotalTaskCountSpec()
-		// At least one completed Task is needed to trigger its Framework completion.
+		// At least one completed Task is needed to trigger its
+		// FrameworkAttemptCompletionPolicy.
 		if taskStatus.IsCompleted(true) && totalTaskCount >= 1 {
 			completedTaskCount := f.GetTaskCountStatus(completedTaskSelector)
 			// The Framework must not Completing or Completed, so TaskRoles/Tasks in
