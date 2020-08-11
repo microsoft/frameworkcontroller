@@ -1535,53 +1535,57 @@ func (c *FrameworkController) syncFrameworkAttemptCompletionPolicy(
 		return true
 	}
 
-	// The Framework must not Completing or Completed, so TaskRoles/Tasks in
-	// f.Spec must fully contain not DeletionPending (ScaleDown) TaskRoles/Tasks
-	// in f.Status, thus completedTaskCount must <= totalTaskCount.
 	totalTaskCount := f.GetTotalTaskCountSpec()
-	completedTaskCount := f.GetTaskCountStatus(completedTaskSelector)
-	if completedTaskCount >= totalTaskCount {
-		var lastCompletedTaskStatus *ci.TaskStatus
-		var lastCompletedTaskRoleName string
-		for _, taskRoleSpec := range f.Spec.TaskRoles {
-			taskRoleName := taskRoleSpec.Name
-			taskRoleStatus := f.GetTaskRoleStatus(taskRoleName)
-			if taskRoleStatus == nil {
-				// Unreachable
-				continue
+	// At least one completed Task is needed to trigger its
+	// FrameworkAttemptCompletionPolicy.
+	if totalTaskCount >= 1 {
+		completedTaskCount := f.GetTaskCountStatus(completedTaskSelector)
+		// The Framework must not Completing or Completed, so TaskRoles/Tasks in
+		// f.Spec must fully contain not DeletionPending (ScaleDown) TaskRoles/Tasks
+		// in f.Status, thus completedTaskCount must <= totalTaskCount.
+		if completedTaskCount >= totalTaskCount {
+			var lastCompletedTaskStatus *ci.TaskStatus
+			var lastCompletedTaskRoleName string
+			for _, taskRoleSpec := range f.Spec.TaskRoles {
+				taskRoleName := taskRoleSpec.Name
+				taskRoleStatus := f.GetTaskRoleStatus(taskRoleName)
+				if taskRoleStatus == nil {
+					// Unreachable
+					continue
+				}
+
+				roleTotalTaskCount := taskRoleSpec.TaskNumber
+				if roleTotalTaskCount == 0 {
+					continue
+				}
+
+				roleLastCompletedTask := taskRoleStatus.CompletionTimeOrderedTaskStatus(
+					completedTaskSelector, roleTotalTaskCount-1)
+
+				if lastCompletedTaskStatus == nil ||
+					roleLastCompletedTask.CompletionTime.Time.After(
+						lastCompletedTaskStatus.CompletionTime.Time) {
+					lastCompletedTaskStatus = roleLastCompletedTask
+					lastCompletedTaskRoleName = taskRoleName
+				}
 			}
 
-			roleTotalTaskCount := taskRoleSpec.TaskNumber
-			if roleTotalTaskCount == 0 {
-				continue
-			}
+			firstTriggerCompletionStatus = ci.NewCompletedTaskTriggeredCompletionStatus(
+				lastCompletedTaskStatus, lastCompletedTaskRoleName,
+				completedTaskCount, totalTaskCount)
 
-			roleLastCompletedTask := taskRoleStatus.CompletionTimeOrderedTaskStatus(
-				completedTaskSelector, roleTotalTaskCount-1)
-
-			if lastCompletedTaskStatus == nil ||
-				roleLastCompletedTask.CompletionTime.Time.After(
-					lastCompletedTaskStatus.CompletionTime.Time) {
-				lastCompletedTaskStatus = roleLastCompletedTask
-				lastCompletedTaskRoleName = taskRoleName
+			if firstTriggerCompletionStatus.Trigger == nil {
+				klog.Infof("[%v]: syncFrameworkAttemptCompletionPolicy: %v", f.Key(),
+					firstTriggerCompletionStatus.Diagnostics)
+			} else {
+				klog.Infof("[%v][%v][%v]: syncFrameworkAttemptCompletionPolicy: %v", f.Key(),
+					firstTriggerCompletionStatus.Trigger.TaskRoleName,
+					firstTriggerCompletionStatus.Trigger.TaskIndex,
+					firstTriggerCompletionStatus.Trigger.Message)
 			}
+			c.completeFrameworkAttempt(f, false, firstTriggerCompletionStatus)
+			return true
 		}
-
-		firstTriggerCompletionStatus = ci.NewCompletedTaskTriggeredCompletionStatus(
-			lastCompletedTaskStatus, lastCompletedTaskRoleName,
-			completedTaskCount, totalTaskCount)
-
-		if firstTriggerCompletionStatus.Trigger == nil {
-			klog.Infof("[%v]: syncFrameworkAttemptCompletionPolicy: %v", f.Key(),
-				firstTriggerCompletionStatus.Diagnostics)
-		} else {
-			klog.Infof("[%v][%v][%v]: syncFrameworkAttemptCompletionPolicy: %v", f.Key(),
-				firstTriggerCompletionStatus.Trigger.TaskRoleName,
-				firstTriggerCompletionStatus.Trigger.TaskIndex,
-				firstTriggerCompletionStatus.Trigger.Message)
-		}
-		c.completeFrameworkAttempt(f, false, firstTriggerCompletionStatus)
-		return true
 	}
 
 	return false
@@ -1998,18 +2002,22 @@ func (c *FrameworkController) syncTaskState(
 			return nil
 		}
 
-		// The Framework must not Completing or Completed, so TaskRoles/Tasks in
-		// f.Spec must fully contain not DeletionPending (ScaleDown) TaskRoles/Tasks
-		// in f.Status, thus completedTaskCount must <= totalTaskCount.
 		totalTaskCount := f.GetTotalTaskCountSpec()
-		completedTaskCount := f.GetTaskCountStatus(completedTaskSelector)
-		if completedTaskCount >= totalTaskCount {
-			triggerCompletionStatus = ci.NewCompletedTaskTriggeredCompletionStatus(
-				taskStatus, taskRoleName, completedTaskCount, totalTaskCount)
+		// At least one completed Task is needed to trigger its
+		// FrameworkAttemptCompletionPolicy.
+		if taskStatus.IsCompleted(true) && totalTaskCount >= 1 {
+			completedTaskCount := f.GetTaskCountStatus(completedTaskSelector)
+			// The Framework must not Completing or Completed, so TaskRoles/Tasks in
+			// f.Spec must fully contain not DeletionPending (ScaleDown) TaskRoles/Tasks
+			// in f.Status, thus completedTaskCount must <= totalTaskCount.
+			if completedTaskCount >= totalTaskCount {
+				triggerCompletionStatus = ci.NewCompletedTaskTriggeredCompletionStatus(
+					taskStatus, taskRoleName, completedTaskCount, totalTaskCount)
 
-			klog.Info(logPfx + triggerCompletionStatus.Trigger.Message)
-			c.completeFrameworkAttempt(f, false, triggerCompletionStatus)
-			return nil
+				klog.Info(logPfx + triggerCompletionStatus.Trigger.Message)
+				c.completeFrameworkAttempt(f, false, triggerCompletionStatus)
+				return nil
+			}
 		}
 
 		return nil
