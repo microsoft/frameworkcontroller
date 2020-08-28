@@ -56,7 +56,14 @@ type Config struct {
 	KubeApiServerAddress *string `yaml:"kubeApiServerAddress"`
 	KubeConfigFilePath   *string `yaml:"kubeConfigFilePath"`
 
-	// Number of concurrent workers to process each different Frameworks
+	// Rate limits of requests from FrameworkController to ApiServer.
+	// Generally, it should be proportional to the cluster Framework workload, and within the ApiServer
+	// serving capacity/limit such as the --max-mutating-requests-inflight.
+	KubeClientQps   *float32 `yaml:"kubeClientQps"`
+	KubeClientBurst *int32 `yaml:"kubeClientBurst"`
+
+	// Number of concurrent workers to process each different Frameworks.
+	// Generally, it should be proportional to the above rate limits of requests.
 	WorkerNumber *int32 `yaml:"workerNumber"`
 
 	// Specify whether to compress some fields in the Framework object if they are too large.
@@ -215,8 +222,15 @@ func NewConfig() *Config {
 	if c.KubeConfigFilePath == nil {
 		c.KubeConfigFilePath = defaultKubeConfigFilePath()
 	}
+	// Based on the default --max-mutating-requests-inflight is 200.
+	if c.KubeClientQps == nil {
+		c.KubeClientQps = common.PtrFloat32(80)
+	}
+	if c.KubeClientBurst == nil {
+		c.KubeClientBurst = common.PtrInt32(120)
+	}
 	if c.WorkerNumber == nil {
-		c.WorkerNumber = common.PtrInt32(10)
+		c.WorkerNumber = common.PtrInt32(200)
 	}
 	if c.LargeFrameworkCompression == nil {
 		c.LargeFrameworkCompression = common.PtrBool(false)
@@ -263,6 +277,16 @@ func NewConfig() *Config {
 
 	// Validation
 	errPrefix := "Config Validation Failed: "
+	if *c.KubeClientQps <= 0 || *c.KubeClientQps > 10000 {
+		panic(fmt.Errorf(errPrefix+
+			"KubeClientQps %v should be within (0, 10000]",
+			*c.KubeClientQps))
+	}
+	if *c.KubeClientBurst < 0 || *c.KubeClientBurst > 10000 {
+		panic(fmt.Errorf(errPrefix+
+			"KubeClientBurst %v should be within [0, 10000]",
+			*c.KubeClientBurst))
+	}
 	if *c.WorkerNumber <= 0 {
 		panic(fmt.Errorf(errPrefix+
 			"WorkerNumber %v should be positive",
@@ -387,5 +411,8 @@ func BuildKubeConfig(cConfig *Config) *rest.Config {
 			"${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT} is valid: "+
 			"Error: %v", err))
 	}
+
+	kConfig.QPS = *cConfig.KubeClientQps
+	kConfig.Burst = int(*cConfig.KubeClientBurst)
 	return kConfig
 }
