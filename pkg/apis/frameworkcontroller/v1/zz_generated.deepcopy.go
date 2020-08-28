@@ -157,6 +157,16 @@ func (in *Config) DeepCopyInto(out *Config) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.KubeClientQps != nil {
+		in, out := &in.KubeClientQps, &out.KubeClientQps
+		*out = new(float32)
+		**out = **in
+	}
+	if in.KubeClientBurst != nil {
+		in, out := &in.KubeClientBurst, &out.KubeClientBurst
+		*out = new(int32)
+		**out = **in
+	}
 	if in.WorkerNumber != nil {
 		in, out := &in.WorkerNumber, &out.WorkerNumber
 		*out = new(int32)
