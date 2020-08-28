@@ -81,7 +81,9 @@ metadata:
   namespace: default
 data:
   frameworkcontroller.yaml: |
-    workerNumber: 20
+    kubeClientQps: 200
+    kubeClientBurst: 300
+    workerNumber: 500
     largeFrameworkCompression: true
     frameworkCompletedRetainSec: 2592000
     #podFailureSpec:

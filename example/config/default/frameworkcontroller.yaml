@@ -6,7 +6,10 @@
 #kubeApiServerAddress: http://10.10.10.10:8080
 #kubeConfigFilePath: ''
 
-#workerNumber: 20
+# Based on the --max-mutating-requests-inflight is 500.
+#kubeClientQps: 200
+#kubeClientBurst: 300
+#workerNumber: 500
 
 #largeFrameworkCompression: true
 

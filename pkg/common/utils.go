@@ -105,6 +105,10 @@ func PtrInt64(o int64) *int64 {
 	return &o
 }
 
+func PtrFloat32(o float32) *float32 {
+	return &o
+}
+
 func PtrFloat64(o float64) *float64 {
 	return &o
 }
