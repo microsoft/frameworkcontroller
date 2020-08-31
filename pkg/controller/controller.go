@@ -1053,7 +1053,7 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 						"ConfigMap does not appear in the local cache within timeout %v, "+
 							"so consider it was deleted and explicitly delete it",
 						common.SecToDuration(c.cConfig.ObjectLocalCacheCreationTimeoutSec))
-					code = ci.CompletionCodeConfigMapCreationTimeout
+					code = ci.CompletionCodeConfigMapLocalCacheCreationTimeout
 					klog.Warning(logPfx + diag)
 				}
 
@@ -1670,7 +1670,7 @@ func (c *FrameworkController) syncTaskState(
 						"Pod does not appear in the local cache within timeout %v, "+
 							"so consider it was deleted and explicitly delete it",
 						common.SecToDuration(c.cConfig.ObjectLocalCacheCreationTimeoutSec))
-					code = ci.CompletionCodePodCreationTimeout
+					code = ci.CompletionCodePodLocalCacheCreationTimeout
 					klog.Warning(logPfx + diag)
 				}
 
@@ -1752,8 +1752,9 @@ func (c *FrameworkController) syncTaskState(
 					diag := fmt.Sprintf("Pod succeeded")
 					klog.Info(logPfx + diag)
 					c.completeTaskAttempt(f, taskRoleName, taskIndex, false,
-						ci.CompletionCodeSucceeded.NewTaskAttemptCompletionStatus(
-							diag, ci.ExtractPodCompletionStatus(pod)))
+						ci.CompletionCodeSucceeded.
+							NewTaskAttemptCompletionStatus(
+								diag, ci.ExtractPodCompletionStatus(pod)))
 					return nil
 				} else if pod.Status.Phase == core.PodFailed {
 					result := ci.MatchCompletionCodeInfos(pod)
@@ -1910,26 +1911,26 @@ func (c *FrameworkController) syncTaskState(
 		// createTaskAttempt
 		pod, err = c.createPod(f, cm, taskRoleName, taskIndex)
 		if err != nil {
-			apiErr := errorWrap.Cause(err)
-			if internal.IsPodSpecPermanentError(apiErr) {
-				// Should be Framework Error instead of Platform Transient Error.
-				diag := fmt.Sprintf("Failed to create Pod: %v", common.ToJson(apiErr))
-				klog.Info(logPfx + diag)
-
-				// Ensure pod is deleted in remote to avoid managed pod leak after
-				// TaskAttemptCompleted.
-				_, err = c.getOrCleanupPod(f, cm, taskRoleName, taskIndex, true)
-				if err != nil {
-					return err
-				}
-
-				c.completeTaskAttempt(f, taskRoleName, taskIndex, true,
-					ci.CompletionCodePodSpecPermanentError.
-						NewTaskAttemptCompletionStatus(diag, nil))
-				return nil
-			} else {
+			apiErr := common.GetErrorCause(err)
+			result := ci.ClassifyPodCreationError(apiErr)
+			if *result.CodeInfo.Code == ci.CompletionCodePodCreationTransientError {
+				// Do not complete the TaskAttempt, as generally, user does not need to
+				// aware the Transient Error during Pod creation.
 				return err
 			}
+
+			klog.Info(logPfx + result.Diagnostics)
+			// Ensure pod is deleted in remote to avoid managed pod leak after
+			// TaskAttemptCompleted.
+			_, err = c.getOrCleanupPod(f, cm, taskRoleName, taskIndex, true)
+			if err != nil {
+				return err
+			}
+
+			c.completeTaskAttempt(f, taskRoleName, taskIndex, true,
+				result.CodeInfo.Code.
+					NewTaskAttemptCompletionStatus(result.Diagnostics, nil))
+			return nil
 		}
 
 		taskStatus.AttemptStatus.PodUID = &pod.UID

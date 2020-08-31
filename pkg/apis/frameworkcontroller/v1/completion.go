@@ -26,8 +26,11 @@ import (
 	"fmt"
 	"github.com/microsoft/frameworkcontroller/pkg/common"
 	core "k8s.io/api/core/v1"
+	apiErrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/util/net"
 	"reflect"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -63,17 +66,19 @@ const (
 
 	// [-999, -1]: Predefined Framework Error
 	// -1XX: Transient Error
-	CompletionCodeConfigMapExternalDeleted CompletionCode = -100
-	CompletionCodePodExternalDeleted       CompletionCode = -101
-	CompletionCodeConfigMapCreationTimeout CompletionCode = -110
-	CompletionCodePodCreationTimeout       CompletionCode = -111
+	CompletionCodeConfigMapExternalDeleted           CompletionCode = -100
+	CompletionCodePodExternalDeleted                 CompletionCode = -101
+	CompletionCodeConfigMapLocalCacheCreationTimeout CompletionCode = -110
+	CompletionCodePodLocalCacheCreationTimeout       CompletionCode = -111
+	CompletionCodePodCreationTransientError          CompletionCode = -120
 	// -2XX: Permanent Error
-	CompletionCodePodSpecPermanentError      CompletionCode = -200
+	CompletionCodePodCreationPermanentError  CompletionCode = -200
 	CompletionCodeStopFrameworkRequested     CompletionCode = -210
 	CompletionCodeFrameworkAttemptCompletion CompletionCode = -220
 	CompletionCodeDeleteTaskRequested        CompletionCode = -230
 	// -3XX: Unknown Error
 	CompletionCodePodFailedWithoutFailedContainer CompletionCode = -300
+	CompletionCodePodCreationUnknownError         CompletionCode = -310
 )
 
 var completionCodeInfoList = []*CompletionCodeInfo{}
@@ -152,20 +157,28 @@ func initCompletionCodeInfos() {
 				[]CompletionTypeAttribute{CompletionTypeAttributeTransient}},
 		},
 		{
-			Code:   CompletionCodeConfigMapCreationTimeout.Ptr(),
-			Phrase: "ConfigMapCreationTimeout",
+			Code:   CompletionCodeConfigMapLocalCacheCreationTimeout.Ptr(),
+			Phrase: "ConfigMapLocalCacheCreationTimeout",
 			Type: CompletionType{CompletionTypeNameFailed,
 				[]CompletionTypeAttribute{CompletionTypeAttributeTransient}},
 		},
 		{
-			Code:   CompletionCodePodCreationTimeout.Ptr(),
-			Phrase: "PodCreationTimeout",
+			Code:   CompletionCodePodLocalCacheCreationTimeout.Ptr(),
+			Phrase: "PodLocalCacheCreationTimeout",
 			Type: CompletionType{CompletionTypeNameFailed,
 				[]CompletionTypeAttribute{CompletionTypeAttributeTransient}},
 		},
 		{
-			Code:   CompletionCodePodSpecPermanentError.Ptr(),
-			Phrase: "PodSpecPermanentError",
+			// Only used to distinguish with others, and will never be used to complete
+			// a TaskAttempt.
+			Code:   CompletionCodePodCreationTransientError.Ptr(),
+			Phrase: "PodCreationTransientError",
+			Type: CompletionType{CompletionTypeNameFailed,
+				[]CompletionTypeAttribute{CompletionTypeAttributeTransient}},
+		},
+		{
+			Code:   CompletionCodePodCreationPermanentError.Ptr(),
+			Phrase: "PodCreationPermanentError",
 			Type: CompletionType{CompletionTypeNameFailed,
 				[]CompletionTypeAttribute{CompletionTypeAttributePermanent}},
 		},
@@ -190,6 +203,12 @@ func initCompletionCodeInfos() {
 		{
 			Code:   CompletionCodePodFailedWithoutFailedContainer.Ptr(),
 			Phrase: "PodFailedWithoutFailedContainer",
+			Type: CompletionType{CompletionTypeNameFailed,
+				[]CompletionTypeAttribute{}},
+		},
+		{
+			Code:   CompletionCodePodCreationUnknownError.Ptr(),
+			Phrase: "PodCreationUnknownError",
 			Type: CompletionType{CompletionTypeNameFailed,
 				[]CompletionTypeAttribute{}},
 		},
@@ -238,6 +257,9 @@ type MatchedContainer struct {
 }
 
 // Match ANY CompletionCodeInfo
+// The returned CompletionCode may not within CompletionCodeInfos, such as for
+// the ContainerUnrecognizedFailed, so it should not be used to
+// NewTaskAttemptCompletionStatus or NewFrameworkAttemptCompletionStatus later.
 func MatchCompletionCodeInfos(pod *core.Pod) PodMatchResult {
 	for _, codeInfo := range completionCodeInfoList {
 		for _, podPattern := range codeInfo.PodPatterns {
@@ -401,6 +423,45 @@ func generatePodUnmatchedResult(pod *core.Pod) PodMatchResult {
 			},
 			Diagnostics: diag,
 		}
+	}
+}
+
+// The returned CompletionCode must be within CompletionCodeInfos.
+func ClassifyPodCreationError(apiErr error) PodMatchResult {
+	diag := fmt.Sprintf("Failed to create Pod: %v", common.ToJson(apiErr))
+
+	if apiErrors.IsInvalid(apiErr) ||
+		apiErrors.IsRequestEntityTooLargeError(apiErr) ||
+		(apiErrors.IsForbidden(apiErr) &&
+			!strings.Contains(apiErr.Error(), "exceeded quota")) {
+		// TODO: Also check net.IsConnectionRefused
+		if net.IsConnectionReset(apiErr) || net.IsProbableEOF(apiErr) {
+			// The ApiServer Permanent Error may be caused by Network Transient Error,
+			// so treat it as Unknown Error for safety.
+			return PodMatchResult{
+				CodeInfo:    completionCodeInfoMap[CompletionCodePodCreationUnknownError],
+				Diagnostics: diag,
+			}
+		} else {
+			return PodMatchResult{
+				CodeInfo:    completionCodeInfoMap[CompletionCodePodCreationPermanentError],
+				Diagnostics: diag,
+			}
+		}
+	}
+
+	if apiErrors.IsBadRequest(apiErr) {
+		// BadRequest is too general, so treat it as Unknown Error for safety.
+		return PodMatchResult{
+			CodeInfo:    completionCodeInfoMap[CompletionCodePodCreationUnknownError],
+			Diagnostics: diag,
+		}
+	}
+
+	// Treat all other errors as Transient Error, including all non-APIStatus errors.
+	return PodMatchResult{
+		CodeInfo:    completionCodeInfoMap[CompletionCodePodCreationTransientError],
+		Diagnostics: diag,
 	}
 }
 
