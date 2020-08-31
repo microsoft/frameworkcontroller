@@ -430,10 +430,28 @@ func generatePodUnmatchedResult(pod *core.Pod) PodMatchResult {
 func ClassifyPodCreationError(apiErr error) PodMatchResult {
 	diag := fmt.Sprintf("Failed to create Pod: %v", common.ToJson(apiErr))
 
+	// Treat Platform Error as Transient Error, such as Pod decoding error.
+	if strings.Contains(apiErr.Error(), "object provided is unrecognized") ||
+		strings.Contains(apiErr.Error(), "exceeded quota") {
+		return PodMatchResult{
+			CodeInfo:    completionCodeInfoMap[CompletionCodePodCreationTransientError],
+			Diagnostics: diag,
+		}
+	}
+
+	// Treat General Framework Error as Unknown Error for safety.
+	if apiErrors.IsBadRequest(apiErr) ||
+		apiErrors.IsForbidden(apiErr) {
+		return PodMatchResult{
+			CodeInfo:    completionCodeInfoMap[CompletionCodePodCreationUnknownError],
+			Diagnostics: diag,
+		}
+	}
+
+	// Treat Permanent Framework Error as Permanent Error only if it must be
+	// Permanent Error.
 	if apiErrors.IsInvalid(apiErr) ||
-		apiErrors.IsRequestEntityTooLargeError(apiErr) ||
-		(apiErrors.IsForbidden(apiErr) &&
-			!strings.Contains(apiErr.Error(), "exceeded quota")) {
+		apiErrors.IsRequestEntityTooLargeError(apiErr) {
 		// TODO: Also check net.IsConnectionRefused
 		if net.IsConnectionReset(apiErr) || net.IsProbableEOF(apiErr) {
 			// The ApiServer Permanent Error may be caused by Network Transient Error,
@@ -447,14 +465,6 @@ func ClassifyPodCreationError(apiErr error) PodMatchResult {
 				CodeInfo:    completionCodeInfoMap[CompletionCodePodCreationPermanentError],
 				Diagnostics: diag,
 			}
-		}
-	}
-
-	if apiErrors.IsBadRequest(apiErr) {
-		// BadRequest is too general, so treat it as Unknown Error for safety.
-		return PodMatchResult{
-			CodeInfo:    completionCodeInfoMap[CompletionCodePodCreationUnknownError],
-			Diagnostics: diag,
 		}
 	}
 
