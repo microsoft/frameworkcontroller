@@ -195,15 +195,17 @@ func NewCompletedTaskTriggeredCompletionStatus(
 			"conditions in FrameworkAttemptCompletionPolicy have ever been triggered",
 		completedTaskCount, totalTaskCount)
 	if triggerTaskStatus == nil {
-		return CompletionCodeSucceeded.NewFrameworkAttemptCompletionStatus(diag, nil)
+		return CompletionCodeSucceeded.
+			NewFrameworkAttemptCompletionStatus(diag, nil)
 	} else {
-		return CompletionCodeSucceeded.NewFrameworkAttemptCompletionStatus(diag,
-			&CompletionPolicyTriggerStatus{
-				Message:      diag,
-				TaskRoleName: triggerTaskRoleName,
-				TaskIndex:    triggerTaskStatus.Index,
-			},
-		)
+		return CompletionCodeSucceeded.
+			NewFrameworkAttemptCompletionStatus(diag,
+				&CompletionPolicyTriggerStatus{
+					Message:      diag,
+					TaskRoleName: triggerTaskRoleName,
+					TaskIndex:    triggerTaskStatus.Index,
+				},
+			)
 	}
 }
 

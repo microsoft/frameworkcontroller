@@ -28,6 +28,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	errorWrap "github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -285,5 +286,14 @@ func Decompress(compressedBytes []byte) (string, error) {
 		} else {
 			return string(rawBytes), nil
 		}
+	}
+}
+
+func GetErrorCause(err error) error {
+	causeErr := errorWrap.Cause(err)
+	if causeErr == nil {
+		return err
+	} else {
+		return causeErr
 	}
 }

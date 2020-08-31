@@ -60,7 +60,7 @@ type Config struct {
 	// Generally, it should be proportional to the cluster Framework workload, and within the ApiServer
 	// serving capacity/limit such as the --max-mutating-requests-inflight.
 	KubeClientQps   *float32 `yaml:"kubeClientQps"`
-	KubeClientBurst *int32 `yaml:"kubeClientBurst"`
+	KubeClientBurst *int32   `yaml:"kubeClientBurst"`
 
 	// Number of concurrent workers to process each different Frameworks.
 	// Generally, it should be proportional to the above rate limits of requests.
