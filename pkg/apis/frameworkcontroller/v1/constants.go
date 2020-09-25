@@ -38,6 +38,7 @@ const (
 	FrameworkPlural    = "frameworks"
 	FrameworkCRDName   = FrameworkPlural + "." + GroupName
 	FrameworkKind      = "Framework"
+	TaskKind           = "Task"
 	ConfigMapKind      = "ConfigMap"
 	PodKind            = "Pod"
 	ObjectUIDFieldPath = "metadata.uid"
@@ -56,9 +57,12 @@ const (
 	AnnotationKeyConfigMapName      = "FC_CONFIGMAP_NAME"
 	AnnotationKeyPodName            = "FC_POD_NAME"
 
+	AnnotationKeyFrameworkUID                = "FC_FRAMEWORK_UID"
 	AnnotationKeyFrameworkAttemptID          = "FC_FRAMEWORK_ATTEMPT_ID"
 	AnnotationKeyFrameworkAttemptInstanceUID = "FC_FRAMEWORK_ATTEMPT_INSTANCE_UID"
 	AnnotationKeyConfigMapUID                = "FC_CONFIGMAP_UID"
+	AnnotationKeyTaskRoleUID                 = "FC_TASKROLE_UID"
+	AnnotationKeyTaskUID                     = "FC_TASK_UID"
 	AnnotationKeyTaskAttemptID               = "FC_TASK_ATTEMPT_ID"
 
 	// Predefined Labels
@@ -79,9 +83,12 @@ const (
 	EnvNameConfigMapName      = AnnotationKeyConfigMapName
 	EnvNamePodName            = AnnotationKeyPodName
 
+	EnvNameFrameworkUID                = AnnotationKeyFrameworkUID
 	EnvNameFrameworkAttemptID          = AnnotationKeyFrameworkAttemptID
 	EnvNameFrameworkAttemptInstanceUID = AnnotationKeyFrameworkAttemptInstanceUID
 	EnvNameConfigMapUID                = AnnotationKeyConfigMapUID
+	EnvNameTaskRoleUID                 = AnnotationKeyTaskRoleUID
+	EnvNameTaskUID                     = AnnotationKeyTaskUID
 	EnvNameTaskAttemptID               = AnnotationKeyTaskAttemptID
 	EnvNameTaskAttemptInstanceUID      = "FC_TASK_ATTEMPT_INSTANCE_UID"
 	EnvNamePodUID                      = "FC_POD_UID"
@@ -98,9 +105,22 @@ const (
 	PlaceholderTaskIndex          = AnnotationKeyTaskIndex
 	PlaceholderConfigMapName      = AnnotationKeyConfigMapName
 	PlaceholderPodName            = AnnotationKeyPodName
+
+	// For LogObjectSnapshot
+	// All snapshots are logged in format:
+	// {AnyLogMessage}{ObjectSnapshotTrigger}{LogMarkerObjectSnapshot}{JsonObjectSnapshot}
+	LogMarkerObjectSnapshot                            = ": ObjectSnapshot: "
+	LogMarkerOnFrameworkRetry    ObjectSnapshotTrigger = ": OnFrameworkRetry"
+	LogMarkerOnFrameworkDeletion ObjectSnapshotTrigger = ": OnFrameworkDeletion"
+	LogMarkerOnTaskRetry         ObjectSnapshotTrigger = ": OnTaskRetry"
+	LogMarkerOnTaskDeletion      ObjectSnapshotTrigger = ": OnTaskDeletion"
+	LogMarkerOnPodDeletion       ObjectSnapshotTrigger = ": OnPodDeletion"
 )
 
+type ObjectSnapshotTrigger string
+
 var FrameworkGroupVersionKind = SchemeGroupVersion.WithKind(FrameworkKind)
+var TaskGroupVersionKind = SchemeGroupVersion.WithKind(TaskKind)
 var ConfigMapGroupVersionKind = core.SchemeGroupVersion.WithKind(ConfigMapKind)
 var PodGroupVersionKind = core.SchemeGroupVersion.WithKind(PodKind)
 

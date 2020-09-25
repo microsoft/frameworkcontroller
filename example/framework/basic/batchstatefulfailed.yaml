@@ -27,21 +27,30 @@ spec:
           - name: ubuntu
             image: ubuntu:trusty
             # To locate a specific Task during its whole lifecycle regardless of
-            # any retry:
+            # any retry and rescale:
             # Consistent Identity:
-            # PodNamespace = {FrameworkNamespace}
-            # PodName = {FrameworkName}-{TaskRoleName}-{TaskIndex}
+            #   PodNamespace = {FrameworkNamespace}
+            #   PodName = {FrameworkName}-{TaskRoleName}-{TaskIndex}
             # Consistent Environment Variable Value:
-            # ${FC_FRAMEWORK_NAMESPACE},
-            # ${FC_FRAMEWORK_NAME}, ${FC_TASKROLE_NAME}, ${FC_TASK_INDEX},
-            # ${FC_CONFIGMAP_NAME}, ${FC_POD_NAME}
+            #   ${FC_FRAMEWORK_NAMESPACE}
+            #   ${FC_FRAMEWORK_NAME}
+            #   ${FC_TASKROLE_NAME}
+            #   ${FC_TASK_INDEX}
             #
-            # To locate a specific execution attempt of a specific Task:
-            # Attempt Specific Environment Variable Value:
-            # ${FC_FRAMEWORK_ATTEMPT_ID}, ${FC_TASK_ATTEMPT_ID}
+            # To locate a specific Task instance, in case the Task is deleted then
+            # added by rescale with a different Task instance:
+            # Environment Variable Value:
+            #   ${FC_TASK_UID}
             #
-            # To locate a specific execution attempt instance of a specific Task:
-            # Attempt Instance Specific Environment Variable Value:
-            # ${FC_FRAMEWORK_ATTEMPT_INSTANCE_UID}, ${FC_CONFIGMAP_UID}
-            # ${FC_TASK_ATTEMPT_INSTANCE_UID}, ${FC_POD_UID}
+            # To locate a specific execution attempt of a specific Task instance:
+            # Environment Variable Value:
+            #   ${FC_TASK_UID}
+            #   ${FC_TASK_ATTEMPT_ID}
+            #
+            # To locate a specific execution attempt instance of a specific Task
+            # instance, in case the attempt instance, i.e. the Pod instance is
+            # created but not observed by FrameworkController, then it is deleted
+            # and created later with a different attempt instance:
+            # Environment Variable Value:
+            #   ${FC_TASK_ATTEMPT_INSTANCE_UID}
             command: ["sh", "-c", "printenv && sleep 60 && exit 1"]
