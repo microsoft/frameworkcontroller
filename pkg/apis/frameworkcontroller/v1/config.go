@@ -117,7 +117,7 @@ type Config struct {
 	// analysis, etc.
 	// Notes:
 	// 1. The snapshot is logged to stderr and can be extracted by the regular
-	//    expression ": ObjectSnapshot: (.+)".
+	//    expression ": ObjectSnapshot: (.+)", see LogMarkerObjectSnapshot.
 	// 2. To determine the type of the snapshot, using object.apiVersion and
 	//    object.kind.
 	// 3. The same snapshot may be logged more than once in some rare cases, so
@@ -149,14 +149,18 @@ type Config struct {
 
 type LogObjectSnapshot struct {
 	Framework LogFrameworkSnapshot `yaml:"framework"`
+	Task      LogTaskSnapshot      `yaml:"task"`
 	Pod       LogPodSnapshot       `yaml:"pod"`
 }
 
 type LogFrameworkSnapshot struct {
-	OnTaskRetry         *bool `yaml:"onTaskRetry"`
 	OnFrameworkRetry    *bool `yaml:"onFrameworkRetry"`
-	OnFrameworkRescale  *bool `yaml:"onFrameworkRescale"`
 	OnFrameworkDeletion *bool `yaml:"onFrameworkDeletion"`
+}
+
+type LogTaskSnapshot struct {
+	OnTaskRetry    *bool `yaml:"onTaskRetry"`
+	OnTaskDeletion *bool `yaml:"onTaskDeletion"`
 }
 
 type LogPodSnapshot struct {
@@ -254,17 +258,17 @@ func NewConfig() *Config {
 	if c.FrameworkMaxRetryDelaySecForTransientConflictFailed == nil {
 		c.FrameworkMaxRetryDelaySecForTransientConflictFailed = common.PtrInt64(15 * 60)
 	}
-	if c.LogObjectSnapshot.Framework.OnTaskRetry == nil {
-		c.LogObjectSnapshot.Framework.OnTaskRetry = common.PtrBool(true)
-	}
 	if c.LogObjectSnapshot.Framework.OnFrameworkRetry == nil {
 		c.LogObjectSnapshot.Framework.OnFrameworkRetry = common.PtrBool(true)
 	}
-	if c.LogObjectSnapshot.Framework.OnFrameworkRescale == nil {
-		c.LogObjectSnapshot.Framework.OnFrameworkRescale = common.PtrBool(true)
-	}
 	if c.LogObjectSnapshot.Framework.OnFrameworkDeletion == nil {
 		c.LogObjectSnapshot.Framework.OnFrameworkDeletion = common.PtrBool(true)
+	}
+	if c.LogObjectSnapshot.Task.OnTaskRetry == nil {
+		c.LogObjectSnapshot.Task.OnTaskRetry = common.PtrBool(true)
+	}
+	if c.LogObjectSnapshot.Task.OnTaskDeletion == nil {
+		c.LogObjectSnapshot.Task.OnTaskDeletion = common.PtrBool(true)
 	}
 	if c.LogObjectSnapshot.Pod.OnPodDeletion == nil {
 		c.LogObjectSnapshot.Pod.OnPodDeletion = common.PtrBool(true)

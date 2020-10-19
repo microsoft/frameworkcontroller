@@ -3,7 +3,7 @@
 ## <a name="Index">Index</a>
    - [Framework Interop](#FrameworkInterop)
    - [Framework ExecutionType](#FrameworkExecutionType)
-   - [Container EnvironmentVariable](#ContainerEnvironmentVariable)
+   - [Predefined Container EnvironmentVariable](#PredefinedContainerEnvironmentVariable)
    - [Pod Failure Classification](#PodFailureClassification)
    - [Predefined CompletionCode](#PredefinedCompletionCode)
    - [CompletionStatus](#CompletionStatus)
@@ -475,8 +475,10 @@ spec:
 3. [Get Framework](#GET_Framework), and archive it into a DataBase first.
 4. [Delete Framework](#DELETE_Framework), then the Framework will be deleted.
 
-## <a name="ContainerEnvironmentVariable">Container EnvironmentVariable</a>
-[Container EnvironmentVariable](../pkg/apis/frameworkcontroller/v1/constants.go)
+## <a name="PredefinedContainerEnvironmentVariable">Predefined Container EnvironmentVariable</a>
+[Predefined Container EnvironmentVariable](../pkg/apis/frameworkcontroller/v1/constants.go)
+
+[Framework Example](../example/framework/basic/batchstatefulfailed.yaml)
 
 ## <a name="PodFailureClassification">Pod Failure Classification</a>
 You can specify how to classify and summarize Pod failures by the [PodFailureSpec](../pkg/apis/frameworkcontroller/v1/config.go).
@@ -842,7 +844,7 @@ Besides these general [Framework ConsistencyGuarantees](#ConsistencyGuarantees),
 To safely run large scale Framework, i.e. the total task number in a single Framework is greater than 300, you just need to enable the [LargeFrameworkCompression](../pkg/apis/frameworkcontroller/v1/config.go). However, you may also need to decompress the Framework by yourself.
 
 ## <a name="FrameworkPodHistory">Framework and Pod History</a>
-By leveraging the [LogObjectSnapshot](../pkg/apis/frameworkcontroller/v1/config.go), external systems, such as [Fluentd](https://www.fluentd.org) and [ElasticSearch](https://www.elastic.co/products/elasticsearch), can collect and process Framework and Pod history snapshots even if it was retried or deleted, such as for persistence, metrics conversion, visualization, alerting, acting, analysis, etc.
+By leveraging the [LogObjectSnapshot](../pkg/apis/frameworkcontroller/v1/config.go), external systems, such as [Fluentd](https://www.fluentd.org) and [ElasticSearch](https://www.elastic.co/products/elasticsearch), can collect and process Framework, Task and Pod history snapshots even if it was retried or deleted, such as for persistence, metrics conversion, visualization, alerting, acting, analysis, etc.
 
 ## <a name="FrameworkTaskStateMachine">Framework and Task State Machine</a>
 ### <a name="FrameworkStateMachine">Framework State Machine</a>
@@ -894,7 +896,7 @@ The default behavior is to achieve all the [ConsistencyGuarantees](#ConsistencyG
 
       For example, [drain the Node](https://kubernetes.io/docs/tasks/administer-cluster/safely-drain-node) before delete it is acceptable.
 
-   *The Task instance can be universally located by its [TaskAttemptInstanceUID](../pkg/apis/frameworkcontroller/v1/types.go) or [PodUID](../pkg/apis/frameworkcontroller/v1/types.go).*
+   *The Task running instance can be universally located by its [TaskAttemptInstanceUID](../pkg/apis/frameworkcontroller/v1/types.go) or [PodUID](../pkg/apis/frameworkcontroller/v1/types.go).*
 
    *To avoid the Pod is stuck in deleting forever, such as if its Node is down forever, leverage the same approach as [Delete StatefulSet Pod only after the Pod termination has been confirmed](https://kubernetes.io/docs/tasks/run-application/force-delete-stateful-set-pod/#delete-pods) manually or by your [Cloud Controller Manager](https://kubernetes.io/docs/tasks/administer-cluster/running-cloud-controller/#running-cloud-controller-manager).*
 
@@ -911,7 +913,7 @@ The default behavior is to achieve all the [ConsistencyGuarantees](#ConsistencyG
 
    4. Do not change the [OwnerReferences](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#owners-and-dependents) of the managed ConfigMap and Pods.
 
-   *The Framework instance can be universally located by its [FrameworkAttemptInstanceUID](../pkg/apis/frameworkcontroller/v1/types.go) or [ConfigMapUID](../pkg/apis/frameworkcontroller/v1/types.go).*
+   *The Framework running instance can be universally located by its [FrameworkAttemptInstanceUID](../pkg/apis/frameworkcontroller/v1/types.go) or [ConfigMapUID](../pkg/apis/frameworkcontroller/v1/types.go).*
 
 ### <a name="FrameworkAvailability">Framework Availability</a>
 According to the [CAP theorem](https://en.wikipedia.org/wiki/CAP_theorem), in the presence of a network partition, you cannot achieve both consistency and availability at the same time in any distributed system. So you have to make a trade-off between the [Framework Consistency](#FrameworkConsistency) and the [Framework Availability](#FrameworkAvailability).

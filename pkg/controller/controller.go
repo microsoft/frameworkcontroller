@@ -289,11 +289,8 @@ func (c *FrameworkController) updateFrameworkObj(oldObj, newObj interface{}) {
 
 func (c *FrameworkController) deleteFrameworkObj(obj interface{}) {
 	f := internal.ToFramework(obj)
-	logSfx := ""
-	if *c.cConfig.LogObjectSnapshot.Framework.OnFrameworkDeletion {
-		logSfx = ci.GetFrameworkSnapshotLogTail(f)
-	}
-	c.enqueueFrameworkObj(f, "Framework Deleted "+string(f.UID)+logSfx)
+	c.enqueueFrameworkObj(f, "Framework Deleted "+string(f.UID)+
+		c.cConfig.LogObjectSnapshot.Framework.GetLogTailOnFrameworkDeletion(f))
 }
 
 func (c *FrameworkController) addConfigMapObj(obj interface{}) {
@@ -341,11 +338,8 @@ func (c *FrameworkController) updatePodObj(oldObj, newObj interface{}) {
 
 func (c *FrameworkController) deletePodObj(obj interface{}) {
 	pod := internal.ToPod(obj)
-	logSfx := ""
-	if *c.cConfig.LogObjectSnapshot.Pod.OnPodDeletion {
-		logSfx = ci.GetPodSnapshotLogTail(pod)
-	}
-	c.enqueuePodObj(pod, "Framework Pod Deleted "+string(pod.UID)+logSfx)
+	c.enqueuePodObj(pod, "Framework Pod Deleted "+string(pod.UID)+
+		c.cConfig.LogObjectSnapshot.Pod.GetLogTailOnPodDeletion(pod))
 }
 
 func (c *FrameworkController) getConfigMapOwner(cm *core.ConfigMap) *ci.Framework {
@@ -783,14 +777,12 @@ func (c *FrameworkController) syncFrameworkScale(
 			klog.Infof("[%v][%v]: syncFrameworkScale: ScaleUp: Goal: %v -> %v",
 				f.Key(), taskRoleName, nil, taskCountSpec)
 
-			trs := ci.TaskRoleStatus{Name: taskRoleName, TaskStatuses: []*ci.TaskStatus{}}
-			for taskIndex := int32(0); taskIndex < taskCountSpec; taskIndex++ {
-				trs.TaskStatuses =
-					append(trs.TaskStatuses, f.NewTaskStatus(taskRoleName, taskIndex))
+			f.Status.AttemptStatus.TaskRoleStatuses =
+				append(f.Status.AttemptStatus.TaskRoleStatuses,
+					f.NewTaskRoleStatus(taskRoleName, taskCountSpec))
+			if taskCountSpec > 0 {
 				producedNewPendingTask = true
 			}
-			f.Status.AttemptStatus.TaskRoleStatuses =
-				append(f.Status.AttemptStatus.TaskRoleStatuses, &trs)
 		} else {
 			taskCountStatus := int32(len(taskRoleStatus.TaskStatuses))
 			if taskCountStatus < taskCountSpec {
@@ -905,15 +897,18 @@ func (c *FrameworkController) compactFrameworkScale(
 		}
 
 		// Start deletion
-		logSfx := ""
-		if *c.cConfig.LogObjectSnapshot.Framework.OnFrameworkRescale {
-			// Ensure the FrameworkSnapshot is exposed before the deletion.
-			logSfx = ci.GetFrameworkSnapshotLogTail(f)
+		klog.Infof("[%v][%v]: compactFrameworkScale: ScaleDown: Deletion: %v -> %v",
+			f.Key(), taskRoleName, taskCountStatus, common.SprintPtrInt32(newTaskCountStatus))
+
+		for taskIndex := taskCountStatus - 1; taskIndex >= taskIndexDeleteStart; taskIndex-- {
+			klog.Info(fmt.Sprintf(
+				"[%v][%v][%v]: compactFrameworkScale: ScaleDown: Deletion",
+				f.Key(), taskRoleName, taskIndex) +
+				c.cConfig.LogObjectSnapshot.Task.GetLogTailOnTaskDeletion(
+					f.MockTask(taskRoleName, taskIndex, true)))
+
+			taskRoleStatus.TaskStatuses[taskIndex] = nil
 		}
-		klog.Info(fmt.Sprintf(
-			"[%v][%v]: compactFrameworkScale: ScaleDown: Deletion: %v -> %v",
-			f.Key(), taskRoleName, taskCountStatus,
-			common.SprintPtrInt32(newTaskCountStatus)) + logSfx)
 
 		if newTaskCountStatus == nil {
 			taskRoleLastIndex := len(*taskRoleStatuses) - 1
@@ -921,9 +916,6 @@ func (c *FrameworkController) compactFrameworkScale(
 			(*taskRoleStatuses)[taskRoleLastIndex] = nil
 			*taskRoleStatuses = (*taskRoleStatuses)[:taskRoleLastIndex]
 		} else {
-			for taskIndex := taskCountStatus - 1; taskIndex >= *newTaskCountStatus; taskIndex-- {
-				taskRoleStatus.TaskStatuses[taskIndex] = nil
-			}
 			taskRoleStatus.TaskStatuses = taskRoleStatus.TaskStatuses[:*newTaskCountStatus]
 		}
 	}
@@ -943,14 +935,11 @@ func (c *FrameworkController) compactFrameworkScale(
 
 				if taskStatus.DeletionPending && taskStatus.State == ci.TaskCompleted {
 					// Replace the Completed DeletionPending Task with new instance
-					logSfx := ""
-					if *c.cConfig.LogObjectSnapshot.Framework.OnFrameworkRescale {
-						// Ensure the FrameworkSnapshot is exposed before the deletion.
-						logSfx = ci.GetFrameworkSnapshotLogTail(f)
-					}
 					klog.Info(fmt.Sprintf(
 						"[%v][%v][%v]: compactFrameworkScale: ScaleDown: Replacement",
-						f.Key(), taskRoleName, taskIndex) + logSfx)
+						f.Key(), taskRoleName, taskIndex) +
+						c.cConfig.LogObjectSnapshot.Task.GetLogTailOnTaskDeletion(
+							f.MockTask(taskRoleName, taskIndex, true)))
 
 					taskRoleStatus.TaskStatuses[taskIndex] =
 						f.NewTaskStatus(taskRoleName, taskIndex)
@@ -1012,14 +1001,11 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 		}
 
 		// deleteFramework
-		logSfx := ""
-		if *c.cConfig.LogObjectSnapshot.Framework.OnFrameworkDeletion {
-			// Ensure the FrameworkSnapshot is exposed before the deletion.
-			logSfx = ci.GetFrameworkSnapshotLogTail(f)
-		}
 		klog.Info(logPfx + fmt.Sprintf("Framework will be deleted due to "+
 			"FrameworkCompletedRetainSec %v is expired",
-			common.SecToDuration(c.cConfig.FrameworkCompletedRetainSec)) + logSfx)
+			common.SecToDuration(c.cConfig.FrameworkCompletedRetainSec)) +
+			c.cConfig.LogObjectSnapshot.Framework.GetLogTailOnFrameworkDeletion(f))
+
 		return c.deleteFramework(f, true)
 	}
 
@@ -1177,13 +1163,8 @@ func (c *FrameworkController) syncFrameworkState(f *ci.Framework) (err error) {
 			}
 
 			// retryFramework
-			logSfx := ""
-			if *c.cConfig.LogObjectSnapshot.Framework.OnFrameworkRetry {
-				// The completed FrameworkAttempt has been persisted, so it is safe to
-				// also expose it as one history snapshot.
-				logSfx = ci.GetFrameworkSnapshotLogTail(f)
-			}
-			klog.Info(logPfx + "Framework will be retried" + logSfx)
+			klog.Info(logPfx + "Framework will be retried" +
+				c.cConfig.LogObjectSnapshot.Framework.GetLogTailOnFrameworkRetry(f))
 
 			f.Status.RetryPolicyStatus.TotalRetriedCount++
 			if retryDecision.IsAccountable {
@@ -1856,13 +1837,9 @@ func (c *FrameworkController) syncTaskState(
 			}
 
 			// retryTask
-			logSfx := ""
-			if *c.cConfig.LogObjectSnapshot.Framework.OnTaskRetry {
-				// The completed TaskAttempt has been persisted, so it is safe to also
-				// expose it as one history snapshot.
-				logSfx = ci.GetFrameworkSnapshotLogTail(f)
-			}
-			klog.Info(logPfx + "Task will be retried" + logSfx)
+			klog.Info(logPfx + "Task will be retried" +
+				c.cConfig.LogObjectSnapshot.Task.GetLogTailOnTaskRetry(
+					f.MockTask(taskRoleName, taskIndex, false)))
 
 			taskStatus.RetryPolicyStatus.TotalRetriedCount++
 			if retryDecision.IsAccountable {
@@ -2037,8 +2014,8 @@ func (c *FrameworkController) handlePodGracefulDeletion(
 	f *ci.Framework, taskRoleName string, taskIndex int32, pod *core.Pod) error {
 	logPfx := fmt.Sprintf("[%v][%v][%v]: handlePodGracefulDeletion: ",
 		f.Key(), taskRoleName, taskIndex)
-	taskStatus := f.TaskRoleStatus(taskRoleName)
-	timeoutSec := taskStatus.PodGracefulDeletionTimeoutSec
+	taskRoleStatus := f.TaskRoleStatus(taskRoleName)
+	timeoutSec := taskRoleStatus.PodGracefulDeletionTimeoutSec
 
 	if pod.DeletionTimestamp == nil {
 		return nil

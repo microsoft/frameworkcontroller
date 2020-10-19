@@ -51,6 +51,14 @@
   version = "v1.0.0"
 
 [[projects]]
+  digest = "1:653085796b580bbe8a516d4ccdac890f57bc568bb1a68da02eefca8d087ea130"
+  name = "github.com/google/uuid"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "0e4e31197428a347842d152773b4cace4645ca25"
+  version = "v1.1.2"
+
+[[projects]]
   digest = "1:06a7dadb7b760767341ffb6c8d377238d68a1226f2b21b5d497d2e3f6ecf6b4e"
   name = "github.com/googleapis/gnostic"
   packages = [
@@ -104,6 +112,14 @@
   pruneopts = "NUT"
   revision = "4b7aa43c6742a2c18fdef89dd197aaae7dac7ccd"
   version = "1.0.1"
+
+[[projects]]
+  digest = "1:d0e34331d084e65cfb94d335bf285a94d3b068549c50f8e2c8d96c82897ebf9e"
+  name = "github.com/pborman/uuid"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "5b6091a6a160ee5ce12917b21ab96acec2a4fdc0"
+  version = "v1.2.1"
 
 [[projects]]
   digest = "1:14715f705ff5dfe0ffd6571d7d201dd8e921030f8070321a79380d8ca4ec1a24"
@@ -312,7 +328,7 @@
   version = "kubernetes-1.14.2"
 
 [[projects]]
-  digest = "1:0db508f16c0059bbc1dc063fd5917c48e64693f5756a6e313a2f39821d81b327"
+  digest = "1:f9bde8a163863c37fbf2bb896e8972c94b4a00330fc73c17a40a3ce26a5f7831"
   name = "k8s.io/apimachinery"
   packages = [
     "pkg/api/errors",
@@ -349,6 +365,7 @@
     "pkg/util/runtime",
     "pkg/util/sets",
     "pkg/util/strategicpatch",
+    "pkg/util/uuid",
     "pkg/util/validation",
     "pkg/util/validation/field",
     "pkg/util/wait",
@@ -618,7 +635,9 @@
     "k8s.io/apimachinery/pkg/runtime/serializer",
     "k8s.io/apimachinery/pkg/types",
     "k8s.io/apimachinery/pkg/util/errors",
+    "k8s.io/apimachinery/pkg/util/net",
     "k8s.io/apimachinery/pkg/util/runtime",
+    "k8s.io/apimachinery/pkg/util/uuid",
     "k8s.io/apimachinery/pkg/util/wait",
     "k8s.io/apimachinery/pkg/watch",
     "k8s.io/client-go/discovery",
