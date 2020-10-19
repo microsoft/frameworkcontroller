@@ -716,12 +716,13 @@ func (f *Framework) MockTask(taskRoleName string, taskIndex int32, taskDeleting 
 }
 
 func (f *Framework) NewFrameworkStatus() *FrameworkStatus {
+	now := meta.Now()
 	return &FrameworkStatus{
-		StartTime:      meta.Now(),
+		StartTime:      now,
 		RunTime:        nil,
 		CompletionTime: nil,
 		State:          FrameworkAttemptCreationPending,
-		TransitionTime: meta.Now(),
+		TransitionTime: now,
 		RetryPolicyStatus: RetryPolicyStatus{
 			TotalRetriedCount:       0,
 			AccountableRetriedCount: 0,
@@ -733,9 +734,10 @@ func (f *Framework) NewFrameworkStatus() *FrameworkStatus {
 
 func (f *Framework) NewFrameworkAttemptStatus(
 	frameworkAttemptID int32) FrameworkAttemptStatus {
+	now := meta.Now()
 	return FrameworkAttemptStatus{
 		ID:                         frameworkAttemptID,
-		StartTime:                  meta.Now(),
+		StartTime:                  now,
 		RunTime:                    nil,
 		CompletionTime:             nil,
 		InstanceUID:                nil,
@@ -773,14 +775,15 @@ func (f *Framework) NewTaskStatuses(taskRoleName string, taskNumber int32) []*Ta
 }
 
 func (f *Framework) NewTaskStatus(taskRoleName string, taskIndex int32) *TaskStatus {
+	now := meta.Now()
 	return &TaskStatus{
 		Index:           taskIndex,
 		InstanceUID:     uuid.NewUUID(),
-		StartTime:       meta.Now(),
+		StartTime:       now,
 		RunTime:         nil,
 		CompletionTime:  nil,
 		State:           TaskAttemptCreationPending,
-		TransitionTime:  meta.Now(),
+		TransitionTime:  now,
 		DeletionPending: false,
 		RetryPolicyStatus: RetryPolicyStatus{
 			TotalRetriedCount:       0,
@@ -793,9 +796,10 @@ func (f *Framework) NewTaskStatus(taskRoleName string, taskIndex int32) *TaskSta
 
 func (f *Framework) NewTaskAttemptStatus(
 	taskRoleName string, taskIndex int32, taskAttemptID int32) TaskAttemptStatus {
+	now := meta.Now()
 	return TaskAttemptStatus{
 		ID:               taskAttemptID,
-		StartTime:        meta.Now(),
+		StartTime:        now,
 		RunTime:          nil,
 		CompletionTime:   nil,
 		InstanceUID:      nil,
