@@ -448,6 +448,10 @@ func (in *FrameworkSpec) DeepCopy() *FrameworkSpec {
 func (in *FrameworkStatus) DeepCopyInto(out *FrameworkStatus) {
 	*out = *in
 	in.StartTime.DeepCopyInto(&out.StartTime)
+	if in.RunTime != nil {
+		in, out := &in.RunTime, &out.RunTime
+		*out = (*in).DeepCopy()
+	}
 	if in.CompletionTime != nil {
 		in, out := &in.CompletionTime, &out.CompletionTime
 		*out = (*in).DeepCopy()
@@ -979,6 +983,10 @@ func (in *TaskSpec) DeepCopy() *TaskSpec {
 func (in *TaskStatus) DeepCopyInto(out *TaskStatus) {
 	*out = *in
 	in.StartTime.DeepCopyInto(&out.StartTime)
+	if in.RunTime != nil {
+		in, out := &in.RunTime, &out.RunTime
+		*out = (*in).DeepCopy()
+	}
 	if in.CompletionTime != nil {
 		in, out := &in.CompletionTime, &out.CompletionTime
 		*out = (*in).DeepCopy()
