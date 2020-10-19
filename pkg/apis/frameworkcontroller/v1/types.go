@@ -248,6 +248,7 @@ type CompletionPolicySpec struct {
 //////////////////////////////////////////////////////////////////////////////////////////////////
 type FrameworkStatus struct {
 	StartTime         meta.Time              `json:"startTime"`
+	RunTime           *meta.Time             `json:"runTime"`
 	CompletionTime    *meta.Time             `json:"completionTime"`
 	State             FrameworkState         `json:"state"`
 	TransitionTime    meta.Time              `json:"transitionTime"`
@@ -326,6 +327,7 @@ type TaskStatus struct {
 	InstanceUID types.UID `json:"instanceUID"`
 
 	StartTime      meta.Time  `json:"startTime"`
+	RunTime        *meta.Time `json:"runTime"`
 	CompletionTime *meta.Time `json:"completionTime"`
 	State          TaskState  `json:"state"`
 	TransitionTime meta.Time  `json:"transitionTime"`

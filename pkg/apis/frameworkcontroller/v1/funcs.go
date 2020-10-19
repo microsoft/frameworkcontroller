@@ -718,6 +718,7 @@ func (f *Framework) MockTask(taskRoleName string, taskIndex int32, taskDeleting 
 func (f *Framework) NewFrameworkStatus() *FrameworkStatus {
 	return &FrameworkStatus{
 		StartTime:      meta.Now(),
+		RunTime:        nil,
 		CompletionTime: nil,
 		State:          FrameworkAttemptCreationPending,
 		TransitionTime: meta.Now(),
@@ -776,6 +777,7 @@ func (f *Framework) NewTaskStatus(taskRoleName string, taskIndex int32) *TaskSta
 		Index:           taskIndex,
 		InstanceUID:     uuid.NewUUID(),
 		StartTime:       meta.Now(),
+		RunTime:         nil,
 		CompletionTime:  nil,
 		State:           TaskAttemptCreationPending,
 		TransitionTime:  meta.Now(),
@@ -890,6 +892,9 @@ func (f *Framework) TransitionFrameworkState(dstState FrameworkState) {
 	now := common.PtrNow()
 	if dstState == FrameworkAttemptRunning {
 		f.Status.AttemptStatus.RunTime = now
+		if f.Status.RunTime == nil {
+			f.Status.RunTime = now
+		}
 	}
 	if dstState == FrameworkAttemptCompleted {
 		f.Status.AttemptStatus.CompletionTime = now
@@ -918,6 +923,9 @@ func (f *Framework) TransitionTaskState(
 	now := common.PtrNow()
 	if dstState == TaskAttemptRunning {
 		taskStatus.AttemptStatus.RunTime = now
+		if taskStatus.RunTime == nil {
+			taskStatus.RunTime = now
+		}
 	}
 	if dstState == TaskAttemptCompleted {
 		taskStatus.AttemptStatus.CompletionTime = now
