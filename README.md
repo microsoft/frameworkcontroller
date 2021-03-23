@@ -94,6 +94,7 @@ A Framework represents an application with a set of Tasks:
 ### Third Party Controller Wrapper
 A specialized wrapper can be built on top of FrameworkController to optimize for a specific kind of application:
 * [Microsoft OpenPAI Controller Wrapper (Job RestServer)](https://github.com/microsoft/pai/tree/master/src/rest-server): A wrapper client optimized for AI applications
+* [Microsoft AzureML Kubernetes Compute Controller Wrapper](https://k8s-wiki.azureml.com/overview/index.html): A wrapper client optimized for AI applications: *AzureML Kubernetes Compute or ITP (Integrated Training Platform) is built for both first party and third party users, and will be eventually leveraged by [AML (Azure Machine Learning)](https://azure.microsoft.com/en-us/services/machine-learning)*
 * [Microsoft DLWorkspace Controller Wrapper (Job Manager)](https://github.com/microsoft/DLWorkspace/blob/914f347d18e852bc6a6d3e86fe25ac040a3f78f9/src/ClusterManager/job_manager.py): A wrapper client optimized for AI applications
 * [Microsoft NNI Controller Wrapper (TrainingService)](https://github.com/microsoft/nni/blob/master/docs/en_US/TrainingService/FrameworkControllerMode.md): A wrapper client optimized for AutoML applications
 
