@@ -73,9 +73,7 @@ func PutCRD(
 func DeleteCRD(config *rest.Config, name string) {
 	client := createCRDClient(config)
 
-    var gracePeriod int64
-    gracePeriod = 0
-	err := client.ApiextensionsV1().CustomResourceDefinitions().Delete(context.TODO(), name, meta.DeleteOptions{GracePeriodSeconds: &gracePeriod })
+	err := client.ApiextensionsV1().CustomResourceDefinitions().Delete(context.TODO(), name, meta.DeleteOptions{GracePeriodSeconds: common.PtrInt64(0)})
 	if err != nil && !apiErrors.IsNotFound(err) {
 		panic(fmt.Errorf("Failed to delete CRD: %v", err))
 	} else {
