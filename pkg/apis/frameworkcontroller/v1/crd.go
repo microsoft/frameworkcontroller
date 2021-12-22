@@ -55,6 +55,7 @@ func BuildFrameworkCRD() *apiExtensions.CustomResourceDefinition {
 					Schema:             buildFrameworkValidation(),
 				},
 			},
+			PreserveUnknownFields: true,
 		},
 	}
 
