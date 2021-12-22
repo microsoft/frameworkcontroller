@@ -64,7 +64,8 @@ func BuildFrameworkCRD() *apiExtensions.CustomResourceDefinition {
 func buildFrameworkValidation() *apiExtensions.CustomResourceValidation {
 	return &apiExtensions.CustomResourceValidation{
 		OpenAPIV3Schema: &apiExtensions.JSONSchemaProps{
-			Type: "object",
+			XPreserveUnknownFields: common.PtrBool(true),
+			Type:                   "object",
 			Properties: map[string]apiExtensions.JSONSchemaProps{
 				"metadata": {
 					Type: "object",
