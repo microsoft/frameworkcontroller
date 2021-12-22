@@ -64,8 +64,10 @@ func BuildFrameworkCRD() *apiExtensions.CustomResourceDefinition {
 func buildFrameworkValidation() *apiExtensions.CustomResourceValidation {
 	return &apiExtensions.CustomResourceValidation{
 		OpenAPIV3Schema: &apiExtensions.JSONSchemaProps{
+			Type: "object",
 			Properties: map[string]apiExtensions.JSONSchemaProps{
 				"metadata": {
+					Type: "object",
 					Properties: map[string]apiExtensions.JSONSchemaProps{
 						"name": {
 							Type:    "string",
@@ -74,8 +76,10 @@ func buildFrameworkValidation() *apiExtensions.CustomResourceValidation {
 					},
 				},
 				"spec": {
+					Type: "object",
 					Properties: map[string]apiExtensions.JSONSchemaProps{
 						"executionType": {
+							Type: "string",
 							Enum: []apiExtensions.JSON{
 								{Raw: []byte(common.Quote(string(ExecutionCreate)))},
 								{Raw: []byte(common.Quote(string(ExecutionStart)))},
@@ -83,6 +87,7 @@ func buildFrameworkValidation() *apiExtensions.CustomResourceValidation {
 							},
 						},
 						"retryPolicy": {
+							Type: "object",
 							Properties: map[string]apiExtensions.JSONSchemaProps{
 								"maxRetryCount": {
 									Type:    "integer",
@@ -95,6 +100,7 @@ func buildFrameworkValidation() *apiExtensions.CustomResourceValidation {
 							Type: "array",
 							Items: &apiExtensions.JSONSchemaPropsOrArray{
 								Schema: &apiExtensions.JSONSchemaProps{
+									Type: "object",
 									Properties: map[string]apiExtensions.JSONSchemaProps{
 										"name": {
 											Type:    "string",
@@ -106,6 +112,7 @@ func buildFrameworkValidation() *apiExtensions.CustomResourceValidation {
 											Maximum: common.PtrFloat64(10000),
 										},
 										"frameworkAttemptCompletionPolicy": {
+											Type: "object",
 											Properties: map[string]apiExtensions.JSONSchemaProps{
 												"minFailedTaskCount": {
 													Type: "integer",
