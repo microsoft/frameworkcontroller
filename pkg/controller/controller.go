@@ -23,6 +23,7 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 	ci "github.com/microsoft/frameworkcontroller/pkg/apis/frameworkcontroller/v1"
 	frameworkClient "github.com/microsoft/frameworkcontroller/pkg/client/clientset/versioned"
@@ -1288,8 +1289,8 @@ func (c *FrameworkController) deleteFramework(
 		"[%v]: Failed to delete Framework %v: confirm: %v: ",
 		f.Key(), f.UID, confirm)
 
-	deleteErr := c.fClient.FrameworkcontrollerV1().Frameworks(f.Namespace).Delete(
-		f.Name, &meta.DeleteOptions{
+	deleteErr := c.fClient.FrameworkcontrollerV1().Frameworks(f.Namespace).Delete(context.TODO(),
+		f.Name, meta.DeleteOptions{
 			Preconditions:     &meta.Preconditions{UID: &f.UID},
 			PropagationPolicy: common.PtrDeletionPropagation(meta.DeletePropagationForeground),
 		})
@@ -1300,7 +1301,7 @@ func (c *FrameworkController) deleteFramework(
 	} else {
 		if confirm {
 			// Confirm it is deleted instead of still deleting.
-			remoteF, getErr := c.fClient.FrameworkcontrollerV1().Frameworks(f.Namespace).Get(
+			remoteF, getErr := c.fClient.FrameworkcontrollerV1().Frameworks(f.Namespace).Get(context.TODO(),
 				f.Name, meta.GetOptions{})
 			if getErr != nil {
 				if !apiErrors.IsNotFound(getErr) {
@@ -1335,7 +1336,7 @@ func (c *FrameworkController) getOrCleanupConfigMap(
 	cmName := f.ConfigMapName()
 
 	if confirm {
-		cm, err = c.kClient.CoreV1().ConfigMaps(f.Namespace).Get(cmName,
+		cm, err = c.kClient.CoreV1().ConfigMaps(f.Namespace).Get(context.TODO(), cmName,
 			meta.GetOptions{})
 	} else {
 		cm, err = c.cmLister.ConfigMaps(f.Namespace).Get(cmName)
@@ -1387,8 +1388,8 @@ func (c *FrameworkController) deleteConfigMap(
 		"[%v]: Failed to delete ConfigMap %v, %v: confirm: %v: ",
 		f.Key(), cmName, cmUID, confirm)
 
-	deleteErr := c.kClient.CoreV1().ConfigMaps(f.Namespace).Delete(cmName,
-		&meta.DeleteOptions{Preconditions: &meta.Preconditions{UID: &cmUID}})
+	deleteErr := c.kClient.CoreV1().ConfigMaps(f.Namespace).Delete(context.TODO(), cmName,
+		meta.DeleteOptions{Preconditions: &meta.Preconditions{UID: &cmUID}})
 	if deleteErr != nil {
 		if !apiErrors.IsNotFound(deleteErr) {
 			return fmt.Errorf(errPfx+"%v", deleteErr)
@@ -1396,7 +1397,7 @@ func (c *FrameworkController) deleteConfigMap(
 	} else {
 		if confirm {
 			// Confirm it is deleted instead of still deleting.
-			cm, getErr := c.kClient.CoreV1().ConfigMaps(f.Namespace).Get(cmName,
+			cm, getErr := c.kClient.CoreV1().ConfigMaps(f.Namespace).Get(context.TODO(), cmName,
 				meta.GetOptions{})
 			if getErr != nil {
 				if !apiErrors.IsNotFound(getErr) {
@@ -1426,7 +1427,7 @@ func (c *FrameworkController) createConfigMap(
 		"[%v]: Failed to create ConfigMap %v: ",
 		f.Key(), cm.Name)
 
-	remoteCM, createErr := c.kClient.CoreV1().ConfigMaps(f.Namespace).Create(cm)
+	remoteCM, createErr := c.kClient.CoreV1().ConfigMaps(f.Namespace).Create(context.TODO(), cm, meta.CreateOptions{})
 	if createErr != nil {
 		if apiErrors.IsAlreadyExists(createErr) {
 			// Best effort to judge if conflict with a not controlled object.
@@ -2051,7 +2052,7 @@ func (c *FrameworkController) getOrCleanupPod(
 	podName := taskStatus.PodName()
 
 	if confirm {
-		pod, err = c.kClient.CoreV1().Pods(f.Namespace).Get(podName,
+		pod, err = c.kClient.CoreV1().Pods(f.Namespace).Get(context.TODO(), podName,
 			meta.GetOptions{})
 	} else {
 		pod, err = c.podLister.Pods(f.Namespace).Get(podName)
@@ -2117,7 +2118,7 @@ func (c *FrameworkController) deletePod(
 	if force {
 		deleteOptions.GracePeriodSeconds = common.PtrInt64(0)
 	}
-	deleteErr := c.kClient.CoreV1().Pods(f.Namespace).Delete(podName, deleteOptions)
+	deleteErr := c.kClient.CoreV1().Pods(f.Namespace).Delete(context.TODO(), podName, *deleteOptions)
 	if deleteErr != nil {
 		if !apiErrors.IsNotFound(deleteErr) {
 			return fmt.Errorf(errPfx+"%v", deleteErr)
@@ -2125,7 +2126,7 @@ func (c *FrameworkController) deletePod(
 	} else {
 		if confirm {
 			// Confirm it is deleted instead of still deleting.
-			pod, getErr := c.kClient.CoreV1().Pods(f.Namespace).Get(podName,
+			pod, getErr := c.kClient.CoreV1().Pods(f.Namespace).Get(context.TODO(), podName,
 				meta.GetOptions{})
 			if getErr != nil {
 				if !apiErrors.IsNotFound(getErr) {
@@ -2156,7 +2157,7 @@ func (c *FrameworkController) createPod(
 		"[%v][%v][%v]: Failed to create Pod %v",
 		f.Key(), taskRoleName, taskIndex, pod.Name)
 
-	remotePod, createErr := c.kClient.CoreV1().Pods(f.Namespace).Create(pod)
+	remotePod, createErr := c.kClient.CoreV1().Pods(f.Namespace).Create(context.TODO(), pod, meta.CreateOptions{})
 	if createErr != nil {
 		if apiErrors.IsAlreadyExists(createErr) {
 			// Best effort to judge if conflict with a not controlled object.
@@ -2354,7 +2355,7 @@ func (c *FrameworkController) updateRemoteFrameworkStatus(f *ci.Framework) error
 			}
 		}
 
-		_, updateErr := c.fClient.FrameworkcontrollerV1().Frameworks(updateF.Namespace).Update(updateF)
+		_, updateErr := c.fClient.FrameworkcontrollerV1().Frameworks(updateF.Namespace).Update(context.TODO(), updateF, meta.UpdateOptions{})
 		return updateErr
 	})
 

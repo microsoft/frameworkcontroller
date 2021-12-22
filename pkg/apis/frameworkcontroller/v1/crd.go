@@ -24,7 +24,7 @@ package v1
 
 import (
 	"github.com/microsoft/frameworkcontroller/pkg/common"
-	apiExtensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	apiExtensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -39,19 +39,22 @@ func BuildFrameworkCRD() *apiExtensions.CustomResourceDefinition {
 			Name: FrameworkCRDName,
 		},
 		Spec: apiExtensions.CustomResourceDefinitionSpec{
-			Group:   GroupName,
-			Version: SchemeGroupVersion.Version,
-			Scope:   apiExtensions.NamespaceScoped,
+			Group: GroupName,
 			Names: apiExtensions.CustomResourceDefinitionNames{
 				Plural: FrameworkPlural,
 				Kind:   FrameworkKind,
 			},
-			Validation: buildFrameworkValidation(),
-			// TODO: Enable CRD Subresources after ApiServer has supported it.
-			//Subresources: &apiExtensions.CustomResourceSubresources{
-			//	Status: &apiExtensions.CustomResourceSubresourceStatus{
-			//	},
-			//},
+			Scope: apiExtensions.NamespaceScoped,
+			Versions: []apiExtensions.CustomResourceDefinitionVersion{
+				{
+					Name:               "v1",
+					Served:             true,
+					Storage:            true,
+					Deprecated:         false,
+					DeprecationWarning: nil,
+					Schema:             buildFrameworkValidation(),
+				},
+			},
 		},
 	}
 

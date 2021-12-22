@@ -1,5 +1,5 @@
 /*
-Copyright The Kubernetes Authors.
+Copyright 2021.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ limitations under the License.
 package v1
 
 import (
+	"context"
 	time "time"
 
 	frameworkcontrollerv1 "github.com/microsoft/frameworkcontroller/pkg/apis/frameworkcontroller/v1"
@@ -61,13 +62,13 @@ func NewFilteredFrameworkInformer(client versioned.Interface, namespace string, 
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.FrameworkcontrollerV1().Frameworks(namespace).List(options)
+				return client.FrameworkcontrollerV1().Frameworks(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.FrameworkcontrollerV1().Frameworks(namespace).Watch(options)
+				return client.FrameworkcontrollerV1().Frameworks(namespace).Watch(context.TODO(), options)
 			},
 		},
 		&frameworkcontrollerv1.Framework{},

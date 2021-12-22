@@ -1,5 +1,5 @@
 /*
-Copyright The Kubernetes Authors.
+Copyright 2021.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
 	frameworkcontrollerv1 "github.com/microsoft/frameworkcontroller/pkg/apis/frameworkcontroller/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -39,7 +41,7 @@ var frameworksResource = schema.GroupVersionResource{Group: "frameworkcontroller
 var frameworksKind = schema.GroupVersionKind{Group: "frameworkcontroller.microsoft.com", Version: "v1", Kind: "Framework"}
 
 // Get takes name of the framework, and returns the corresponding framework object, and an error if there is any.
-func (c *FakeFrameworks) Get(name string, options v1.GetOptions) (result *frameworkcontrollerv1.Framework, err error) {
+func (c *FakeFrameworks) Get(ctx context.Context, name string, options v1.GetOptions) (result *frameworkcontrollerv1.Framework, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(frameworksResource, c.ns, name), &frameworkcontrollerv1.Framework{})
 
@@ -50,7 +52,7 @@ func (c *FakeFrameworks) Get(name string, options v1.GetOptions) (result *framew
 }
 
 // List takes label and field selectors, and returns the list of Frameworks that match those selectors.
-func (c *FakeFrameworks) List(opts v1.ListOptions) (result *frameworkcontrollerv1.FrameworkList, err error) {
+func (c *FakeFrameworks) List(ctx context.Context, opts v1.ListOptions) (result *frameworkcontrollerv1.FrameworkList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(frameworksResource, frameworksKind, c.ns, opts), &frameworkcontrollerv1.FrameworkList{})
 
@@ -72,14 +74,14 @@ func (c *FakeFrameworks) List(opts v1.ListOptions) (result *frameworkcontrollerv
 }
 
 // Watch returns a watch.Interface that watches the requested frameworks.
-func (c *FakeFrameworks) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeFrameworks) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(frameworksResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a framework and creates it.  Returns the server's representation of the framework, and an error, if there is any.
-func (c *FakeFrameworks) Create(framework *frameworkcontrollerv1.Framework) (result *frameworkcontrollerv1.Framework, err error) {
+func (c *FakeFrameworks) Create(ctx context.Context, framework *frameworkcontrollerv1.Framework, opts v1.CreateOptions) (result *frameworkcontrollerv1.Framework, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(frameworksResource, c.ns, framework), &frameworkcontrollerv1.Framework{})
 
@@ -90,7 +92,7 @@ func (c *FakeFrameworks) Create(framework *frameworkcontrollerv1.Framework) (res
 }
 
 // Update takes the representation of a framework and updates it. Returns the server's representation of the framework, and an error, if there is any.
-func (c *FakeFrameworks) Update(framework *frameworkcontrollerv1.Framework) (result *frameworkcontrollerv1.Framework, err error) {
+func (c *FakeFrameworks) Update(ctx context.Context, framework *frameworkcontrollerv1.Framework, opts v1.UpdateOptions) (result *frameworkcontrollerv1.Framework, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(frameworksResource, c.ns, framework), &frameworkcontrollerv1.Framework{})
 
@@ -101,23 +103,23 @@ func (c *FakeFrameworks) Update(framework *frameworkcontrollerv1.Framework) (res
 }
 
 // Delete takes name of the framework and deletes it. Returns an error if one occurs.
-func (c *FakeFrameworks) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeFrameworks) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(frameworksResource, c.ns, name), &frameworkcontrollerv1.Framework{})
+		Invokes(testing.NewDeleteActionWithOptions(frameworksResource, c.ns, name, opts), &frameworkcontrollerv1.Framework{})
 
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeFrameworks) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(frameworksResource, c.ns, listOptions)
+func (c *FakeFrameworks) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(frameworksResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &frameworkcontrollerv1.FrameworkList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched framework.
-func (c *FakeFrameworks) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *frameworkcontrollerv1.Framework, err error) {
+func (c *FakeFrameworks) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *frameworkcontrollerv1.Framework, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(frameworksResource, c.ns, name, pt, data, subresources...), &frameworkcontrollerv1.Framework{})
 

@@ -35,6 +35,8 @@ cd ${PROJECT_DIR}
   "all" \
   github.com/microsoft/frameworkcontroller/pkg/client \
   github.com/microsoft/frameworkcontroller/pkg/apis \
-  frameworkcontroller:v1
+  frameworkcontroller:v1 \
+  --go-header-file "${PROJECT_DIR}"/hack/boilerplate.go.txt \
+  --output-base "${PROJECT_DIR}"
 
 echo Succeeded to update generated code

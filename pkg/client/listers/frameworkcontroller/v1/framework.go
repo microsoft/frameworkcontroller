@@ -1,5 +1,5 @@
 /*
-Copyright The Kubernetes Authors.
+Copyright 2021.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -26,8 +26,10 @@ import (
 )
 
 // FrameworkLister helps list Frameworks.
+// All objects returned here must be treated as read-only.
 type FrameworkLister interface {
 	// List lists all Frameworks in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.Framework, err error)
 	// Frameworks returns an object that can list and get Frameworks.
 	Frameworks(namespace string) FrameworkNamespaceLister
@@ -58,10 +60,13 @@ func (s *frameworkLister) Frameworks(namespace string) FrameworkNamespaceLister 
 }
 
 // FrameworkNamespaceLister helps list and get Frameworks.
+// All objects returned here must be treated as read-only.
 type FrameworkNamespaceLister interface {
 	// List lists all Frameworks in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.Framework, err error)
 	// Get retrieves the Framework from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1.Framework, error)
 	FrameworkNamespaceListerExpansion
 }
