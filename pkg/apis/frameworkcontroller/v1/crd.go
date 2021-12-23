@@ -64,8 +64,7 @@ func BuildFrameworkCRD() *apiExtensions.CustomResourceDefinition {
 func buildFrameworkValidation() *apiExtensions.CustomResourceValidation {
 	return &apiExtensions.CustomResourceValidation{
 		OpenAPIV3Schema: &apiExtensions.JSONSchemaProps{
-			XPreserveUnknownFields: common.PtrBool(true),
-			Type:                   "object",
+			Type: "object",
 			Properties: map[string]apiExtensions.JSONSchemaProps{
 				"metadata": {
 					Type: "object",
@@ -79,6 +78,10 @@ func buildFrameworkValidation() *apiExtensions.CustomResourceValidation {
 				"spec": {
 					Type: "object",
 					Properties: map[string]apiExtensions.JSONSchemaProps{
+						"description": {
+							Type:     "string",
+							Nullable: true,
+						},
 						"executionType": {
 							Type: "string",
 							Enum: []apiExtensions.JSON{
@@ -93,6 +96,10 @@ func buildFrameworkValidation() *apiExtensions.CustomResourceValidation {
 								"maxRetryCount": {
 									Type:    "integer",
 									Minimum: common.PtrFloat64(ExtendedUnlimitedValue),
+								},
+								"fancyRetryPolicy": {
+									Type:     "boolean",
+									Nullable: true,
 								},
 							},
 						},
@@ -127,11 +134,42 @@ func buildFrameworkValidation() *apiExtensions.CustomResourceValidation {
 												},
 											},
 										},
+										"task": {
+											Type: "object",
+											Properties: map[string]apiExtensions.JSONSchemaProps{
+												"retryPolicy": {
+													Nullable: true,
+													Type:     "object",
+													Properties: map[string]apiExtensions.JSONSchemaProps{
+														"maxRetryCount": {
+															Type:    "integer",
+															Minimum: common.PtrFloat64(ExtendedUnlimitedValue),
+														},
+														"fancyRetryPolicy": {
+															Type: "boolean",
+														},
+													},
+												},
+												"podGracefulDeletionTimeoutSec": {
+													Nullable: true,
+													Type:     "integer",
+												},
+												"pod": {
+													Type:                   "object",
+													XPreserveUnknownFields: common.PtrBool(true),
+												},
+											},
+										},
 									},
 								},
 							},
 						},
 					},
+				},
+				"status": {
+					Type:                   "object",
+					Nullable:               true,
+					XPreserveUnknownFields: common.PtrBool(true),
 				},
 			},
 		},
