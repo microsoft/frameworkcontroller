@@ -26,6 +26,8 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+export GO111MODULE=on
+
 BASH_DIR=$(cd $(dirname ${BASH_SOURCE}) && pwd)
 # Ensure ${PROJECT_DIR} is ${GOPATH}/src/github.com/microsoft/frameworkcontroller
 PROJECT_DIR=${BASH_DIR}/../..
@@ -36,7 +38,7 @@ cd ${PROJECT_DIR}
 rm -rf ${DIST_DIR}
 mkdir -p ${DIST_DIR}
 
-go build -o ${DIST_DIR}/frameworkbarrier cmd/frameworkbarrier/*
+go build -mod=vendor -o ${DIST_DIR}/frameworkbarrier cmd/frameworkbarrier/*
 chmod a+x ${DIST_DIR}/frameworkbarrier
 cp -r bin/frameworkbarrier/* ${DIST_DIR}
 

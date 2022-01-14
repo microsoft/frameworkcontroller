@@ -31,6 +31,6 @@ PROJECT_DIR=${BASH_DIR}/..
 
 cd ${PROJECT_DIR}
 
-dep ensure
+go mod vendor
 
 echo Succeeded to update dependent package
