@@ -26,6 +26,8 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+export GO111MODULE=on
+
 BASH_DIR=$(cd $(dirname ${BASH_SOURCE}) && pwd)
 # Ensure ${PROJECT_DIR} is ${GOPATH}/src/github.com/microsoft/frameworkcontroller
 PROJECT_DIR=${BASH_DIR}/../..
