@@ -26,11 +26,14 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+export GO111MODULE=on
+
 BASH_DIR=$(cd $(dirname ${BASH_SOURCE}) && pwd)
 PROJECT_DIR=${BASH_DIR}/..
 
 cd ${PROJECT_DIR}
 
+go mod tidy
 go mod vendor
 
 echo Succeeded to update dependent package
