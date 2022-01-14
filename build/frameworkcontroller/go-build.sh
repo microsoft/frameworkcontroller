@@ -36,7 +36,7 @@ cd ${PROJECT_DIR}
 rm -rf ${DIST_DIR}
 mkdir -p ${DIST_DIR}
 
-go build -o ${DIST_DIR}/frameworkcontroller cmd/frameworkcontroller/*
+go build -mod=vendor -o ${DIST_DIR}/frameworkcontroller cmd/frameworkcontroller/*
 chmod a+x ${DIST_DIR}/frameworkcontroller
 cp -r bin/frameworkcontroller/* ${DIST_DIR}
 cp -r example/config/default/frameworkcontroller.yaml ${DIST_DIR}
