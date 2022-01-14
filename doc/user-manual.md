@@ -422,7 +422,7 @@ spec:
             image: ubuntu:trusty
             command: ["sh", "-c", "printenv && sleep infinity"]
 ```
-2. Use above creation response's `metadata.uid` to override below {{FrameworkUID}}, and [Create ServiceAccount](https://v1-14.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#create-serviceaccount-v1-core) with above Framework reference as below:
+2. Use above creation response's `metadata.uid` to override below {{FrameworkUID}}, and [Create ServiceAccount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#create-serviceaccount-v1-core) with above Framework reference as below:
 ```yaml
 apiVersion: v1
 kind: ServiceAccount
