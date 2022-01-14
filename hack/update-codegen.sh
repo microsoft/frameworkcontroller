@@ -31,8 +31,7 @@ PROJECT_DIR=${BASH_DIR}/..
 
 cd ${PROJECT_DIR}
 
-chmod a+x ./vendor/k8s.io/code-generator/generate-groups.sh
-./vendor/k8s.io/code-generator/generate-groups.sh \
+bash ./vendor/k8s.io/code-generator/generate-groups.sh \
   "all" \
   github.com/microsoft/frameworkcontroller/pkg/client \
   github.com/microsoft/frameworkcontroller/pkg/apis \
