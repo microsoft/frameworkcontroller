@@ -171,13 +171,13 @@ k8s.io/api/authentication/v1beta1
 k8s.io/api/authorization/v1
 k8s.io/api/authorization/v1beta1
 # k8s.io/apiextensions-apiserver v0.16.15
-k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1
+k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1
 k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset
 k8s.io/apiextensions-apiserver/pkg/apis/apiextensions
 k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1
 k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1
-k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1
 k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/scheme
+k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1
 # k8s.io/apimachinery v0.16.15
 k8s.io/apimachinery/pkg/api/errors
 k8s.io/apimachinery/pkg/apis/meta/v1
@@ -194,6 +194,7 @@ k8s.io/apimachinery/pkg/labels
 k8s.io/apimachinery/pkg/util/errors
 k8s.io/apimachinery/pkg/api/resource
 k8s.io/apimachinery/pkg/util/intstr
+k8s.io/apimachinery/pkg/api/equality
 k8s.io/apimachinery/pkg/conversion
 k8s.io/apimachinery/pkg/util/json
 k8s.io/apimachinery/pkg/util/validation/field
@@ -222,7 +223,6 @@ k8s.io/apimachinery/pkg/util/mergepatch
 k8s.io/apimachinery/third_party/forked/golang/json
 k8s.io/apimachinery/pkg/apis/meta/internalversion
 k8s.io/apimachinery/pkg/apis/meta/v1beta1
-k8s.io/apimachinery/pkg/api/equality
 # k8s.io/client-go v0.16.15
 k8s.io/client-go/rest
 k8s.io/client-go/tools/clientcmd
