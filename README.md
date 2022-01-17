@@ -75,7 +75,7 @@ A Framework represents an application with a set of Tasks:
 12. Aligned with Kubernetes [Controller Design Guidelines](https://github.com/kubernetes/community/blob/f0dd87ad477e1e91c53866902adf7832c32ce543/contributors/devel/sig-api-machinery/controllers.md) and [API Conventions](https://github.com/kubernetes/community/blob/a2cdce51a0bbbc214f0e8813e0a877176ad3b6c9/contributors/devel/sig-architecture/api-conventions.md)
 
 ## Prerequisite
-1. A Kubernetes cluster, v1.14.2 or above, on-cloud or on-premise.
+1. A Kubernetes cluster, v1.16.15 or above, on-cloud or on-premise.
 
 ## Quick Start
 1. [Run Controller](example/run)

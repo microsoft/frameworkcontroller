@@ -24,7 +24,7 @@ package v1
 
 import (
 	"github.com/microsoft/frameworkcontroller/pkg/common"
-	apiExtensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	apiExtensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -39,30 +39,33 @@ func BuildFrameworkCRD() *apiExtensions.CustomResourceDefinition {
 			Name: FrameworkCRDName,
 		},
 		Spec: apiExtensions.CustomResourceDefinitionSpec{
-			Group:   GroupName,
-			Version: SchemeGroupVersion.Version,
-			Scope:   apiExtensions.NamespaceScoped,
+			Group: GroupName,
+			Versions: []apiExtensions.CustomResourceDefinitionVersion{
+				{
+					Name:    SchemeGroupVersion.Version,
+					Served:  true,
+					Storage: true,
+					Schema:  buildFrameworkSchema(),
+				},
+			},
+			Scope: apiExtensions.NamespaceScoped,
 			Names: apiExtensions.CustomResourceDefinitionNames{
 				Plural: FrameworkPlural,
 				Kind:   FrameworkKind,
 			},
-			Validation: buildFrameworkValidation(),
-			// TODO: Enable CRD Subresources after ApiServer has supported it.
-			//Subresources: &apiExtensions.CustomResourceSubresources{
-			//	Status: &apiExtensions.CustomResourceSubresourceStatus{
-			//	},
-			//},
 		},
 	}
 
 	return crd
 }
 
-func buildFrameworkValidation() *apiExtensions.CustomResourceValidation {
+func buildFrameworkSchema() *apiExtensions.CustomResourceValidation {
 	return &apiExtensions.CustomResourceValidation{
 		OpenAPIV3Schema: &apiExtensions.JSONSchemaProps{
+			Type: "object",
 			Properties: map[string]apiExtensions.JSONSchemaProps{
 				"metadata": {
+					Type: "object",
 					Properties: map[string]apiExtensions.JSONSchemaProps{
 						"name": {
 							Type:    "string",
@@ -71,8 +74,14 @@ func buildFrameworkValidation() *apiExtensions.CustomResourceValidation {
 					},
 				},
 				"spec": {
+					Type: "object",
 					Properties: map[string]apiExtensions.JSONSchemaProps{
+						"description": {
+							Type:     "string",
+							Nullable: true,
+						},
 						"executionType": {
+							Type: "string",
 							Enum: []apiExtensions.JSON{
 								{Raw: []byte(common.Quote(string(ExecutionCreate)))},
 								{Raw: []byte(common.Quote(string(ExecutionStart)))},
@@ -80,10 +89,14 @@ func buildFrameworkValidation() *apiExtensions.CustomResourceValidation {
 							},
 						},
 						"retryPolicy": {
+							Type: "object",
 							Properties: map[string]apiExtensions.JSONSchemaProps{
 								"maxRetryCount": {
 									Type:    "integer",
 									Minimum: common.PtrFloat64(ExtendedUnlimitedValue),
+								},
+								"fancyRetryPolicy": {
+									Type: "boolean",
 								},
 							},
 						},
@@ -92,6 +105,7 @@ func buildFrameworkValidation() *apiExtensions.CustomResourceValidation {
 							Type: "array",
 							Items: &apiExtensions.JSONSchemaPropsOrArray{
 								Schema: &apiExtensions.JSONSchemaProps{
+									Type: "object",
 									Properties: map[string]apiExtensions.JSONSchemaProps{
 										"name": {
 											Type:    "string",
@@ -103,6 +117,7 @@ func buildFrameworkValidation() *apiExtensions.CustomResourceValidation {
 											Maximum: common.PtrFloat64(10000),
 										},
 										"frameworkAttemptCompletionPolicy": {
+											Type: "object",
 											Properties: map[string]apiExtensions.JSONSchemaProps{
 												"minFailedTaskCount": {
 													Type: "integer",
@@ -116,11 +131,40 @@ func buildFrameworkValidation() *apiExtensions.CustomResourceValidation {
 												},
 											},
 										},
+										"task": {
+											Type: "object",
+											Properties: map[string]apiExtensions.JSONSchemaProps{
+												"retryPolicy": {
+													Type: "object",
+													Properties: map[string]apiExtensions.JSONSchemaProps{
+														"maxRetryCount": {
+															Type:    "integer",
+															Minimum: common.PtrFloat64(ExtendedUnlimitedValue),
+														},
+														"fancyRetryPolicy": {
+															Type: "boolean",
+														},
+													},
+												},
+												"podGracefulDeletionTimeoutSec": {
+													Type: "integer",
+												},
+												"pod": {
+													Type:                   "object",
+													XPreserveUnknownFields: common.PtrBool(true),
+												},
+											},
+										},
 									},
 								},
 							},
 						},
 					},
+				},
+				"status": {
+					Type:                   "object",
+					Nullable:               true,
+					XPreserveUnknownFields: common.PtrBool(true),
 				},
 			},
 		},

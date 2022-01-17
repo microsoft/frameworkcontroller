@@ -31,10 +31,12 @@ PROJECT_DIR=${BASH_DIR}/..
 
 cd ${PROJECT_DIR}
 
-./vendor/k8s.io/code-generator/generate-groups.sh \
+bash ./vendor/k8s.io/code-generator/generate-groups.sh \
   "all" \
   github.com/microsoft/frameworkcontroller/pkg/client \
   github.com/microsoft/frameworkcontroller/pkg/apis \
-  frameworkcontroller:v1
+  frameworkcontroller:v1 \
+  --go-header-file "${PROJECT_DIR}"/hack/boilerplate.go.txt \
+  --output-base "${PROJECT_DIR}"/../../..
 
 echo Succeeded to update generated code

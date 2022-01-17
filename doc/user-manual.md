@@ -40,8 +40,8 @@ As Framework is actually a [Kubernetes CRD](https://kubernetes.io/docs/concepts/
 | API Kind | Operations |
 |:---- |:---- |
 | Framework | [CREATE](#CREATE_Framework) [DELETE](#DELETE_Framework) [GET](#GET_Framework) [LIST](#LIST_Frameworks) [WATCH](#WATCH_Framework) [WATCH_LIST](#WATCH_LIST_Frameworks)<br>[PATCH](#PATCH_Framework) ([Start](#Start_Framework), [Stop](#Stop_Framework), [Add TaskRole](#Add_TaskRole), [Delete TaskRole](#Delete_TaskRole), [Add/Delete Task](#Add_Delete_Task)) |
-| [ConfigMap](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#configmap-v1-core) | All operations except for [CREATE](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#create-configmap-v1-core) [PUT](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#replace-configmap-v1-core) [PATCH](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#patch-configmap-v1-core) |
-| [Pod](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#pod-v1-core) | All operations except for [CREATE](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#create-pod-v1-core) [PUT](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#replace-pod-v1-core) [PATCH](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#patch-pod-v1-core) |
+| [ConfigMap](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#configmap-v1-core) | All operations except for [CREATE](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#create-configmap-v1-core) [PUT](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#replace-configmap-v1-core) [PATCH](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#patch-configmap-v1-core) |
+| [Pod](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#pod-v1-core) | All operations except for [CREATE](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#create-pod-v1-core) [PUT](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#replace-pod-v1-core) [PATCH](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#patch-pod-v1-core) |
 
 #### <a name="CREATE_Framework">CREATE Framework</a>
 **Request**
@@ -65,7 +65,7 @@ Any [ExecutionType](#FrameworkExecutionType) can be specified to create the Fram
 | OK(200) | [Framework](../pkg/apis/frameworkcontroller/v1/types.go) | Return current Framework. |
 | Created(201) | [Framework](../pkg/apis/frameworkcontroller/v1/types.go) | Return current Framework. |
 | Accepted(202) | [Framework](../pkg/apis/frameworkcontroller/v1/types.go) | Return current Framework. |
-| Conflict(409) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#status-v1-meta) | The specified Framework already exists. |
+| Conflict(409) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#status-v1-meta) | The specified Framework already exists. |
 
 #### <a name="PATCH_Framework">PATCH Framework</a>
 ##### <a name="Start_Framework">Start Framework</a>
@@ -98,7 +98,7 @@ Before the Start, the Framework will not start to run or complete, but the objec
 | Code | Body | Description |
 |:---- |:---- |:---- |
 | OK(200) | [Framework](../pkg/apis/frameworkcontroller/v1/types.go) | Return current Framework. |
-| NotFound(404) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#status-v1-meta) | The specified Framework is not found. |
+| NotFound(404) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#status-v1-meta) | The specified Framework is not found. |
 
 ##### <a name="Stop_Framework">Stop Framework</a>
 **Request**
@@ -130,7 +130,7 @@ After the Stop, the Framework will start to complete, but the object of the Fram
 | Code | Body | Description |
 |:---- |:---- |:---- |
 | OK(200) | [Framework](../pkg/apis/frameworkcontroller/v1/types.go) | Return current Framework. |
-| NotFound(404) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#status-v1-meta) | The specified Framework is not found. |
+| NotFound(404) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#status-v1-meta) | The specified Framework is not found. |
 
 ##### <a name="Add_TaskRole">Add TaskRole</a>
 **Request**
@@ -164,7 +164,7 @@ See more in [Framework ScaleUp/ScaleDown](#FrameworkRescale).
 | Code | Body | Description |
 |:---- |:---- |:---- |
 | OK(200) | [Framework](../pkg/apis/frameworkcontroller/v1/types.go) | Return current Framework. |
-| NotFound(404) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#status-v1-meta) | The specified Framework is not found. |
+| NotFound(404) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#status-v1-meta) | The specified Framework is not found. |
 
 ##### <a name="Delete_TaskRole">Delete TaskRole</a>
 **Request**
@@ -205,8 +205,8 @@ Notes:
 | Code | Body | Description |
 |:---- |:---- |:---- |
 | OK(200) | [Framework](../pkg/apis/frameworkcontroller/v1/types.go) | Return current Framework. |
-| NotFound(404) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#status-v1-meta) | The specified Framework is not found. |
-| UnprocessableEntity(422) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#status-v1-meta) | The specified $(TaskRoleName) does not exist or does not match the specified $(TaskRoleIndex). |
+| NotFound(404) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#status-v1-meta) | The specified Framework is not found. |
+| UnprocessableEntity(422) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#status-v1-meta) | The specified $(TaskRoleName) does not exist or does not match the specified $(TaskRoleIndex). |
 
 ##### <a name="Add_Delete_Task">Add/Delete Task</a>
 **Request**
@@ -272,8 +272,8 @@ See more in [Framework ScaleUp/ScaleDown](#FrameworkRescale).
 | Code | Body | Description |
 |:---- |:---- |:---- |
 | OK(200) | [Framework](../pkg/apis/frameworkcontroller/v1/types.go) | Return current Framework. |
-| NotFound(404) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#status-v1-meta) | The specified Framework is not found. |
-| UnprocessableEntity(422) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#status-v1-meta) | The specified $(TaskRoleName) does not exist or does not match the specified $(TaskRoleIndex). |
+| NotFound(404) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#status-v1-meta) | The specified Framework is not found. |
+| UnprocessableEntity(422) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#status-v1-meta) | The specified $(TaskRoleName) does not exist or does not match the specified $(TaskRoleIndex). |
 
 #### <a name="DELETE_Framework">DELETE Framework</a>
 **Request**
@@ -301,15 +301,15 @@ Delete the specified Framework.
 
 Notes:
 * If you need to achieve all the [Framework ConsistencyGuarantees](#ConsistencyGuarantees) or achieve higher [Framework Availability](#FrameworkAvailability) by leveraging the [PodGracefulDeletionTimeoutSec](../pkg/apis/frameworkcontroller/v1/types.go), you should always use and only use the [Foreground Deletion](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#foreground-cascading-deletion) in the provided body.
-* However, `kubectl delete` does not support to specify the Foreground Deletion at least for [Kubernetes v1.14.2](https://github.com/kubernetes/kubernetes/issues/66110#issuecomment-413761559), so you may have to use other [Supported Client](#SupportedClient).
+* However, `kubectl delete` does not support to specify the Foreground Deletion at least for [Kubernetes v1.23.2](https://github.com/kubernetes/kubernetes/issues/66110#issuecomment-413761559), so you may have to use other [Supported Client](#SupportedClient).
 
 **Response**
 
 | Code | Body | Description |
 |:---- |:---- |:---- |
 | OK(200) | [Framework](../pkg/apis/frameworkcontroller/v1/types.go) | The specified Framework is deleting.<br>Return current Framework. |
-| OK(200) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#status-v1-meta) | The specified Framework is deleted. |
-| NotFound(404) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#status-v1-meta) | The specified Framework is not found. |
+| OK(200) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#status-v1-meta) | The specified Framework is deleted. |
+| NotFound(404) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#status-v1-meta) | The specified Framework is not found. |
 
 #### <a name="GET_Framework">GET Framework</a>
 **Request**
@@ -325,7 +325,7 @@ Get the specified Framework.
 | Code | Body | Description |
 |:---- |:---- |:---- |
 | OK(200) | [Framework](../pkg/apis/frameworkcontroller/v1/types.go) | Return current Framework. |
-| NotFound(404) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#status-v1-meta) | The specified Framework is not found. |
+| NotFound(404) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#status-v1-meta) | The specified Framework is not found. |
 
 #### <a name="LIST_Frameworks">LIST Frameworks</a>
 **Request**
@@ -333,7 +333,7 @@ Get the specified Framework.
     GET /apis/frameworkcontroller.microsoft.com/v1/namespaces/{FrameworkNamespace}/frameworks
     GET /apis/frameworkcontroller.microsoft.com/v1/frameworks
 
-QueryParameters: Same as [StatefulSet QueryParameters](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#list-statefulset-v1-apps)
+QueryParameters: Same as [StatefulSet QueryParameters](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#list-statefulset-v1-apps)
 
 **Description**
 
@@ -350,7 +350,7 @@ Get all Frameworks (in the specified FrameworkNamespace).
 
     GET /apis/frameworkcontroller.microsoft.com/v1/watch/namespaces/{FrameworkNamespace}/frameworks/{FrameworkName}
 
-QueryParameters: Same as [StatefulSet QueryParameters](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#watch-statefulset-v1-apps)
+QueryParameters: Same as [StatefulSet QueryParameters](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#watch-statefulset-v1-apps)
 
 **Description**
 
@@ -360,8 +360,8 @@ Watch the change events of the specified Framework.
 
 | Code | Body | Description |
 |:---- |:---- |:---- |
-| OK(200) | [WatchEvent](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#watchevent-v1-meta) | Streaming the change events of the specified Framework. |
-| NotFound(404) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#status-v1-meta) | The specified Framework is not found. |
+| OK(200) | [WatchEvent](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#watchevent-v1-meta) | Streaming the change events of the specified Framework. |
+| NotFound(404) | [Status](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#status-v1-meta) | The specified Framework is not found. |
 
 #### <a name="WATCH_LIST_Frameworks">WATCH_LIST Frameworks</a>
 **Request**
@@ -369,7 +369,7 @@ Watch the change events of the specified Framework.
     GET /apis/frameworkcontroller.microsoft.com/v1/watch/namespaces/{FrameworkNamespace}/frameworks
     GET /apis/frameworkcontroller.microsoft.com/v1/watch/frameworks
 
-QueryParameters: Same as [StatefulSet QueryParameters](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#watch-list-statefulset-v1-apps)
+QueryParameters: Same as [StatefulSet QueryParameters](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#watch-list-statefulset-v1-apps)
 
 **Description**
 
@@ -379,7 +379,7 @@ Watch the change events of all Frameworks (in the specified FrameworkNamespace).
 
 | Code | Body | Description |
 |:---- |:---- |:---- |
-| OK(200) | [WatchEvent](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#watchevent-v1-meta) | Streaming the change events of all Frameworks (in the specified FrameworkNamespace). |
+| OK(200) | [WatchEvent](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#watchevent-v1-meta) | Streaming the change events of all Frameworks (in the specified FrameworkNamespace). |
 
 ## <a name="FrameworkExecutionType">Framework ExecutionType</a>
 Framework [ExecutionType](../pkg/apis/frameworkcontroller/v1/types.go) can be specified to control the execution of the Framework:
@@ -422,7 +422,7 @@ spec:
             image: ubuntu:trusty
             command: ["sh", "-c", "printenv && sleep infinity"]
 ```
-2. Use above creation response's `metadata.uid` to override below {{FrameworkUID}}, and [Create ServiceAccount](https://v1-14.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#create-serviceaccount-v1-core) with above Framework reference as below:
+2. Use above creation response's `metadata.uid` to override below {{FrameworkUID}}, and [Create ServiceAccount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#create-serviceaccount-v1-core) with above Framework reference as below:
 ```yaml
 apiVersion: v1
 kind: ServiceAccount
