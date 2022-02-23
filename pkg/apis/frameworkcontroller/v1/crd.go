@@ -148,6 +148,7 @@ func buildFrameworkSchema() *apiExtensions.CustomResourceValidation {
 												},
 												"podGracefulDeletionTimeoutSec": {
 													Type: "integer",
+													Nullable: true,
 												},
 												"pod": {
 													Type:                   "object",
