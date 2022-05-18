@@ -23,7 +23,11 @@
 package internal
 
 import (
+	"context"
 	"fmt"
+	"reflect"
+	"time"
+
 	ci "github.com/microsoft/frameworkcontroller/pkg/apis/frameworkcontroller/v1"
 	frameworkClient "github.com/microsoft/frameworkcontroller/pkg/client/clientset/versioned"
 	"github.com/microsoft/frameworkcontroller/pkg/common"
@@ -37,8 +41,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
-	"reflect"
-	"time"
 )
 
 func CreateClients(kConfig *rest.Config) (
@@ -71,8 +73,9 @@ func PutCRD(
 
 func DeleteCRD(config *rest.Config, name string) {
 	client := createCRDClient(config)
+	ctx := context.Background()
 
-	err := client.ApiextensionsV1().CustomResourceDefinitions().Delete(name, meta.NewDeleteOptions(0))
+	err := client.ApiextensionsV1().CustomResourceDefinitions().Delete(ctx, name, *meta.NewDeleteOptions(0))
 	if err != nil && !apiErrors.IsNotFound(err) {
 		panic(fmt.Errorf("Failed to delete CRD: %v", err))
 	} else {
@@ -92,21 +95,22 @@ func createCRDClient(config *rest.Config) apiClient.Interface {
 func putCRDInternal(
 	client apiClient.Interface, newCRD *apiExtensions.CustomResourceDefinition,
 	establishedCheckIntervalSec *int64, establishedCheckTimeoutSec *int64) error {
+	ctx := context.Background()
 
-	remoteCRD, err := client.ApiextensionsV1().CustomResourceDefinitions().Get(newCRD.Name, meta.GetOptions{})
+	remoteCRD, err := client.ApiextensionsV1().CustomResourceDefinitions().Get(ctx, newCRD.Name, meta.GetOptions{})
 	if err == nil {
 		klog.Infof("Update CRD %v", newCRD.Name)
 		if !reflect.DeepEqual(remoteCRD.Spec, newCRD.Spec) {
 			updateCRD := remoteCRD
 			updateCRD.Spec = newCRD.Spec
-			remoteCRD, err = client.ApiextensionsV1().CustomResourceDefinitions().Update(updateCRD)
+			remoteCRD, err = client.ApiextensionsV1().CustomResourceDefinitions().Update(ctx, updateCRD, meta.UpdateOptions{})
 			if err != nil {
 				return err
 			}
 		}
 	} else if apiErrors.IsNotFound(err) {
 		klog.Infof("Create CRD %v", newCRD.Name)
-		remoteCRD, err = client.ApiextensionsV1().CustomResourceDefinitions().Create(newCRD)
+		remoteCRD, err = client.ApiextensionsV1().CustomResourceDefinitions().Create(ctx, newCRD, meta.CreateOptions{})
 		if err != nil {
 			return err
 		}
@@ -121,7 +125,7 @@ func putCRDInternal(
 		common.SecToDuration(establishedCheckIntervalSec),
 		common.SecToDuration(establishedCheckTimeoutSec),
 		func() (bool, error) {
-			remoteCRD, err = client.ApiextensionsV1().CustomResourceDefinitions().Get(newCRD.Name, meta.GetOptions{})
+			remoteCRD, err = client.ApiextensionsV1().CustomResourceDefinitions().Get(ctx, newCRD.Name, meta.GetOptions{})
 			if err != nil {
 				return false, err
 			}

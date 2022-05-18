@@ -23,12 +23,17 @@
 package barrier
 
 import (
+	"context"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"strconv"
+	"strings"
+
 	ci "github.com/microsoft/frameworkcontroller/pkg/apis/frameworkcontroller/v1"
 	frameworkClient "github.com/microsoft/frameworkcontroller/pkg/client/clientset/versioned"
 	"github.com/microsoft/frameworkcontroller/pkg/common"
 	"github.com/microsoft/frameworkcontroller/pkg/internal"
-	"io/ioutil"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -36,9 +41,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog"
-	"os"
-	"strconv"
-	"strings"
 )
 
 // FrameworkController Extension: FrameworkBarrier
@@ -225,6 +227,7 @@ func NewFrameworkBarrier() *FrameworkBarrier {
 
 func (b *FrameworkBarrier) Run() {
 	klog.Infof("Running %v", ComponentName)
+	ctx := context.Background()
 
 	var f *ci.Framework
 	var err error
@@ -236,7 +239,7 @@ func (b *FrameworkBarrier) Run() {
 		func() (bool, error) {
 			f, err = b.fClient.FrameworkcontrollerV1().
 				Frameworks(b.bConfig.FrameworkNamespace).
-				Get(b.bConfig.FrameworkName, meta.GetOptions{})
+				Get(ctx, b.bConfig.FrameworkName, meta.GetOptions{})
 
 			if err == nil {
 				err = f.Decompress()

@@ -23,7 +23,12 @@
 package controller
 
 import (
+	"context"
 	"fmt"
+	"reflect"
+	"sync"
+	"time"
+
 	ci "github.com/microsoft/frameworkcontroller/pkg/apis/frameworkcontroller/v1"
 	frameworkClient "github.com/microsoft/frameworkcontroller/pkg/client/clientset/versioned"
 	frameworkInformer "github.com/microsoft/frameworkcontroller/pkg/client/informers/externalversions"
@@ -46,9 +51,6 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog"
-	"reflect"
-	"sync"
-	"time"
 )
 
 // FrameworkController maintains the lifecycle for all Frameworks in the cluster.
@@ -1288,8 +1290,11 @@ func (c *FrameworkController) deleteFramework(
 		"[%v]: Failed to delete Framework %v: confirm: %v: ",
 		f.Key(), f.UID, confirm)
 
+	ctx := context.Background()
 	deleteErr := c.fClient.FrameworkcontrollerV1().Frameworks(f.Namespace).Delete(
-		f.Name, &meta.DeleteOptions{
+		ctx,
+		f.Name,
+		meta.DeleteOptions{
 			Preconditions:     &meta.Preconditions{UID: &f.UID},
 			PropagationPolicy: common.PtrDeletionPropagation(meta.DeletePropagationForeground),
 		})
@@ -1301,7 +1306,7 @@ func (c *FrameworkController) deleteFramework(
 		if confirm {
 			// Confirm it is deleted instead of still deleting.
 			remoteF, getErr := c.fClient.FrameworkcontrollerV1().Frameworks(f.Namespace).Get(
-				f.Name, meta.GetOptions{})
+				ctx, f.Name, meta.GetOptions{})
 			if getErr != nil {
 				if !apiErrors.IsNotFound(getErr) {
 					return fmt.Errorf(errPfx+
@@ -1333,10 +1338,11 @@ func (c *FrameworkController) getOrCleanupConfigMap(
 	f *ci.Framework, confirm bool) (cm *core.ConfigMap, err error) {
 	logPfx := fmt.Sprintf("[%v]: getOrCleanupConfigMap: ", f.Key())
 	cmName := f.ConfigMapName()
+	ctx := context.Background()
 
 	if confirm {
-		cm, err = c.kClient.CoreV1().ConfigMaps(f.Namespace).Get(cmName,
-			meta.GetOptions{})
+		cm, err = c.kClient.CoreV1().ConfigMaps(f.Namespace).Get(
+			ctx, cmName, meta.GetOptions{})
 	} else {
 		cm, err = c.cmLister.ConfigMaps(f.Namespace).Get(cmName)
 	}
@@ -1386,9 +1392,10 @@ func (c *FrameworkController) deleteConfigMap(
 	errPfx := fmt.Sprintf(
 		"[%v]: Failed to delete ConfigMap %v, %v: confirm: %v: ",
 		f.Key(), cmName, cmUID, confirm)
+	ctx := context.Background()
 
-	deleteErr := c.kClient.CoreV1().ConfigMaps(f.Namespace).Delete(cmName,
-		&meta.DeleteOptions{Preconditions: &meta.Preconditions{UID: &cmUID}})
+	deleteErr := c.kClient.CoreV1().ConfigMaps(f.Namespace).Delete(ctx, cmName,
+		meta.DeleteOptions{Preconditions: &meta.Preconditions{UID: &cmUID}})
 	if deleteErr != nil {
 		if !apiErrors.IsNotFound(deleteErr) {
 			return fmt.Errorf(errPfx+"%v", deleteErr)
@@ -1396,7 +1403,7 @@ func (c *FrameworkController) deleteConfigMap(
 	} else {
 		if confirm {
 			// Confirm it is deleted instead of still deleting.
-			cm, getErr := c.kClient.CoreV1().ConfigMaps(f.Namespace).Get(cmName,
+			cm, getErr := c.kClient.CoreV1().ConfigMaps(f.Namespace).Get(ctx, cmName,
 				meta.GetOptions{})
 			if getErr != nil {
 				if !apiErrors.IsNotFound(getErr) {
@@ -1425,8 +1432,9 @@ func (c *FrameworkController) createConfigMap(
 	errPfx := fmt.Sprintf(
 		"[%v]: Failed to create ConfigMap %v: ",
 		f.Key(), cm.Name)
+	ctx := context.Background()
 
-	remoteCM, createErr := c.kClient.CoreV1().ConfigMaps(f.Namespace).Create(cm)
+	remoteCM, createErr := c.kClient.CoreV1().ConfigMaps(f.Namespace).Create(ctx, cm, meta.CreateOptions{})
 	if createErr != nil {
 		if apiErrors.IsAlreadyExists(createErr) {
 			// Best effort to judge if conflict with a not controlled object.
@@ -2049,9 +2057,10 @@ func (c *FrameworkController) getOrCleanupPod(
 		f.Key(), taskRoleName, taskIndex)
 	taskStatus := f.TaskStatus(taskRoleName, taskIndex)
 	podName := taskStatus.PodName()
+	ctx := context.Background()
 
 	if confirm {
-		pod, err = c.kClient.CoreV1().Pods(f.Namespace).Get(podName,
+		pod, err = c.kClient.CoreV1().Pods(f.Namespace).Get(ctx, podName,
 			meta.GetOptions{})
 	} else {
 		pod, err = c.podLister.Pods(f.Namespace).Get(podName)
@@ -2112,12 +2121,13 @@ func (c *FrameworkController) deletePod(
 	errPfx := fmt.Sprintf(
 		"[%v][%v][%v]: Failed to delete Pod %v, %v: confirm: %v, force: %v: ",
 		f.Key(), taskRoleName, taskIndex, podName, podUID, confirm, force)
+	ctx := context.Background()
 
 	deleteOptions := &meta.DeleteOptions{Preconditions: &meta.Preconditions{UID: &podUID}}
 	if force {
 		deleteOptions.GracePeriodSeconds = common.PtrInt64(0)
 	}
-	deleteErr := c.kClient.CoreV1().Pods(f.Namespace).Delete(podName, deleteOptions)
+	deleteErr := c.kClient.CoreV1().Pods(f.Namespace).Delete(ctx, podName, *deleteOptions)
 	if deleteErr != nil {
 		if !apiErrors.IsNotFound(deleteErr) {
 			return fmt.Errorf(errPfx+"%v", deleteErr)
@@ -2125,7 +2135,7 @@ func (c *FrameworkController) deletePod(
 	} else {
 		if confirm {
 			// Confirm it is deleted instead of still deleting.
-			pod, getErr := c.kClient.CoreV1().Pods(f.Namespace).Get(podName,
+			pod, getErr := c.kClient.CoreV1().Pods(f.Namespace).Get(ctx, podName,
 				meta.GetOptions{})
 			if getErr != nil {
 				if !apiErrors.IsNotFound(getErr) {
@@ -2155,8 +2165,9 @@ func (c *FrameworkController) createPod(
 	errPfx := fmt.Sprintf(
 		"[%v][%v][%v]: Failed to create Pod %v",
 		f.Key(), taskRoleName, taskIndex, pod.Name)
+	ctx := context.Background()
 
-	remotePod, createErr := c.kClient.CoreV1().Pods(f.Namespace).Create(pod)
+	remotePod, createErr := c.kClient.CoreV1().Pods(f.Namespace).Create(ctx, pod, meta.CreateOptions{})
 	if createErr != nil {
 		if apiErrors.IsAlreadyExists(createErr) {
 			// Best effort to judge if conflict with a not controlled object.
@@ -2321,6 +2332,7 @@ func (c *FrameworkController) decompressFramework(f *ci.Framework) error {
 func (c *FrameworkController) updateRemoteFrameworkStatus(f *ci.Framework) error {
 	logPfx := fmt.Sprintf("[%v]: updateRemoteFrameworkStatus: ", f.Key())
 	klog.Infof(logPfx + "Started")
+	ctx := context.Background()
 	defer func() { klog.Infof(logPfx + "Completed") }()
 
 	tried := false
@@ -2354,7 +2366,7 @@ func (c *FrameworkController) updateRemoteFrameworkStatus(f *ci.Framework) error
 			}
 		}
 
-		_, updateErr := c.fClient.FrameworkcontrollerV1().Frameworks(updateF.Namespace).Update(updateF)
+		_, updateErr := c.fClient.FrameworkcontrollerV1().Frameworks(updateF.Namespace).Update(ctx, updateF, meta.UpdateOptions{})
 		return updateErr
 	})
 
