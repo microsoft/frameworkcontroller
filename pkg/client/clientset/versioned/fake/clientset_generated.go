@@ -80,7 +80,10 @@ func (c *Clientset) Tracker() testing.ObjectTracker {
 	return c.tracker
 }
 
-var _ clientset.Interface = &Clientset{}
+var (
+	_ clientset.Interface = &Clientset{}
+	_ testing.FakeClient  = &Clientset{}
+)
 
 // FrameworkcontrollerV1 retrieves the FrameworkcontrollerV1Client
 func (c *Clientset) FrameworkcontrollerV1() frameworkcontrollerv1.FrameworkcontrollerV1Interface {

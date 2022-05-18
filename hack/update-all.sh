@@ -34,11 +34,11 @@ GOPKG_LOCK_FILE=${PROJECT_DIR}/Gopkg.lock
 
 cd ${PROJECT_DIR}
 
-# Remove possible stale import in generated code
-rm -rf ${CODEGEN_DIR} ${CODEGEN_FILE} ${GOPKG_LOCK_FILE}
-
 # Update dependent package for non-generated code, such as the code-generator itself
 ${BASH_DIR}/update-dep.sh
+
+# Remove possible stale import in generated code
+rm -rf ${CODEGEN_DIR} ${CODEGEN_FILE} ${GOPKG_LOCK_FILE}
 
 # Generate code
 ${BASH_DIR}/update-codegen.sh
