@@ -227,7 +227,7 @@ func NewFrameworkBarrier() *FrameworkBarrier {
 
 func (b *FrameworkBarrier) Run() {
 	klog.Infof("Running %v", ComponentName)
-	ctx := context.Background()
+	ctx := context.TODO()
 
 	var f *ci.Framework
 	var err error

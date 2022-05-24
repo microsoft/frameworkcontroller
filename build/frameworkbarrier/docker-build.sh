@@ -32,6 +32,6 @@ IMAGE_NAME=frameworkbarrier
 
 cd ${PROJECT_DIR}
 
-docker build -t ${IMAGE_NAME} -f ${BASH_DIR}/Dockerfile .
+docker build --network host -t ${IMAGE_NAME} -f ${BASH_DIR}/Dockerfile .
 
 echo Succeeded to build docker image ${IMAGE_NAME}

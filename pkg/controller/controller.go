@@ -1290,7 +1290,7 @@ func (c *FrameworkController) deleteFramework(
 		"[%v]: Failed to delete Framework %v: confirm: %v: ",
 		f.Key(), f.UID, confirm)
 
-	ctx := context.Background()
+	ctx := context.TODO()
 	deleteErr := c.fClient.FrameworkcontrollerV1().Frameworks(f.Namespace).Delete(
 		ctx,
 		f.Name,
@@ -1338,7 +1338,7 @@ func (c *FrameworkController) getOrCleanupConfigMap(
 	f *ci.Framework, confirm bool) (cm *core.ConfigMap, err error) {
 	logPfx := fmt.Sprintf("[%v]: getOrCleanupConfigMap: ", f.Key())
 	cmName := f.ConfigMapName()
-	ctx := context.Background()
+	ctx := context.TODO()
 
 	if confirm {
 		cm, err = c.kClient.CoreV1().ConfigMaps(f.Namespace).Get(
@@ -1392,7 +1392,7 @@ func (c *FrameworkController) deleteConfigMap(
 	errPfx := fmt.Sprintf(
 		"[%v]: Failed to delete ConfigMap %v, %v: confirm: %v: ",
 		f.Key(), cmName, cmUID, confirm)
-	ctx := context.Background()
+	ctx := context.TODO()
 
 	deleteErr := c.kClient.CoreV1().ConfigMaps(f.Namespace).Delete(ctx, cmName,
 		meta.DeleteOptions{Preconditions: &meta.Preconditions{UID: &cmUID}})
@@ -1432,7 +1432,7 @@ func (c *FrameworkController) createConfigMap(
 	errPfx := fmt.Sprintf(
 		"[%v]: Failed to create ConfigMap %v: ",
 		f.Key(), cm.Name)
-	ctx := context.Background()
+	ctx := context.TODO()
 
 	remoteCM, createErr := c.kClient.CoreV1().ConfigMaps(f.Namespace).Create(ctx, cm, meta.CreateOptions{})
 	if createErr != nil {
@@ -2057,7 +2057,7 @@ func (c *FrameworkController) getOrCleanupPod(
 		f.Key(), taskRoleName, taskIndex)
 	taskStatus := f.TaskStatus(taskRoleName, taskIndex)
 	podName := taskStatus.PodName()
-	ctx := context.Background()
+	ctx := context.TODO()
 
 	if confirm {
 		pod, err = c.kClient.CoreV1().Pods(f.Namespace).Get(ctx, podName,
@@ -2121,7 +2121,7 @@ func (c *FrameworkController) deletePod(
 	errPfx := fmt.Sprintf(
 		"[%v][%v][%v]: Failed to delete Pod %v, %v: confirm: %v, force: %v: ",
 		f.Key(), taskRoleName, taskIndex, podName, podUID, confirm, force)
-	ctx := context.Background()
+	ctx := context.TODO()
 
 	deleteOptions := &meta.DeleteOptions{Preconditions: &meta.Preconditions{UID: &podUID}}
 	if force {
@@ -2165,7 +2165,7 @@ func (c *FrameworkController) createPod(
 	errPfx := fmt.Sprintf(
 		"[%v][%v][%v]: Failed to create Pod %v",
 		f.Key(), taskRoleName, taskIndex, pod.Name)
-	ctx := context.Background()
+	ctx := context.TODO()
 
 	remotePod, createErr := c.kClient.CoreV1().Pods(f.Namespace).Create(ctx, pod, meta.CreateOptions{})
 	if createErr != nil {
@@ -2332,7 +2332,7 @@ func (c *FrameworkController) decompressFramework(f *ci.Framework) error {
 func (c *FrameworkController) updateRemoteFrameworkStatus(f *ci.Framework) error {
 	logPfx := fmt.Sprintf("[%v]: updateRemoteFrameworkStatus: ", f.Key())
 	klog.Infof(logPfx + "Started")
-	ctx := context.Background()
+	ctx := context.TODO()
 	defer func() { klog.Infof(logPfx + "Completed") }()
 
 	tried := false
