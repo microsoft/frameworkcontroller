@@ -227,7 +227,6 @@ func NewFrameworkBarrier() *FrameworkBarrier {
 
 func (b *FrameworkBarrier) Run() {
 	klog.Infof("Running %v", ComponentName)
-	ctx := context.TODO()
 
 	var f *ci.Framework
 	var err error
@@ -239,7 +238,7 @@ func (b *FrameworkBarrier) Run() {
 		func() (bool, error) {
 			f, err = b.fClient.FrameworkcontrollerV1().
 				Frameworks(b.bConfig.FrameworkNamespace).
-				Get(ctx, b.bConfig.FrameworkName, meta.GetOptions{})
+				Get(context.TODO(), b.bConfig.FrameworkName, meta.GetOptions{})
 
 			if err == nil {
 				err = f.Decompress()

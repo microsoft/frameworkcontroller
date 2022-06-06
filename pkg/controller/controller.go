@@ -1291,13 +1291,10 @@ func (c *FrameworkController) deleteFramework(
 		f.Key(), f.UID, confirm)
 
 	ctx := context.TODO()
-	deleteErr := c.fClient.FrameworkcontrollerV1().Frameworks(f.Namespace).Delete(
-		ctx,
-		f.Name,
-		meta.DeleteOptions{
-			Preconditions:     &meta.Preconditions{UID: &f.UID},
-			PropagationPolicy: common.PtrDeletionPropagation(meta.DeletePropagationForeground),
-		})
+	deleteErr := c.fClient.FrameworkcontrollerV1().Frameworks(f.Namespace).Delete(ctx, f.Name, meta.DeleteOptions{
+		Preconditions:     &meta.Preconditions{UID: &f.UID},
+		PropagationPolicy: common.PtrDeletionPropagation(meta.DeletePropagationForeground),
+	})
 	if deleteErr != nil {
 		if !apiErrors.IsNotFound(deleteErr) {
 			return fmt.Errorf(errPfx+"%v", deleteErr)
@@ -2366,7 +2363,8 @@ func (c *FrameworkController) updateRemoteFrameworkStatus(f *ci.Framework) error
 			}
 		}
 
-		_, updateErr := c.fClient.FrameworkcontrollerV1().Frameworks(updateF.Namespace).Update(ctx, updateF, meta.UpdateOptions{})
+		_, updateErr := c.fClient.FrameworkcontrollerV1().Frameworks(updateF.Namespace).Update(
+			ctx, updateF, meta.UpdateOptions{})
 		return updateErr
 	})
 

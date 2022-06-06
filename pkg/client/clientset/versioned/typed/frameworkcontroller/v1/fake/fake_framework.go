@@ -111,7 +111,7 @@ func (c *FakeFrameworks) Update(ctx context.Context, framework *frameworkcontrol
 // Delete takes name of the framework and deletes it. Returns an error if one occurs.
 func (c *FakeFrameworks) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(frameworksResource, c.ns, name), &frameworkcontrollerv1.Framework{})
+		Invokes(testing.NewDeleteActionWithOptions(frameworksResource, c.ns, name, opts), &frameworkcontrollerv1.Framework{})
 
 	return err
 }

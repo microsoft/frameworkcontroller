@@ -47,12 +47,12 @@ func CreateClients(kConfig *rest.Config) (
 	kubeClient.Interface, frameworkClient.Interface) {
 	kClient, err := kubeClient.NewForConfig(kConfig)
 	if err != nil {
-		panic(fmt.Errorf("failed to create KubeClient: %v", err))
+		panic(fmt.Errorf("Failed to create KubeClient: %v", err))
 	}
 
 	fClient, err := frameworkClient.NewForConfig(kConfig)
 	if err != nil {
-		panic(fmt.Errorf("failed to create FrameworkClient: %v", err))
+		panic(fmt.Errorf("Failed to create FrameworkClient: %v", err))
 	}
 
 	return kClient, fClient
@@ -65,7 +65,7 @@ func PutCRD(
 
 	err := putCRDInternal(client, crd, establishedCheckIntervalSec, establishedCheckTimeoutSec)
 	if err != nil {
-		panic(fmt.Errorf("failed to put CRD: %v", err))
+		panic(fmt.Errorf("Failed to put CRD: %v", err))
 	} else {
 		klog.Infof("Succeeded to put CRD")
 	}
@@ -77,7 +77,7 @@ func DeleteCRD(config *rest.Config, name string) {
 
 	err := client.ApiextensionsV1().CustomResourceDefinitions().Delete(ctx, name, *meta.NewDeleteOptions(0))
 	if err != nil && !apiErrors.IsNotFound(err) {
-		panic(fmt.Errorf("failed to delete CRD: %v", err))
+		panic(fmt.Errorf("Failed to delete CRD: %v", err))
 	} else {
 		klog.Infof("Succeeded to delete CRD")
 	}
@@ -86,7 +86,7 @@ func DeleteCRD(config *rest.Config, name string) {
 func createCRDClient(config *rest.Config) apiClient.Interface {
 	client, err := apiClient.NewForConfig(config)
 	if err != nil {
-		panic(fmt.Errorf("failed to create CRDClient: %v", err))
+		panic(fmt.Errorf("Failed to create CRDClient: %v", err))
 	}
 
 	return client
@@ -151,14 +151,14 @@ func ToFramework(obj interface{}) *ci.Framework {
 		deletedFinalStateUnknown, ok := obj.(cache.DeletedFinalStateUnknown)
 		if !ok {
 			panic(fmt.Errorf(
-				"failed to convert obj to Framework or DeletedFinalStateUnknown: %#v",
+				"Failed to convert obj to Framework or DeletedFinalStateUnknown: %#v",
 				obj))
 		}
 
 		f, ok = deletedFinalStateUnknown.Obj.(*ci.Framework)
 		if !ok {
 			panic(fmt.Errorf(
-				"failed to convert DeletedFinalStateUnknown.Obj to Framework: %#v",
+				"Failed to convert DeletedFinalStateUnknown.Obj to Framework: %#v",
 				deletedFinalStateUnknown))
 		}
 	}
@@ -174,14 +174,14 @@ func ToConfigMap(obj interface{}) *core.ConfigMap {
 		deletedFinalStateUnknown, ok := obj.(cache.DeletedFinalStateUnknown)
 		if !ok {
 			panic(fmt.Errorf(
-				"failed to convert obj to ConfigMap or DeletedFinalStateUnknown: %#v",
+				"Failed to convert obj to ConfigMap or DeletedFinalStateUnknown: %#v",
 				obj))
 		}
 
 		cm, ok = deletedFinalStateUnknown.Obj.(*core.ConfigMap)
 		if !ok {
 			panic(fmt.Errorf(
-				"failed to convert DeletedFinalStateUnknown.Obj to ConfigMap: %#v",
+				"Failed to convert DeletedFinalStateUnknown.Obj to ConfigMap: %#v",
 				deletedFinalStateUnknown))
 		}
 	}
@@ -197,14 +197,14 @@ func ToPod(obj interface{}) *core.Pod {
 		deletedFinalStateUnknown, ok := obj.(cache.DeletedFinalStateUnknown)
 		if !ok {
 			panic(fmt.Errorf(
-				"failed to convert obj to Pod or DeletedFinalStateUnknown: %#v",
+				"Failed to convert obj to Pod or DeletedFinalStateUnknown: %#v",
 				obj))
 		}
 
 		pod, ok = deletedFinalStateUnknown.Obj.(*core.Pod)
 		if !ok {
 			panic(fmt.Errorf(
-				"failed to convert DeletedFinalStateUnknown.Obj to Pod: %#v",
+				"Failed to convert DeletedFinalStateUnknown.Obj to Pod: %#v",
 				deletedFinalStateUnknown))
 		}
 	}
