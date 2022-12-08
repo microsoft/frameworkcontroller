@@ -1,6 +1,7 @@
 # <a name="UserManual">User Manual</a>
 
 ## <a name="Index">Index</a>
+   - [FrameworkController DeepDive](#FrameworkControllerDeepDive)
    - [Framework Interop](#FrameworkInterop)
    - [Framework ExecutionType](#FrameworkExecutionType)
    - [Predefined Container EnvironmentVariable](#PredefinedContainerEnvironmentVariable)
@@ -18,6 +19,9 @@
      - [FrameworkBarrier](#FrameworkBarrier)
      - [HiveDScheduler](#HiveDScheduler)
    - [Best Practice](#BestPractice)
+
+## <a name="FrameworkControllerDeepDive">FrameworkController DeepDive Slides</a>
+See [FrameworkController DeepDive.pptx](deep-dive.pptx)
 
 ## <a name="FrameworkInterop">Framework Interop</a>
 ### <a name="SupportedClient">Supported Client</a>
