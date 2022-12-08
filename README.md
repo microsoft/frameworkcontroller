@@ -82,10 +82,11 @@ A Framework represents an application with a set of Tasks:
 2. [Submit Framework](example/framework)
 
 ## Doc
-1. [User Manual](doc/user-manual.md)
-2. [Known Issue and Upcoming Feature](doc/known-issue-and-upcoming-feature.md)
-3. FAQ
-4. Release Note
+1. [Deep Dive Slides](doc/deep-dive.pptx)
+2. [User Manual](doc/user-manual.md)
+3. [Known Issue and Upcoming Feature](doc/known-issue-and-upcoming-feature.md)
+4. FAQ
+5. Release Note
 
 ## Official Image
 * [DockerHub](https://hub.docker.com/u/frameworkcontroller)
