@@ -1,3 +1,5 @@
+**_Turn it into maintenance mode, read-only, and only update for critical fixes._**
+
 # Microsoft OpenPAI FrameworkController
 
 [![Build Status](https://github.com/microsoft/frameworkcontroller/workflows/build/badge.svg?branch=master&event=push)](https://github.com/microsoft/frameworkcontroller/actions?query=workflow%3Abuild+branch%3Amaster+event%3Apush)
